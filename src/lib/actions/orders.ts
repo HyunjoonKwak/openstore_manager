@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { OrderStatus } from '@/types/database.types'
+import { parseError, formatErrorMessage } from '@/lib/error-messages'
 
 export interface OrderWithProduct {
   id: string
@@ -151,7 +152,7 @@ export async function getOrders(): Promise<{ data: OrderWithProduct[] | null; er
     .order('order_date', { ascending: false })
 
   if (error) {
-    return { data: null, error: error.message }
+    return { data: null, error: formatErrorMessage(parseError(error, 'order', 'fetch')) }
   }
 
   const typedOrders = orders as unknown as OrderRow[]
@@ -211,7 +212,7 @@ export async function updateOrderStatus(
     .eq('id', orderId)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatErrorMessage(parseError(error, 'order', 'update')) }
   }
 
   revalidatePath('/orders')
@@ -236,7 +237,7 @@ export async function updateTrackingNumber(
     .eq('id', orderId)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatErrorMessage(parseError(error, 'order', 'update')) }
   }
 
   revalidatePath('/orders')
@@ -294,7 +295,7 @@ export async function deleteOrder(
     .eq('id', orderId)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatErrorMessage(parseError(error, 'order', 'delete')) }
   }
 
   revalidatePath('/orders')

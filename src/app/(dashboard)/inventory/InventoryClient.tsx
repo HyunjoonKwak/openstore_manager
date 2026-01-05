@@ -54,6 +54,7 @@ import { uploadProductsFromExcel, generateProductTemplate } from '@/lib/actions/
 import { copyProductToStore } from '@/lib/actions/store-management'
 import type { SupplierWithStats } from '@/lib/actions/suppliers'
 import { cn } from '@/lib/utils'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 
 const STATUS_LABELS: Record<string, string> = {
   SALE: '판매중',
@@ -127,6 +128,8 @@ export function InventoryClient({
   const [copyTargetProduct, setCopyTargetProduct] = useState<ProductWithSupplier | null>(null)
   const [copyTargetStoreId, setCopyTargetStoreId] = useState('')
   const [isCopying, setIsCopying] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTargetProduct, setDeleteTargetProduct] = useState<ProductWithSupplier | null>(null)
 
   const resetForm = () => {
     setFormData({
@@ -248,13 +251,25 @@ export function InventoryClient({
   }
 
   const handleSave = () => {
-    if (!formData.name || !formData.price) {
-      toast.error('상품명과 가격을 입력해주세요.')
+    const errors: string[] = []
+    
+    if (!formData.name.trim()) {
+      errors.push('상품명')
+    }
+    if (!formData.price || Number(formData.price) <= 0) {
+      errors.push('가격 (0보다 큰 값)')
+    }
+    if (formData.stockQuantity && Number(formData.stockQuantity) < 0) {
+      errors.push('재고 수량 (0 이상)')
+    }
+    
+    if (errors.length > 0) {
+      toast.error(`다음 항목을 확인해주세요: ${errors.join(', ')}`)
       return
     }
 
     if (!formData.storeId) {
-      toast.error('스토어를 먼저 등록해주세요.')
+      toast.error('스토어를 먼저 등록해주세요. 설정 > 스토어 관리에서 추가할 수 있습니다.')
       return
     }
 
@@ -314,18 +329,24 @@ export function InventoryClient({
     })
   }
 
-  const handleDelete = (id: string) => {
-    startTransition(async () => {
-      const result = await deleteProduct(id)
-      if (result.success) {
-        const updatedProducts = products.filter((p) => p.id !== id)
-        setProducts(updatedProducts)
-        recalculateStats(updatedProducts)
-        toast.success('상품이 삭제되었습니다.')
-      } else {
-        toast.error(result.error || '삭제에 실패했습니다.')
-      }
-    })
+  const handleOpenDeleteDialog = (product: ProductWithSupplier) => {
+    setDeleteTargetProduct(product)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTargetProduct) return
+    
+    const result = await deleteProduct(deleteTargetProduct.id)
+    if (result.success) {
+      const updatedProducts = products.filter((p) => p.id !== deleteTargetProduct.id)
+      setProducts(updatedProducts)
+      recalculateStats(updatedProducts)
+      toast.success('상품이 삭제되었습니다.')
+    } else {
+      toast.error(result.error || '삭제에 실패했습니다. 잠시 후 다시 시도해주세요.')
+    }
+    setDeleteTargetProduct(null)
   }
 
   const handleOpenCopyDialog = (product: ProductWithSupplier) => {
@@ -759,9 +780,34 @@ export function InventoryClient({
             {filteredProducts.length === 0 ? (
               <div className="py-12 text-center">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  {products.length === 0 ? '등록된 상품이 없습니다.' : '검색 결과가 없습니다.'}
-                </p>
+                {products.length === 0 ? (
+                  <>
+                    <h3 className="text-lg font-semibold mb-2">등록된 상품이 없습니다</h3>
+                    <p className="text-muted-foreground mb-4">
+                      상품을 직접 추가하거나 네이버 스마트스토어에서 동기화해보세요.
+                    </p>
+                    <div className="flex justify-center gap-2">
+                      <Button variant="outline" onClick={handleNaverSync} disabled={isSyncing}>
+                        <RefreshCw className={cn('h-4 w-4 mr-2', isSyncing && 'animate-spin')} />
+                        네이버에서 동기화
+                      </Button>
+                      <Button onClick={() => handleOpenDialog()}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        상품 추가
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-semibold mb-2">검색 결과가 없습니다</h3>
+                    <p className="text-muted-foreground mb-4">
+                      다른 검색어로 다시 시도하거나 필터를 변경해보세요.
+                    </p>
+                    <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>
+                      검색 초기화
+                    </Button>
+                  </>
+                )}
               </div>
             ) : (
               <Table>
@@ -899,7 +945,7 @@ export function InventoryClient({
                             )}
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => handleDelete(product.id)}
+                              onClick={() => handleOpenDeleteDialog(product)}
                             >
                               <Trash className="h-4 w-4 mr-2" />
                               삭제
@@ -970,6 +1016,15 @@ export function InventoryClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="상품 삭제"
+        itemName={deleteTargetProduct?.name}
+        description={`"${deleteTargetProduct?.name}" 상품을 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 관련된 주문 기록에는 영향을 주지 않습니다.`}
+        onConfirm={handleDelete}
+      />
     </>
   )
 }

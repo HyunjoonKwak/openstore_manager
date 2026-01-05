@@ -116,7 +116,7 @@ interface OrdersTableProps {
   selectedIds?: string[]
   onSelectionChange?: (ids: string[]) => void
   onStatusChange?: (orderId: string, status: OrderStatus) => void
-  onCancel?: (orderId: string) => void
+  onCancel?: (order: OrderTableItem) => void
 }
 
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
@@ -420,7 +420,7 @@ export function OrdersTable({
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => onCancel?.(order.id)}
+                          onClick={() => onCancel?.(order)}
                           disabled={order.status === 'Cancelled' || order.status === 'Shipped'}
                         >
                           취소

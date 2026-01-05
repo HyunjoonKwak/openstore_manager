@@ -18,6 +18,7 @@ import { useStore } from '@/contexts/StoreContext'
 import { toast } from 'sonner'
 import type { OrderStatus } from '@/types/database.types'
 import { cn } from '@/lib/utils'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 
 interface OrdersClientProps {
   initialOrders: OrderTableItem[]
@@ -34,6 +35,8 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const [isSyncing, setIsSyncing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [cancelTargetOrder, setCancelTargetOrder] = useState<OrderTableItem | null>(null)
 
   const pendingCount = orders.filter((o) => o.status === 'New').length
 
@@ -165,18 +168,24 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     })
   }
 
-  const handleCancel = (orderId: string) => {
-    startTransition(async () => {
-      const result = await cancelOrder(orderId)
-      if (result.success) {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: 'Cancelled' as OrderStatus } : o))
-        )
-        toast.success('주문이 취소되었습니다.')
-      } else {
-        toast.error(result.error || '주문 취소에 실패했습니다.')
-      }
-    })
+  const handleOpenCancelDialog = (order: OrderTableItem) => {
+    setCancelTargetOrder(order)
+    setCancelDialogOpen(true)
+  }
+
+  const handleCancel = async () => {
+    if (!cancelTargetOrder) return
+    
+    const result = await cancelOrder(cancelTargetOrder.id)
+    if (result.success) {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === cancelTargetOrder.id ? { ...o, status: 'Cancelled' as OrderStatus } : o))
+      )
+      toast.success('주문이 취소되었습니다.')
+    } else {
+      toast.error(result.error || '주문 취소에 실패했습니다. 이미 배송 중인 주문은 취소할 수 없습니다.')
+    }
+    setCancelTargetOrder(null)
   }
 
   return (
@@ -296,7 +305,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
               selectedIds={selectedOrderIds}
               onSelectionChange={setSelectedOrderIds}
               onStatusChange={handleStatusChange}
-              onCancel={handleCancel}
+              onCancel={handleOpenCancelDialog}
             />
           </CardContent>
         </Card>
@@ -328,6 +337,19 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
             </Card>
           </div>
         )}
+
+        <ConfirmDeleteDialog
+          open={cancelDialogOpen}
+          onOpenChange={setCancelDialogOpen}
+          title="주문 취소"
+          itemName={cancelTargetOrder ? `주문 #${cancelTargetOrder.platformOrderId}` : undefined}
+          description={
+            cancelTargetOrder
+              ? `주문 #${cancelTargetOrder.platformOrderId} (${cancelTargetOrder.product.name})을(를) 취소하시겠습니까? 취소된 주문은 복구할 수 없습니다.`
+              : undefined
+          }
+          onConfirm={handleCancel}
+        />
       </div>
     </>
   )

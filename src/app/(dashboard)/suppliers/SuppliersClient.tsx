@@ -56,6 +56,7 @@ import {
   type CourierData,
 } from '@/lib/actions/couriers'
 import type { ContactMethod } from '@/types/database.types'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 
 interface SuppliersClientProps {
   initialSuppliers: SupplierWithStats[]
@@ -96,6 +97,8 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
   const [editingCourier, setEditingCourier] = useState<CourierData | null>(null)
   const [settingsSupplier, setSettingsSupplier] = useState<SupplierWithStats | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'supplier' | 'courier'; id: string; name: string } | null>(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -174,8 +177,22 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
   }
 
   const handleSave = () => {
-    if (!formData.name || !formData.contactNumber) {
-      toast.error('모든 필드를 입력해주세요.')
+    const errors: string[] = []
+    
+    if (!formData.name.trim()) {
+      errors.push('업체명')
+    }
+    if (!formData.contactNumber.trim()) {
+      errors.push('연락처')
+    } else {
+      const phonePattern = /^[0-9]{2,3}-?[0-9]{3,4}-?[0-9]{4}$/
+      if (!phonePattern.test(formData.contactNumber.replace(/-/g, ''))) {
+        errors.push('유효한 연락처 형식 (예: 010-1234-5678)')
+      }
+    }
+    
+    if (errors.length > 0) {
+      toast.error(`다음 항목을 확인해주세요: ${errors.join(', ')}`)
       return
     }
 
@@ -221,8 +238,12 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
   }
 
   const handleSaveCourier = () => {
-    if (!courierFormData.name || !courierFormData.code) {
-      toast.error('모든 필드를 입력해주세요.')
+    if (!courierFormData.code) {
+      toast.error('택배사를 선택해주세요.')
+      return
+    }
+    if (!courierFormData.name.trim()) {
+      toast.error('표시명을 입력해주세요.')
       return
     }
 
@@ -311,28 +332,32 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
     })
   }
 
-  const handleDelete = (id: string) => {
-    startTransition(async () => {
-      const result = await deleteSupplier(id)
-      if (result.success) {
-        setSuppliers((prev) => prev.filter((s) => s.id !== id))
-        toast.success('공급업체가 삭제되었습니다.')
-      } else {
-        toast.error(result.error || '삭제에 실패했습니다.')
-      }
-    })
+  const handleOpenDeleteDialog = (type: 'supplier' | 'courier', id: string, name: string) => {
+    setDeleteTarget({ type, id, name })
+    setDeleteDialogOpen(true)
   }
 
-  const handleDeleteCourier = (id: string) => {
-    startTransition(async () => {
-      const result = await deleteCourier(id)
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    
+    if (deleteTarget.type === 'supplier') {
+      const result = await deleteSupplier(deleteTarget.id)
       if (result.success) {
-        setCouriers((prev) => prev.filter((c) => c.id !== id))
+        setSuppliers((prev) => prev.filter((s) => s.id !== deleteTarget.id))
+        toast.success('공급업체가 삭제되었습니다.')
+      } else {
+        toast.error(result.error || '삭제에 실패했습니다. 연결된 상품이 있는지 확인해주세요.')
+      }
+    } else {
+      const result = await deleteCourier(deleteTarget.id)
+      if (result.success) {
+        setCouriers((prev) => prev.filter((c) => c.id !== deleteTarget.id))
         toast.success('택배업체가 삭제되었습니다.')
       } else {
-        toast.error(result.error || '삭제에 실패했습니다.')
+        toast.error(result.error || '삭제에 실패했습니다. 연결된 공급업체가 있는지 확인해주세요.')
       }
-    })
+    }
+    setDeleteTarget(null)
   }
 
   const formatDate = (dateString: string | null) => {
@@ -433,8 +458,16 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
               </CardHeader>
               <CardContent className="p-0">
                 {suppliers.length === 0 ? (
-                  <div className="py-12 text-center text-muted-foreground">
-                    등록된 공급업체가 없습니다.
+                  <div className="py-12 text-center">
+                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">등록된 공급업체가 없습니다</h3>
+                    <p className="text-muted-foreground mb-4">
+                      공급업체를 등록하면 주문을 자동으로 전달하고 발주를 관리할 수 있습니다.
+                    </p>
+                    <Button onClick={() => handleOpenDialog()}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      공급업체 추가
+                    </Button>
                   </div>
                 ) : (
                   <Table>
@@ -505,7 +538,7 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-destructive"
-                                  onClick={() => handleDelete(supplier.id)}
+                                  onClick={() => handleOpenDeleteDialog('supplier', supplier.id, supplier.name)}
                                 >
                                   <Trash className="h-4 w-4 mr-2" />
                                   삭제
@@ -607,8 +640,16 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
               </CardHeader>
               <CardContent className="p-0">
                 {couriers.length === 0 ? (
-                  <div className="py-12 text-center text-muted-foreground">
-                    등록된 택배업체가 없습니다.
+                  <div className="py-12 text-center">
+                    <Truck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">등록된 택배업체가 없습니다</h3>
+                    <p className="text-muted-foreground mb-4">
+                      택배업체를 등록하면 운송장 번호 관리와 배송 추적이 가능합니다.
+                    </p>
+                    <Button onClick={() => handleOpenCourierDialog()}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      택배업체 추가
+                    </Button>
                   </div>
                 ) : (
                   <Table>
@@ -659,7 +700,7 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-destructive"
-                                  onClick={() => handleDeleteCourier(courier.id)}
+                                  onClick={() => handleOpenDeleteDialog('courier', courier.id, courier.name)}
                                 >
                                   <Trash className="h-4 w-4 mr-2" />
                                   삭제
@@ -843,6 +884,19 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ConfirmDeleteDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title={deleteTarget?.type === 'supplier' ? '공급업체 삭제' : '택배업체 삭제'}
+          itemName={deleteTarget?.name}
+          description={
+            deleteTarget?.type === 'supplier'
+              ? `"${deleteTarget?.name}" 공급업체를 삭제하시겠습니까? 연결된 상품의 공급업체 정보가 해제됩니다.`
+              : `"${deleteTarget?.name}" 택배업체를 삭제하시겠습니까? 연결된 공급업체의 택배 설정이 해제됩니다.`
+          }
+          onConfirm={handleConfirmDelete}
+        />
       </div>
     </>
   )

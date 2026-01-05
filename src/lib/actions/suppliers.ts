@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ContactMethod } from '@/types/database.types'
+import { parseError, formatErrorMessage } from '@/lib/error-messages'
 
 export interface SupplierWithStats {
   id: string
@@ -49,7 +50,7 @@ export async function getSuppliers(): Promise<{ data: SupplierWithStats[] | null
     .order('created_at', { ascending: false })
 
   if (error) {
-    return { data: null, error: error.message }
+    return { data: null, error: formatErrorMessage(parseError(error, 'supplier', 'fetch')) }
   }
 
   const typedSuppliers = suppliers as unknown as SupplierRow[]
@@ -114,7 +115,7 @@ export async function createSupplier(
     .single()
 
   if (error) {
-    return { data: null, error: error.message }
+    return { data: null, error: formatErrorMessage(parseError(error, 'supplier', 'create')) }
   }
 
   const typedData = data as unknown as SupplierRow
@@ -176,7 +177,7 @@ export async function updateSupplier(
     .eq('id', input.id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatErrorMessage(parseError(error, 'supplier', 'update')) }
   }
 
   revalidatePath('/suppliers')
@@ -194,7 +195,7 @@ export async function deleteSupplier(
     .eq('id', id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatErrorMessage(parseError(error, 'supplier', 'delete')) }
   }
 
   revalidatePath('/suppliers')
@@ -223,7 +224,7 @@ export async function getSuppliersSimple(): Promise<{ data: SupplierSimple[] | n
     .order('name', { ascending: true })
 
   if (error) {
-    return { data: null, error: error.message }
+    return { data: null, error: formatErrorMessage(parseError(error, 'supplier', 'fetch')) }
   }
 
   const typedSuppliers = suppliers as unknown as SupplierRow[]

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { parseError, formatErrorMessage } from '@/lib/error-messages'
 
 export interface ProductWithSupplier {
   id: string
@@ -78,7 +79,7 @@ export async function getProducts(): Promise<{ data: ProductWithSupplier[] | nul
     .order('created_at', { ascending: false })
 
   if (error) {
-    return { data: null, error: error.message }
+    return { data: null, error: formatErrorMessage(parseError(error, 'product', 'fetch')) }
   }
 
   const typedProducts = products as unknown as ProductRow[]
@@ -195,7 +196,7 @@ export async function createProduct(
     .single()
 
   if (error) {
-    return { data: null, error: error.message }
+    return { data: null, error: formatErrorMessage(parseError(error, 'product', 'create')) }
   }
 
   const typedData = data as unknown as ProductRow
@@ -250,7 +251,7 @@ export async function updateProduct(
     .eq('id', input.id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatErrorMessage(parseError(error, 'product', 'update')) }
   }
 
   revalidatePath('/inventory')
@@ -269,7 +270,7 @@ export async function updateStock(
     .eq('id', productId)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatErrorMessage(parseError(error, 'product', 'update')) }
   }
 
   revalidatePath('/inventory')
@@ -287,7 +288,7 @@ export async function deleteProduct(
     .eq('id', id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: formatErrorMessage(parseError(error, 'product', 'delete')) }
   }
 
   revalidatePath('/inventory')
