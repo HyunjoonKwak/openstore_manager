@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bunx oh-my-opencode install:*)",
+      "Bash(npx oh-my-opencode:*)",
+      "Bash(curl:*)",
+      "Bash(bash)",
+      "Bash(~/.bun/bin/bunx oh-my-opencode install:*)"
+    ]
+  }
+}

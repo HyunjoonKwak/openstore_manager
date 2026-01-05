@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Order List Management - SmartStore Manager</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0f1729", // Deep blue-black cockpit background
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#14171e", // Standard dark bg
+                        "surface-dark": "#1e293b", // Lighter surface for panels
+                        "accent-blue": "#3b82f6",
+                        "accent-green": "#10b981",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for the cockpit look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f1729; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display h-screen overflow-hidden flex">
+<!-- Sidebar Navigation -->
+<aside class="w-64 bg-primary flex flex-col border-r border-white/10 shrink-0 h-full z-20">
+<div class="p-6 flex items-center gap-3">
+<div class="size-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
+<span class="material-symbols-outlined">rocket_launch</span>
+</div>
+<div>
+<h1 class="text-white text-base font-bold leading-tight tracking-wide">SmartStore</h1>
+<p class="text-slate-400 text-xs font-medium">Manager Pro</p>
+</div>
+</div>
+<nav class="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-blue-400 transition-colors">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/10 text-white shadow-sm ring-1 ring-white/5" href="#">
+<span class="material-symbols-outlined text-blue-400 fill">receipt_long</span>
+<span class="text-sm font-medium">Orders</span>
+<span class="ml-auto bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">5</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-purple-400 transition-colors">auto_awesome</span>
+<span class="text-sm font-medium">Product AI</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-emerald-400 transition-colors">analytics</span>
+<span class="text-sm font-medium">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-orange-400 transition-colors">inventory_2</span>
+<span class="text-sm font-medium">Inventory</span>
+</a>
+</nav>
+<div class="p-3 mt-auto border-t border-white/10">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+<div class="mt-4 flex items-center gap-3 px-3 pb-2">
+<div class="size-8 rounded-full bg-slate-700 bg-cover bg-center ring-2 ring-white/10" data-alt="User avatar placeholder" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDrQ_UrnxJrS9kf27ztYdIOxRv_lQXyi11p-Yu67vn7sj0oZTPzT5Nq7nAN8D-VgEtrF-94emwPh7AIlvCrOYj2X5d038XF24Ko3IAv37S_pqyEDOd75ZYUTdWfRHibFOxYu9uUS0yzf6fET-evtBOjIBcd3-QnCh118moWyZp8KRuMFTdAWuozh3Eqb6wNjX0F7UD3flOFjm8Gaq_SX2VoerZ6a7dA-jxj5x38DOgemBn7KkvRufwjUhu6Q7hfSo4IX_CnC1leIPE5');"></div>
+<div class="flex flex-col">
+<p class="text-white text-sm font-medium">Alex Chen</p>
+<p class="text-slate-500 text-xs">Admin</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-full min-w-0 bg-background-dark relative overflow-hidden">
+<!-- Top Bar / Header -->
+<header class="h-20 border-b border-white/10 bg-primary/95 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-10">
+<div class="flex flex-col justify-center">
+<div class="flex items-center gap-3">
+<h2 class="text-white text-xl font-bold tracking-tight">Mission Control: Orders</h2>
+<span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-medium px-2 py-0.5 rounded uppercase tracking-wider">Live</span>
+</div>
+<p class="text-slate-400 text-sm mt-0.5 font-mono">1,204 Total Orders <span class="text-slate-600 mx-2">|</span> <span class="text-orange-400">5 Action Required</span></p>
+</div>
+<div class="flex items-center gap-3">
+<button class="h-9 px-4 rounded-lg bg-surface-dark border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 hover:border-white/20 transition-all flex items-center gap-2 text-sm font-medium">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                    Export Data
+                </button>
+<button class="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/50 transition-all flex items-center gap-2 text-sm font-bold">
+<span class="material-symbols-outlined text-[18px] fill">send</span>
+                    Process All
+                </button>
+</div>
+</header>
+<!-- Filters & Toolbar -->
+<div class="p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 shrink-0">
+<!-- Search -->
+<div class="lg:col-span-4 relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors">
+<span class="material-symbols-outlined">search</span>
+</span>
+<input class="w-full bg-surface-dark border border-white/10 rounded-lg pl-10 pr-4 h-10 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm" placeholder="Search Order ID, SKU, or Customer..." type="text"/>
+</div>
+<!-- Filter Chips -->
+<div class="lg:col-span-8 flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
+<button class="h-8 pl-3 pr-2 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 flex items-center gap-2 text-xs font-medium transition-colors whitespace-nowrap">
+                    Status: All
+                    <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<button class="h-8 pl-3 pr-2 rounded bg-surface-dark border border-white/10 text-slate-300 hover:bg-white/5 hover:border-white/20 flex items-center gap-2 text-xs font-medium transition-colors whitespace-nowrap">
+                    Date: Last 7 Days
+                    <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<button class="h-8 pl-3 pr-2 rounded bg-surface-dark border border-white/10 text-slate-300 hover:bg-white/5 hover:border-white/20 flex items-center gap-2 text-xs font-medium transition-colors whitespace-nowrap">
+                    Supplier: AliExpress
+                    <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<button class="h-8 pl-3 pr-2 rounded bg-surface-dark border border-white/10 text-slate-300 hover:bg-white/5 hover:border-white/20 flex items-center gap-2 text-xs font-medium transition-colors whitespace-nowrap">
+                    Priority: High
+                    <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<div class="h-4 w-px bg-white/10 mx-1"></div>
+<button class="text-slate-500 hover:text-white text-xs font-medium flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+                    Advanced
+                </button>
+</div>
+</div>
+<!-- Data Table -->
+<div class="flex-1 overflow-auto px-4 pb-20">
+<div class="min-w-full inline-block align-middle">
+<div class="border border-white/10 rounded-lg overflow-hidden bg-surface-dark/50">
+<table class="min-w-full divide-y divide-white/10">
+<thead class="bg-surface-dark sticky top-0 z-10">
+<tr>
+<th class="px-4 py-3 text-left w-12" scope="col">
+<input class="rounded border-slate-600 bg-transparent text-blue-600 focus:ring-0 focus:ring-offset-0 transition-colors" type="checkbox"/>
+</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider" scope="col">Order ID</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider" scope="col">Date</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider" scope="col">Customer</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider" scope="col">Product</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider" scope="col">Total</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider" scope="col">Supplier Status</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider" scope="col">Delivery</th>
+<th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider" scope="col">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5 bg-transparent">
+<!-- Row 1: High Priority -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-4 py-4 whitespace-nowrap">
+<input class="rounded border-slate-600 bg-transparent text-blue-600 focus:ring-0 focus:ring-offset-0 transition-colors" type="checkbox"/>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="text-sm font-mono text-white font-medium">#ORD-9921</span>
+<div class="flex items-center gap-1 mt-1">
+<span class="size-2 rounded-full bg-orange-500 animate-pulse"></span>
+<span class="text-[10px] text-orange-400">Action Needed</span>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm text-slate-300">10 mins ago</div>
+<div class="text-xs text-slate-500">10:42 AM</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="size-8 rounded-full bg-purple-900/50 text-purple-200 flex items-center justify-center text-xs font-bold ring-1 ring-white/10 mr-3">JD</div>
+<div>
+<div class="text-sm font-medium text-white">John Doe</div>
+<div class="text-xs text-slate-500">USA</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="h-10 w-10 shrink-0 rounded bg-slate-800 bg-cover bg-center border border-white/10" data-alt="Product thumbnail of wireless earbuds" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC08JFcl_S680qlmr7uMwALLbL7FguZu6vgQDnocIStCZ0eNHFO_59N2SgjMiTJPRao3dJ5wKKdzHRFJZYcCodS8IEVPF-Aim7bcYRE3Eshr_x1fL8qsYtYI-6CMzXrtSTSDg6j-WfXSQkHgvonN1FyEJ6QNOn7fUs8b7HZzkh1jVFvPisCEvpHU7FDcbZxYj27eEmwkTxYPvHVQr2_zofz-riibg7Rii-6cFsP9xG6Ikipj_N_Lagrp_ozCwtTPc72NgVHMXH_0JdI');"></div>
+<div class="ml-4">
+<div class="text-sm font-medium text-white">Wireless Earbuds Pro</div>
+<div class="text-xs text-slate-500 font-mono">SKU: WE-2024-X</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm font-medium text-white">$45.00</div>
+<div class="text-xs text-slate-500">1 item</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
+<span class="size-1.5 rounded-full bg-orange-400"></span>
+                                        Pending Supplier
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-slate-700/50 text-slate-400 border border-white/5">
+                                        Not Shipped
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded border border-blue-500/20 transition-all">Send to Supplier</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-4 py-4 whitespace-nowrap">
+<input class="rounded border-slate-600 bg-transparent text-blue-600 focus:ring-0 focus:ring-offset-0 transition-colors" type="checkbox"/>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="text-sm font-mono text-white">#ORD-9920</span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm text-slate-300">1 hour ago</div>
+<div class="text-xs text-slate-500">09:15 AM</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="size-8 rounded-full bg-emerald-900/50 text-emerald-200 flex items-center justify-center text-xs font-bold ring-1 ring-white/10 mr-3">JS</div>
+<div>
+<div class="text-sm font-medium text-white">Jane Smith</div>
+<div class="text-xs text-slate-500">Canada</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="h-10 w-10 shrink-0 rounded bg-slate-800 bg-cover bg-center border border-white/10" data-alt="Product thumbnail of USB hub" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAekSqV3IXO0qt55Y1HunfhJiuxFSXiT8TYK25EP9RNlCIj70rO0s7B8GIESeE6KVJ3hefnlwmrAtPmltxfNzhc0XFcQ0DF6wSeLGRW1PdoRiDTHrII5BO-YmLEYZxLT8tiyM3F4s5Hg1EeVopXvLWzToBsAW1ih2gwTGRb7zdldoZmpl3l0NtfcKHEQ9jkViRyscwbBiWzUn8qYg460YMOC1JWnC0w3PdVQBmFGPg5VVR4nx-le5YQWJSU8SPVOnY8fBtfSvXfEgU1');"></div>
+<div class="ml-4">
+<div class="text-sm font-medium text-white">USB-C Hub 7-in-1</div>
+<div class="text-xs text-slate-500 font-mono">SKU: HUB-C-44</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm font-medium text-white">$22.50</div>
+<div class="text-xs text-slate-500">2 items</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+<span class="size-1.5 rounded-full bg-blue-400"></span>
+                                        Processing
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                                        Packing
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-slate-400 hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-4 py-4 whitespace-nowrap">
+<input class="rounded border-slate-600 bg-transparent text-blue-600 focus:ring-0 focus:ring-offset-0 transition-colors" type="checkbox"/>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="text-sm font-mono text-white">#ORD-9919</span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm text-slate-300">3 hours ago</div>
+<div class="text-xs text-slate-500">07:20 AM</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="size-8 rounded-full bg-blue-900/50 text-blue-200 flex items-center justify-center text-xs font-bold ring-1 ring-white/10 mr-3">MR</div>
+<div>
+<div class="text-sm font-medium text-white">Mike Ross</div>
+<div class="text-xs text-slate-500">UK</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="h-10 w-10 shrink-0 rounded bg-slate-800 bg-cover bg-center border border-white/10" data-alt="Product thumbnail of LED strip" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuABeeg5xqNO95lZixdTm-ANwPWtAR8QUWrY6koTx-OUyAOqjopX2FEtg0dfqojMbYNCIoJQd6HmnW9oDCoEkgwTwhtJE4uM7ReePnKf5l3f6_6_Uev6MrRYjiV4upusNPJ3eSWV9wtQyXj9dN3tys5l8-ltlN_gMORAyNFh1uV3-BniMiR4vDMWB7pRC23nQT2WXWtw8kEDk2n08THwwQtMj8y9-DolOxzdKWHs8_RChYXG7KqnPAYPDWC2aV3cHxP6Gq269kmaksEi');"></div>
+<div class="ml-4">
+<div class="text-sm font-medium text-white">RGB LED Strip 5m</div>
+<div class="text-xs text-slate-500 font-mono">SKU: LS-ALU-01</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm font-medium text-white">$39.99</div>
+<div class="text-xs text-slate-500">1 item</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+<span class="material-symbols-outlined text-[14px]">error</span>
+                                        Sync Error
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-slate-700/50 text-slate-400 border border-white/5">
+                                        Pending
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-white bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded text-xs font-bold transition-all shadow-sm shadow-red-900/20">Retry</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-4 py-4 whitespace-nowrap">
+<input checked="" class="rounded border-slate-600 bg-transparent text-blue-600 focus:ring-0 focus:ring-offset-0 transition-colors" type="checkbox"/>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="text-sm font-mono text-white">#ORD-9918</span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm text-slate-300">5 hours ago</div>
+<div class="text-xs text-slate-500">05:10 AM</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="size-8 rounded-full bg-indigo-900/50 text-indigo-200 flex items-center justify-center text-xs font-bold ring-1 ring-white/10 mr-3">RZ</div>
+<div>
+<div class="text-sm font-medium text-white">Rachel Z</div>
+<div class="text-xs text-slate-500">Germany</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="h-10 w-10 shrink-0 rounded bg-slate-800 bg-cover bg-center border border-white/10" data-alt="Product thumbnail of mechanical keyboard" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_wRP08RIHCEK8EkB62J7GqcKF0Y66xrNY9E6aVlF_JQwfxEwrrcQyjpidisssGKaZbGq8VGckdO3Z9PgyRlwHc_Js5wMwI4bNSv-cNbJwtT_p-jqy9dvWeCjupX-zvUR2h01x3JUmqHAeiWGnTajF66l9gHI_7Q4c0PIUn0AxViJUB_-ad6ICHrzYl7j8y2vGPpX4Gl5Slwmz8uHdhOV3liOK9lEsWal2uIaLmZsOi4ZUcxwURysfbnvMx_5QJPhSCMDUepKUEzB6');"></div>
+<div class="ml-4">
+<div class="text-sm font-medium text-white">Mech Keyboard K2</div>
+<div class="text-xs text-slate-500 font-mono">SKU: KB-RGB-99</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm font-medium text-white">$120.00</div>
+<div class="text-xs text-slate-500">1 item</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+<span class="size-1.5 rounded-full bg-emerald-400"></span>
+                                        Acknowledged
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        Shipped
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-slate-400 hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-4 py-4 whitespace-nowrap">
+<input class="rounded border-slate-600 bg-transparent text-blue-600 focus:ring-0 focus:ring-offset-0 transition-colors" type="checkbox"/>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="text-sm font-mono text-white">#ORD-9917</span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm text-slate-300">Yesterday</div>
+<div class="text-xs text-slate-500">4:30 PM</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="size-8 rounded-full bg-pink-900/50 text-pink-200 flex items-center justify-center text-xs font-bold ring-1 ring-white/10 mr-3">SL</div>
+<div>
+<div class="text-sm font-medium text-white">Sarah Lee</div>
+<div class="text-xs text-slate-500">Australia</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="h-10 w-10 shrink-0 rounded bg-slate-800 bg-cover bg-center border border-white/10" data-alt="Product thumbnail of monitor arm" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBCb6CsGSvcDkxNQGDUNcof3c8fzlU_lNeem-GRpRDeCsPJ1Q2V6hGpoS3qWNM9nsBJv__fgvwyJrhK9fQByh_qoEwc17wF_CKAAYsiw0you6rHaVrlWs7KgJkMNFQUBrdk85IbWANlzMdBX8XMTu00TbxAceIxUkNrMErzQT8xM8dCwtnv64iSncFz9cmzv-2BHiviXfL_Fdmbr1FBR_9sILjLKSadjBPFGR9AvERS7I1tKzch-CsvjuHHj0XuA5W0A2ttPo7yZ8JO');"></div>
+<div class="ml-4">
+<div class="text-sm font-medium text-white">Monitor Arm Dual</div>
+<div class="text-xs text-slate-500 font-mono">SKU: MA-VESA-2</div>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<div class="text-sm font-medium text-white">$85.00</div>
+<div class="text-xs text-slate-500">1 item</div>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+<span class="size-1.5 rounded-full bg-emerald-400"></span>
+                                        Sent to Supplier
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                        In Transit
+                                    </span>
+</td>
+<td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-slate-400 hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Sticky Bottom Bulk Action Bar (Simulated Active State) -->
+<div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4 z-30 animate-pulse">
+<div class="bg-surface-dark border border-white/20 rounded-xl shadow-2xl shadow-black p-2 flex items-center justify-between gap-4 ring-1 ring-black/50">
+<div class="flex items-center gap-3 pl-2">
+<div class="bg-blue-600 text-white text-xs font-bold h-6 w-6 rounded flex items-center justify-center">1</div>
+<span class="text-sm font-medium text-white">Order Selected</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-8 px-3 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium transition-colors border border-white/10">
+                        Print Label
+                    </button>
+<button class="h-8 px-3 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium transition-colors border border-white/10">
+                        Archive
+                    </button>
+<div class="h-4 w-px bg-white/10 mx-1"></div>
+<button class="h-8 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-lg shadow-blue-900/50 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">send</span>
+                        Send to Supplier
+                    </button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

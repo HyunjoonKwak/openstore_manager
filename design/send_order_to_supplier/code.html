@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Send Order to Supplier - SmartStore Manager</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0f1729",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#14171e",
+                        "cockpit-panel": "#1e293b",
+                        "cockpit-border": "#334155",
+                        "accent-cyan": "#06b6d4",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for cockpit feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #14171e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white overflow-hidden">
+<div class="flex h-screen w-full">
+<!-- Side Navigation -->
+<aside class="w-64 bg-[#131416] border-r border-cockpit-border hidden lg:flex flex-col flex-shrink-0 h-full">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-8">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10 border border-slate-700 shadow-lg" data-alt="User profile avatar gradient" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCJ0-aeab99WOodyuGb7tWMFv8LL9PbWvHOzHVgl4wV4Xn4mhwMb7b9iO5DuKilF7RNsxsEYGmJLiQZkHlktZvW0ueUVedv7fVlP5HtxwZDXkA-yx8DcVpdADf7CW6qs4t-InWcJlXt7-z0BMPesod5wXnMUsg9CPfR2NTVGQxnkPhuapjsR4Wb65pG17e_tnMNziXRUYVC4bkPOv1JTffc6m1aiG64v0qMtVAwGmKvDpOaw3akcAsvdBYHLxYE7R92zbHF1t6s1KZD");'></div>
+<div class="flex flex-col">
+<h1 class="text-white text-base font-bold leading-tight">SmartStore</h1>
+<p class="text-slate-400 text-xs font-medium">Manager Pro</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white border border-cockpit-border shadow-sm" href="#">
+<span class="material-symbols-outlined text-[20px] fill-1">shopping_cart</span>
+<span class="text-sm font-medium">Order Management</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+<span class="text-sm font-medium">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+<span class="text-sm font-medium">Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-6 border-t border-cockpit-border">
+<div class="flex items-center gap-3 text-slate-400">
+<span class="material-symbols-outlined">help</span>
+<span class="text-sm">Help &amp; Support</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-background-light dark:bg-background-dark relative">
+<!-- Header Area -->
+<header class="flex-shrink-0 px-8 py-6 border-b border-cockpit-border bg-background-dark/50 backdrop-blur-sm z-10">
+<div class="flex flex-col gap-4 max-w-[1400px] mx-auto w-full">
+<!-- Breadcrumbs -->
+<div class="flex flex-wrap items-center gap-2 text-sm">
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Order Management</a>
+<span class="text-slate-600">/</span>
+<span class="text-accent-cyan font-medium">Send to Supplier</span>
+</div>
+<div class="flex justify-between items-end">
+<div>
+<h1 class="text-white text-3xl font-black tracking-tight mb-2">Send Order to Supplier</h1>
+<p class="text-slate-400 text-base max-w-2xl">Review selected items and transmit to supplier via KakaoTalk securely.</p>
+</div>
+<div class="hidden md:flex gap-3">
+<button class="px-4 py-2 rounded-lg border border-cockpit-border bg-cockpit-panel text-slate-300 text-sm font-medium hover:bg-white/5 transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                                Export CSV
+                            </button>
+</div>
+</div>
+</div>
+</header>
+<!-- Scrollable Content Area -->
+<div class="flex-1 overflow-y-auto p-8">
+<div class="max-w-[1400px] mx-auto w-full h-full flex flex-col xl:flex-row gap-6">
+<!-- Left Column: Order Summary Table -->
+<div class="flex-1 min-w-0 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h2 class="text-white text-lg font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-accent-cyan">list_alt</span>
+                                Order Summary
+                            </h2>
+<span class="px-2 py-1 rounded bg-blue-500/10 text-blue-400 text-xs font-medium border border-blue-500/20">5 Items Selected</span>
+</div>
+<div class="w-full overflow-hidden rounded-xl border border-cockpit-border bg-cockpit-panel/50 shadow-xl ring-1 ring-white/5">
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm whitespace-nowrap">
+<thead class="bg-cockpit-panel text-slate-300 uppercase tracking-wider text-xs font-semibold">
+<tr>
+<th class="px-6 py-4">Order ID</th>
+<th class="px-6 py-4">Product Name</th>
+<th class="px-6 py-4">SKU</th>
+<th class="px-6 py-4 text-center">Qty</th>
+<th class="px-6 py-4">Variant</th>
+<th class="px-6 py-4">Note</th>
+<th class="px-6 py-4 text-right">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-cockpit-border">
+<!-- Row 1 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-mono text-slate-400">#ORD-001</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-slate-700 bg-cover bg-center shrink-0" data-alt="Black Wireless Mouse" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDIbiXIEl338kNrGiIs1DTvtUryuvtNtq1nftnwwClNG5bvIHgH_ulgBi15j1-HzQXcrluXeOeiw2PzI3A0jUxxcXayTbJI6IuyYn8hvDYaUqWCn2JQdWc4DUw2ND5RgfhrtpxE1d46l9ybp00iYDmLtxB6Db7WS61L4VJzhyANHXJ5xJoy9Q5kuYczj9rySGMumb52O_AE6H6D4JuLoK527df7dUyeC_w9QRjkMPS31briCpDg6C9DFgwpxcn3lfAw0aNyassh2Dyy");'></div>
+<span class="text-white font-medium">Wireless Mouse</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-black/40 border border-slate-700 text-xs font-mono text-slate-300">WM-BLK-01</span>
+</td>
+<td class="px-6 py-4 text-center font-bold text-white">2</td>
+<td class="px-6 py-4 text-slate-400">Matte Black</td>
+<td class="px-6 py-4 text-amber-400 text-xs">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">bolt</span> Fast ship</span>
+</td>
+<td class="px-6 py-4 text-right">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium">
+<span class="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                                    Ready
+                                                </span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-mono text-slate-400">#ORD-002</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-slate-700 bg-cover bg-center shrink-0" data-alt="USB Cable" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDxOpsRdJ6-5ONl78s-HBjb1w6DrsaV4je9TNbA8uUEsVlJSqX6onwh70iM6q43xTgznQ5lPQ9TFj0rIC0tnBxpvpBwGCJtTo7XI3cNe3tOC5FLC7-VT1G8D2M6htjv8Deg_Gh74Le9M7a8jwLEcUhBzfNTQqm-vmdKyVbE9W5o3UMppqjcLZnItEM74nTJThhunDfnEsUgkJo1yVgSZPmTQ8PLeblSFEwTITInhhJYP-znGKbiJJTDZvcq6nexirKBuYj7Fjn7mmVc");'></div>
+<span class="text-white font-medium">USB-C Cable (2m)</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-black/40 border border-slate-700 text-xs font-mono text-slate-300">CBL-USB-2M</span>
+</td>
+<td class="px-6 py-4 text-center font-bold text-white">5</td>
+<td class="px-6 py-4 text-slate-400">Braided / Red</td>
+<td class="px-6 py-4 text-slate-500">-</td>
+<td class="px-6 py-4 text-right">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium">
+<span class="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                                    Ready
+                                                </span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-mono text-slate-400">#ORD-003</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-slate-700 bg-cover bg-center shrink-0" data-alt="Mechanical Keyboard" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBlNC81efgOxPS96J8HkzyV3r4APagagrAZZP-hhdbBnz8T9FF6l7CP8CC23AXPruVKzvLTOBqpwqpVRxw6f7FHNcuVgxe5gZsUbF29QkVPldxUVkNFxSD7IRsvHXzF4Bf3lBaC02YDhBBMl8Z98DQhgCc7DeCMqIy9tU_UckMxJolXxipctDa4w6DxbmX_jWBeKkS0EWCKdVx8m6Wf0-mMOBybhIClLTgMF7Ohw95IVcjZWUOZavyeaIAsNN_ofDFEQVRrXsdAvXOr");'></div>
+<span class="text-white font-medium">Mech Keyboard</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-black/40 border border-slate-700 text-xs font-mono text-slate-300">KB-MECH-RGB</span>
+</td>
+<td class="px-6 py-4 text-center font-bold text-white">1</td>
+<td class="px-6 py-4 text-slate-400">Blue Switch</td>
+<td class="px-6 py-4 text-pink-400 text-xs">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">redeem</span> Gift wrap</span>
+</td>
+<td class="px-6 py-4 text-right">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 text-xs font-medium">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                                                    Missing SKU
+                                                </span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-mono text-slate-400">#ORD-004</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-slate-700 bg-cover bg-center shrink-0" data-alt="Laptop Stand" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD2-1PdUIbUVshtUgb4K2ahuQvLm4vKkecIOsVA3gczXbgHJFLbdOt4k-MCu7-pWPz6tSUYYgTrtBOfQoOX2B3mtP-wYoO_QeXCcZqYFhdYf-OVDPqKAsCKekOMGrJBhInumK2y5tE3YpY_qU3FUs6a1Ml9ayZriuZ8lghNU2174gwNxAmODzBiYMBSKrovUmW2d8R3wW93Q4G0yU3UTpNwbLdGoTxiJClME3bRiOaT2meGzS6IwwlkqgZ2iVdwklxYJrNdT55nZQ_1");'></div>
+<span class="text-white font-medium">Laptop Stand</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-black/40 border border-slate-700 text-xs font-mono text-slate-300">STND-ALU</span>
+</td>
+<td class="px-6 py-4 text-center font-bold text-white">1</td>
+<td class="px-6 py-4 text-slate-400">Silver</td>
+<td class="px-6 py-4 text-slate-500">-</td>
+<td class="px-6 py-4 text-right">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium">
+<span class="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                                    Ready
+                                                </span>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-mono text-slate-400">#ORD-005</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-slate-700 bg-cover bg-center shrink-0" data-alt="Webcam" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBNI-eGxiyG-YPYgrqLjo3HWz1IA7qh0NRFB1nIo4zDLR21UyuIxReCCXShqtmXgggOFEUswZwwi9_kao2Iu5jWmBCdWpwQ_s-tJ4rwRlF78BKge7_fbC5W3LFJzN8jnvpg-P4E9Dfk9xNjpinpFHtrfGVjY8IU72SJKXuCMHmqZ08I3tJ2ZTGgbnqSu2XlIrIhb1smH4QRroJepafdDPjXtY5EjBixA4fnfr5YCR-PTK2SxKZYpu0D17Q1ivSP9LZI05yzXs0fpaGx");'></div>
+<span class="text-white font-medium">Webcam HD 1080p</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-black/40 border border-slate-700 text-xs font-mono text-slate-300">CAM-1080P</span>
+</td>
+<td class="px-6 py-4 text-center font-bold text-white">2</td>
+<td class="px-6 py-4 text-slate-400">Standard</td>
+<td class="px-6 py-4 text-slate-500">-</td>
+<td class="px-6 py-4 text-right">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium">
+<span class="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                                    Ready
+                                                </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer -->
+<div class="px-6 py-3 bg-cockpit-panel border-t border-cockpit-border flex justify-between items-center text-xs text-slate-400">
+<span>Showing 5 of 5 selected orders</span>
+<div class="flex gap-4">
+<span>Total Items: <b class="text-white">11</b></span>
+<span>Est. Cost: <b class="text-white">$342.50</b></span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Transmission Control Panel -->
+<div class="w-full xl:w-[420px] flex-shrink-0 flex flex-col gap-6">
+<div class="bg-cockpit-panel border border-cockpit-border rounded-xl p-6 shadow-2xl relative overflow-hidden group">
+<!-- Decorative glow -->
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-accent-cyan/10 blur-[50px] rounded-full pointer-events-none group-hover:bg-accent-cyan/20 transition-all duration-500"></div>
+<div class="flex items-center justify-between mb-6 relative z-10">
+<h3 class="text-white text-lg font-bold">Transmission Details</h3>
+<div class="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded text-xs font-medium border border-yellow-500/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                                    Pending
+                                </div>
+</div>
+<div class="space-y-5 relative z-10">
+<!-- Supplier Selection -->
+<div>
+<label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">Supplier</label>
+<div class="relative">
+<select class="w-full bg-[#131416] border border-slate-700 rounded-lg py-2.5 px-3 text-white focus:ring-2 focus:ring-accent-cyan focus:border-accent-cyan outline-none appearance-none cursor-pointer">
+<option>TechWholesale Ltd.</option>
+<option>Global Gadgets Inc.</option>
+</select>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+<span class="material-symbols-outlined text-[20px]">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Contact Input -->
+<div>
+<label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">KakaoTalk Contact</label>
+<div class="relative group/input">
+<div class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/input:text-accent-cyan transition-colors">
+<span class="material-symbols-outlined text-[20px]">smartphone</span>
+</div>
+<input class="w-full bg-[#131416] border border-slate-700 rounded-lg py-2.5 pl-10 pr-3 text-white font-mono focus:ring-2 focus:ring-accent-cyan focus:border-accent-cyan outline-none transition-all placeholder-slate-600" type="text" value="010-1234-5678"/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2">
+<div class="size-6 rounded bg-[#FAE100] flex items-center justify-center text-[#371D1E] font-bold text-xs" title="KakaoTalk">K</div>
+</div>
+</div>
+</div>
+<!-- Message Preview -->
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">Message Preview</label>
+<button class="text-accent-cyan text-xs hover:text-white transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">content_copy</span> Copy
+                                        </button>
+</div>
+<div class="w-full h-40 bg-[#131416] border border-slate-700 rounded-lg p-3 text-sm font-mono text-slate-300 overflow-y-auto leading-relaxed resize-none focus:ring-1 focus:ring-slate-500">
+<p class="text-slate-500 mb-2">// Auto-generated message</p>
+<p>Hello TechWholesale,</p>
+<p>Please process the following new order:</p>
+<br/>
+<p>1. [WM-BLK-01] Wireless Mouse x 2 (Black)</p>
+<p>2. [CBL-USB-2M] USB-C Cable x 5</p>
+<p>3. [KB-MECH-RGB] Mechanical Keyboard x 1</p>
+<p>...</p>
+<br/>
+<p>Total: 11 Items.</p>
+<p>Please confirm receipt. Thanks!</p>
+</div>
+</div>
+<!-- Primary Action -->
+<button class="w-full bg-accent-cyan hover:bg-cyan-400 text-black font-bold py-3.5 px-4 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 mt-2">
+<span class="material-symbols-outlined">send</span>
+                                    Send via KakaoTalk
+                                </button>
+<p class="text-center text-xs text-slate-500">
+                                    Clicking sends the list to your clipboard and opens the KakaoTalk app.
+                                </p>
+</div>
+</div>
+<!-- Secondary Actions Card -->
+<div class="bg-cockpit-panel/50 border border-cockpit-border rounded-xl p-4 flex gap-3">
+<button class="flex-1 py-2 px-3 rounded-lg bg-[#131416] border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors flex items-center justify-center gap-2 text-sm">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+                                Copy Text
+                            </button>
+<button class="flex-1 py-2 px-3 rounded-lg bg-[#131416] border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors flex items-center justify-center gap-2 text-sm">
+<span class="material-symbols-outlined text-[18px]">print</span>
+                                Print List
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Global Footer / System Status -->
+<footer class="border-t border-cockpit-border bg-[#131416] px-8 py-2 flex justify-between items-center text-xs text-slate-500">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1.5">
+<span class="size-2 rounded-full bg-emerald-500"></span>
+                        System Online
+                    </span>
+<span>v2.4.0-stable</span>
+</div>
+<div>
+                    Last synced: Today, 10:42 AM
+                </div>
+</footer>
+</main>
+</div>
+</body></html>

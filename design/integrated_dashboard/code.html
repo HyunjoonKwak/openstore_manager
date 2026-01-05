@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SmartStore Manager - Integrated Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0f1729",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#0f1729", // Matching the request's primary dark theme
+                        "surface-dark": "#1e293b", // Slightly lighter for cards/surfaces
+                        "border-dark": "#334155",
+                        "accent-blue": "#3b82f6",
+                        "accent-green": "#10b981",
+                        "accent-red": "#ef4444",
+                        "accent-yellow": "#f59e0b",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for a cleaner "cockpit" look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f1729; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display overflow-hidden">
+<div class="flex h-screen w-full">
+<!-- Sidebar Navigation -->
+<aside class="flex w-64 flex-col border-r border-border-dark bg-primary dark:bg-[#111827]">
+<div class="flex h-16 items-center gap-3 px-6 border-b border-border-dark">
+<div class="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white">
+<span class="material-symbols-outlined text-[20px]">rocket_launch</span>
+</div>
+<h1 class="text-white text-lg font-bold tracking-tight">SmartStore</h1>
+</div>
+<div class="flex flex-col flex-1 gap-4 px-3 py-6 overflow-y-auto">
+<div class="flex flex-col gap-1">
+<p class="px-3 text-xs font-semibold uppercase text-slate-500 mb-2">Main Menu</p>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-600/30" href="#">
+<span class="material-symbols-outlined text-[20px] fill-1">dashboard</span>
+<p class="text-sm font-medium">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-surface-dark hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">shopping_cart</span>
+<p class="text-sm font-medium">Orders</p>
+<span class="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-accent-blue/20 text-[10px] font-bold text-accent-blue">42</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-surface-dark hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+<p class="text-sm font-medium">Inventory</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-surface-dark hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">science</span>
+<p class="text-sm font-medium">AI Lab</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-surface-dark hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">autorenew</span>
+<p class="text-sm font-medium">Automation Rules</p>
+</a>
+</div>
+<div class="mt-auto flex flex-col gap-2">
+<button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg h-10 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-900/20 transition-all">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span>Create Product AI</span>
+</button>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-surface-dark hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<p class="text-sm font-medium">Settings</p>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex flex-1 flex-col h-full overflow-hidden bg-background-light dark:bg-background-dark relative">
+<!-- Top Header -->
+<header class="flex h-16 shrink-0 items-center justify-between border-b border-border-dark bg-surface-dark px-6">
+<!-- Title and Breadcrumbs -->
+<div class="flex items-center gap-4">
+<h2 class="text-white text-xl font-bold tracking-tight">Command Center</h2>
+<div class="h-4 w-px bg-border-dark"></div>
+<p class="text-slate-400 text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+<span>Oct 24, 2023 • 14:00 UTC</span>
+</p>
+</div>
+<!-- Right Actions -->
+<div class="flex items-center gap-4">
+<!-- Search -->
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-blue-400">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="block w-64 rounded-lg border border-border-dark bg-[#0f1729] py-2 pl-10 pr-3 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Search orders, products..." type="text"/>
+</div>
+<!-- Notifications -->
+<button class="relative rounded-lg p-2 text-slate-400 hover:bg-border-dark hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[22px]">notifications</span>
+<span class="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent-red"></span>
+</button>
+<!-- Profile -->
+<div class="h-8 w-8 rounded-full bg-slate-700 bg-center bg-cover border border-slate-600 cursor-pointer" data-alt="User profile picture" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDRjaJMxRDF5fm2sSHvdpxwiFPQl3Fio7G59SuSsqeiogrMcfsKvXxAwTR04rFQ8yEuCe4FrtyWWUk7AsJZZ1nP-7xUW37C0bLN4lX9jlMwhFL_s9IXP6iTYLCLhhzdBQfzgdWW3u7Vcs776Gt5JIKAFG2BrfVtuvuMXx6sskNPo6mcKoOlQoa-e0JQuwIcC44_MoJg5TtlTg5MY2QlLADZkkHYK23zWKgXG0nCrciTY-8OE-DyyJM3SQgKIhXAaIML7dubuCCVS2Zm');"></div>
+</div>
+</header>
+<!-- Dashboard Content Scrollable Area -->
+<div class="flex-1 overflow-y-auto p-6">
+<!-- KPI Stats Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<!-- Revenue Card -->
+<div class="group relative overflow-hidden rounded-xl border border-border-dark bg-surface-dark p-5 shadow-sm hover:border-blue-500/50 transition-colors">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-slate-400 text-sm font-medium">Daily Revenue</p>
+<h3 class="text-white text-2xl font-bold mt-1 tracking-tight">$1,240.50</h3>
+</div>
+<div class="rounded-lg bg-green-500/10 p-2 text-accent-green">
+<span class="material-symbols-outlined text-[20px]">trending_up</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-accent-green text-sm font-bold flex items-center">
+                                +12%
+                            </span>
+<span class="text-slate-500 text-xs">vs. yesterday</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-green-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<!-- Orders Card -->
+<div class="group relative overflow-hidden rounded-xl border border-border-dark bg-surface-dark p-5 shadow-sm hover:border-blue-500/50 transition-colors">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-slate-400 text-sm font-medium">New Orders</p>
+<h3 class="text-white text-2xl font-bold mt-1 tracking-tight">42</h3>
+</div>
+<div class="rounded-lg bg-blue-500/10 p-2 text-accent-blue">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-accent-blue text-sm font-bold flex items-center">
+                                8 pending
+                            </span>
+<span class="text-slate-500 text-xs">action required</span>
+</div>
+</div>
+<!-- Fulfillment Card -->
+<div class="group relative overflow-hidden rounded-xl border border-border-dark bg-surface-dark p-5 shadow-sm hover:border-blue-500/50 transition-colors">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-slate-400 text-sm font-medium">Auto-Fulfillment</p>
+<h3 class="text-white text-2xl font-bold mt-1 tracking-tight">98%</h3>
+</div>
+<div class="rounded-lg bg-purple-500/10 p-2 text-purple-400">
+<span class="material-symbols-outlined text-[20px]">bolt</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-accent-green text-sm font-bold flex items-center">
+                                +1%
+                            </span>
+<span class="text-slate-500 text-xs">efficiency rate</span>
+</div>
+</div>
+<!-- AI Tasks Card -->
+<div class="group relative overflow-hidden rounded-xl border border-border-dark bg-surface-dark p-5 shadow-sm hover:border-blue-500/50 transition-colors">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-slate-400 text-sm font-medium">AI Tasks Running</p>
+<h3 class="text-white text-2xl font-bold mt-1 tracking-tight">3</h3>
+</div>
+<div class="rounded-lg bg-yellow-500/10 p-2 text-accent-yellow">
+<span class="material-symbols-outlined text-[20px] animate-pulse">memory</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="h-1.5 flex-1 bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full w-2/3 bg-accent-yellow rounded-full"></div>
+</div>
+<span class="text-slate-400 text-xs">Processing...</span>
+</div>
+</div>
+</div>
+<!-- Main Table Section -->
+<div class="flex flex-col rounded-xl border border-border-dark bg-surface-dark shadow-sm h-[calc(100vh-280px)] min-h-[500px]">
+<!-- Table Toolbar -->
+<div class="flex items-center justify-between border-b border-border-dark p-4">
+<div class="flex items-center gap-3">
+<h3 class="text-white font-bold text-lg">Recent Orders</h3>
+<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">Live Feed</span>
+</div>
+<!-- Filters -->
+<div class="flex gap-2">
+<button class="flex h-8 items-center gap-2 rounded bg-primary px-3 text-xs font-medium text-slate-300 border border-border-dark hover:text-white hover:border-slate-500 transition-colors">
+<span>Platform: All</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<button class="flex h-8 items-center gap-2 rounded bg-primary px-3 text-xs font-medium text-slate-300 border border-border-dark hover:text-white hover:border-slate-500 transition-colors">
+<span>Status: Active</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<button class="flex h-8 items-center gap-2 rounded bg-primary px-3 text-xs font-medium text-slate-300 border border-border-dark hover:text-white hover:border-slate-500 transition-colors">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+<span>Filter</span>
+</button>
+<button class="flex h-8 w-8 items-center justify-center rounded bg-primary text-slate-300 border border-border-dark hover:text-white hover:border-slate-500 transition-colors">
+<span class="material-symbols-outlined text-[18px]">download</span>
+</button>
+</div>
+</div>
+<!-- Table Container -->
+<div class="flex-1 overflow-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-primary sticky top-0 z-10">
+<tr>
+<th class="border-b border-border-dark px-4 py-3 text-xs font-semibold uppercase text-slate-500 w-12">
+<div class="flex items-center justify-center">
+<input class="h-4 w-4 rounded border-border-dark bg-surface-dark text-blue-600 focus:ring-offset-0 focus:ring-0" type="checkbox"/>
+</div>
+</th>
+<th class="border-b border-border-dark px-4 py-3 text-xs font-semibold uppercase text-slate-500 cursor-pointer hover:text-slate-300">
+<div class="flex items-center gap-1">Order ID <span class="material-symbols-outlined text-[14px]">unfold_more</span></div>
+</th>
+<th class="border-b border-border-dark px-4 py-3 text-xs font-semibold uppercase text-slate-500">Product</th>
+<th class="border-b border-border-dark px-4 py-3 text-xs font-semibold uppercase text-slate-500">Customer</th>
+<th class="border-b border-border-dark px-4 py-3 text-xs font-semibold uppercase text-slate-500">Date</th>
+<th class="border-b border-border-dark px-4 py-3 text-xs font-semibold uppercase text-slate-500 text-right">Total</th>
+<th class="border-b border-border-dark px-4 py-3 text-xs font-semibold uppercase text-slate-500 text-center">Status</th>
+<th class="border-b border-border-dark px-4 py-3 text-xs font-semibold uppercase text-slate-500 text-center">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-dark bg-surface-dark">
+<!-- Row 1 -->
+<tr class="group hover:bg-white/[0.02] transition-colors">
+<td class="px-4 py-3">
+<div class="flex items-center justify-center">
+<input class="h-4 w-4 rounded border-border-dark bg-primary text-blue-600 focus:ring-offset-0 focus:ring-0" type="checkbox"/>
+</div>
+</td>
+<td class="px-4 py-3 text-sm font-medium text-blue-400">#ORD-7829</td>
+<td class="px-4 py-3">
+<div class="flex items-center gap-3">
+<div class="h-8 w-8 rounded bg-slate-700 bg-center bg-cover border border-slate-600" data-alt="Smart Watch Strap" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC-HKsD6qQFG-BtnryKeUtN9IbiLUkvEmbL32oNLTIECRz5fKfZin8pA4zWpqHlesJO0wZSzEgjvlB5C6kv-9u3dR-bEumI_-aoEwCZe8Se71QCEF87b_Qq90xHKfKYPMbatFC9GO4L4lYu36lyXWc33T7LWpOiTNooEVCKwRjOsIYHaRMp8yzfH8OQop2uTYAzH3Qqs9yvE-QItSsIhT4WzEmBC0AC-JoaK0CU_8NKMGLUl-rBTXDfW_N_2NqsijseA8VjKXG4ihiD');"></div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-white">Smart Watch Strap</span>
+<span class="text-xs text-slate-500">SKU: WS-2023-B</span>
+</div>
+</div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-300">
+<div class="flex items-center gap-2">
+<div class="h-5 w-5 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] font-bold text-white">JD</div>
+                                            John Doe
+                                        </div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-400">Oct 24, 13:45</td>
+<td class="px-4 py-3 text-sm font-medium text-white text-right">$24.99</td>
+<td class="px-4 py-3 text-center">
+<span class="inline-flex items-center gap-1 rounded-full bg-yellow-500/10 px-2 py-1 text-xs font-medium text-yellow-500 border border-yellow-500/20">
+<span class="h-1.5 w-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
+                                            Processing
+                                        </span>
+</td>
+<td class="px-4 py-3 text-center">
+<button class="text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="group hover:bg-white/[0.02] transition-colors">
+<td class="px-4 py-3">
+<div class="flex items-center justify-center">
+<input class="h-4 w-4 rounded border-border-dark bg-primary text-blue-600 focus:ring-offset-0 focus:ring-0" type="checkbox"/>
+</div>
+</td>
+<td class="px-4 py-3 text-sm font-medium text-blue-400">#ORD-7828</td>
+<td class="px-4 py-3">
+<div class="flex items-center gap-3">
+<div class="h-8 w-8 rounded bg-slate-700 bg-center bg-cover border border-slate-600" data-alt="Wireless Earbuds" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBzml_fjYymeDqV0pzPm0J1_Zpbl7UOR6mcfYF--l_lWpdZmnO1OoAYLOZL4eOYVF2JkUhHdO0vGOgwQ27qK-OBwoJgrCU5UKt2rN4EWoVd6-mOszHQ4vpjGDObPu8tOqhok5ayLcfSQF3Umt7Qe9JwJXjMqF8-DL4uujsYvFWd9my8teG_yxPy7b2C48OCqA_dmDGNHWYSHgVYDp15PxHfqg0evqSJhtW05WUJZg9wC2gNd4ean1-Gfd03csMU2iSeQiZE6KOQc5oV');"></div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-white">Wireless Earbuds Pro</span>
+<span class="text-xs text-slate-500">SKU: AP-PRO-W</span>
+</div>
+</div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-300">
+<div class="flex items-center gap-2">
+<div class="h-5 w-5 rounded-full bg-pink-500 flex items-center justify-center text-[10px] font-bold text-white">AS</div>
+                                            Sarah Smith
+                                        </div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-400">Oct 24, 12:30</td>
+<td class="px-4 py-3 text-sm font-medium text-white text-right">$129.00</td>
+<td class="px-4 py-3 text-center">
+<span class="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1 text-xs font-medium text-green-500 border border-green-500/20">
+                                            Shipped
+                                        </span>
+</td>
+<td class="px-4 py-3 text-center">
+<button class="text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="group hover:bg-white/[0.02] transition-colors">
+<td class="px-4 py-3">
+<div class="flex items-center justify-center">
+<input class="h-4 w-4 rounded border-border-dark bg-primary text-blue-600 focus:ring-offset-0 focus:ring-0" type="checkbox"/>
+</div>
+</td>
+<td class="px-4 py-3 text-sm font-medium text-blue-400">#ORD-7827</td>
+<td class="px-4 py-3">
+<div class="flex items-center gap-3">
+<div class="h-8 w-8 rounded bg-slate-700 bg-center bg-cover border border-slate-600" data-alt="Mechanical Keyboard" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBVjMyCj9YDIsd49Ua-4MLQo8RI6F6AxDk3quufJ_xhBeOJMBDecxIsptIx6Q_BTQRLEZOkAJUpLMN_-Rn017kajEXPzBV7ke413sEkCLysOcPf8HX3YbSbJP99A-SMGlSvQDw5SD-jIMmH8MKwrByXSLRmxux9z0SAntRW5c1q0e0VpQ6HVtySxk3W0kttfADD0GQ7EGwBhR2rlfhar6LE_r3BZGkM9F0CBXcE23BiexH-O9lBAfxNokEAu6F7lYDHiL-E8BMI1Dg3');"></div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-white">RGB Mech Keyboard</span>
+<span class="text-xs text-slate-500">SKU: KB-RGB-87</span>
+</div>
+</div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-300">
+<div class="flex items-center gap-2">
+<div class="h-5 w-5 rounded-full bg-teal-500 flex items-center justify-center text-[10px] font-bold text-white">MK</div>
+                                            Mike Kowalski
+                                        </div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-400">Oct 24, 11:15</td>
+<td class="px-4 py-3 text-sm font-medium text-white text-right">$89.99</td>
+<td class="px-4 py-3 text-center">
+<span class="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1 text-xs font-medium text-green-500 border border-green-500/20">
+                                            Shipped
+                                        </span>
+</td>
+<td class="px-4 py-3 text-center">
+<button class="text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 (Alert State) -->
+<tr class="group hover:bg-white/[0.02] transition-colors bg-red-500/[0.03]">
+<td class="px-4 py-3">
+<div class="flex items-center justify-center">
+<input class="h-4 w-4 rounded border-border-dark bg-primary text-blue-600 focus:ring-offset-0 focus:ring-0" type="checkbox"/>
+</div>
+</td>
+<td class="px-4 py-3 text-sm font-medium text-blue-400">#ORD-7826</td>
+<td class="px-4 py-3">
+<div class="flex items-center gap-3">
+<div class="h-8 w-8 rounded bg-slate-700 bg-center bg-cover border border-slate-600" data-alt="Sneakers" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAL8nOuKndOjIID3PRoeL50dBXm-fNB13ASS_uJNIgNuLCxSbUF2QYUy59cpQDSRG72pkfMi4S--1JDTU6IKKQn1feDc8vEalmpjVu8dqlNoAMmPI8kCbrtJA2vejOoOhSy_9x9zqmEOuBF0ocMMmvjLfHh00YHU6QeGGwMIPHyVfgfw02ko70dgxglgwVZZVLICfSk0-5gJDbQ9mhHk0hcNGvhxGnOkqU2syPcUMrsnnp_j5sW17_dUMPXgcoaCRvpphQ1LvQ5ZJsG');"></div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-white">Urban Runners</span>
+<span class="text-xs text-slate-500">SKU: SH-URB-42</span>
+</div>
+</div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-300">
+<div class="flex items-center gap-2">
+<div class="h-5 w-5 rounded-full bg-orange-500 flex items-center justify-center text-[10px] font-bold text-white">EL</div>
+                                            Emma Lee
+                                        </div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-400">Oct 23, 18:00</td>
+<td class="px-4 py-3 text-sm font-medium text-white text-right">$115.50</td>
+<td class="px-4 py-3 text-center">
+<span class="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-1 text-xs font-medium text-red-500 border border-red-500/20">
+                                            Failed
+                                        </span>
+</td>
+<td class="px-4 py-3 text-center">
+<button class="text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="group hover:bg-white/[0.02] transition-colors">
+<td class="px-4 py-3">
+<div class="flex items-center justify-center">
+<input class="h-4 w-4 rounded border-border-dark bg-primary text-blue-600 focus:ring-offset-0 focus:ring-0" type="checkbox"/>
+</div>
+</td>
+<td class="px-4 py-3 text-sm font-medium text-blue-400">#ORD-7825</td>
+<td class="px-4 py-3">
+<div class="flex items-center gap-3">
+<div class="h-8 w-8 rounded bg-slate-700 bg-center bg-cover border border-slate-600" data-alt="Laptop Stand" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAv15PNHNSCqAUR_h13-8hOQd_XZjCGgSQTQp2E_D6BM3ReN4Fe18fApOlP0C0SQ_BLaHAR8nuu_LsrBZgTJXiOiwyefTndYTCeMAi-rDWpcQLeOktP7Q8p-S78KSrJss1s9fZur5oCwSjBnfDlZIxeXeTq61qLEjb-iKI02kXUel_2jz5KHGI-DWv3ZnDNZZpTLwLdRgRJ-OHhcU9R3GIen7jtyV1HSfBzKr81yyC73F04if8JwSsrDwNSJhzQmcSf5cnviEldn2x8');"></div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-white">Aluminum Laptop Stand</span>
+<span class="text-xs text-slate-500">SKU: AC-LS-AL</span>
+</div>
+</div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-300">
+<div class="flex items-center gap-2">
+<div class="h-5 w-5 rounded-full bg-cyan-600 flex items-center justify-center text-[10px] font-bold text-white">DM</div>
+                                            David Miller
+                                        </div>
+</td>
+<td class="px-4 py-3 text-sm text-slate-400">Oct 23, 16:20</td>
+<td class="px-4 py-3 text-sm font-medium text-white text-right">$45.00</td>
+<td class="px-4 py-3 text-center">
+<span class="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-500 border border-blue-500/20">
+                                            Packaged
+                                        </span>
+</td>
+<td class="px-4 py-3 text-center">
+<button class="text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Footer -->
+<div class="flex items-center justify-between border-t border-border-dark px-4 py-3 bg-primary rounded-b-xl">
+<div class="flex items-center gap-2 text-xs text-slate-400">
+<span>Showing 1-5 of 42 orders</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="rounded p-1 text-slate-400 hover:bg-border-dark hover:text-white disabled:opacity-50">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<span class="text-xs font-medium text-white">Page 1</span>
+<button class="rounded p-1 text-slate-400 hover:bg-border-dark hover:text-white">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

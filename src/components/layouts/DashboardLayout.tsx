@@ -1,0 +1,22 @@
+'use client'
+
+import { Sidebar } from './Sidebar'
+import { MobileNav } from './MobileNav'
+
+interface DashboardLayoutProps {
+  children: React.ReactNode
+}
+
+export function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <div className="flex h-screen w-full overflow-hidden">
+      <Sidebar className="hidden lg:flex" />
+
+      <main className="flex flex-1 flex-col h-full overflow-hidden">
+        {children}
+      </main>
+
+      <MobileNav />
+    </div>
+  )
+}
