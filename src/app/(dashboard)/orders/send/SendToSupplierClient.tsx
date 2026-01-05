@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send, Copy, Check, FileDown, Printer, ArrowLeft, Package, Bell, MessageSquare, Phone } from 'lucide-react'
+import { Send, Copy, Check, FileDown, ArrowLeft, Package, Bell, ChevronDown, ChevronRight, Settings, Clock, Users } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,13 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -26,6 +20,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import {
   generateOrderMessage,
@@ -34,85 +40,166 @@ import {
   type OrderForSupplier,
   type SupplierForOrder,
 } from '@/lib/actions/supplier-orders'
+import { updateSupplier } from '@/lib/actions/suppliers'
 
 interface Props {
   orders: OrderForSupplier[]
   suppliers: SupplierForOrder[]
 }
 
+interface SupplierGroup {
+  supplier: SupplierForOrder | null
+  orders: OrderForSupplier[]
+  isOpen: boolean
+  selectedIds: Set<string>
+}
+
 export default function SendToSupplierClient({ orders, suppliers }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>(
-    suppliers[0]?.id || ''
-  )
-  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
-  const [message, setMessage] = useState('')
   const [sendNotification, setSendNotification] = useState(true)
   const [notificationConfig, setNotificationConfig] = useState<{
     smsConfigured: boolean
     kakaoConfigured: boolean
   } | null>(null)
+  
+  const [supplierGroups, setSupplierGroups] = useState<Map<string, SupplierGroup>>(new Map())
+  const [activeSupplier, setActiveSupplier] = useState<string | null>(null)
+  const [generatedMessages, setGeneratedMessages] = useState<Map<string, string>>(new Map())
+  
+  const [editingTemplate, setEditingTemplate] = useState<string | null>(null)
+  const [templateDraft, setTemplateDraft] = useState('')
+  const [scheduleDraft, setScheduleDraft] = useState('')
+  const [scheduleEnabledDraft, setScheduleEnabledDraft] = useState(false)
 
   useEffect(() => {
     checkNotificationConfig().then(setNotificationConfig)
   }, [])
 
-  const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId)
-
-  const filteredOrders = useMemo(() => {
-    if (!selectedSupplierId) return orders
-    return orders.filter(
-      (o) => o.supplierId === selectedSupplierId || !o.supplierId
-    )
-  }, [orders, selectedSupplierId])
-
-  const selectedOrders = useMemo(() => {
-    return filteredOrders.filter((o) => selectedOrderIds.has(o.id))
-  }, [filteredOrders, selectedOrderIds])
-
-  const totalItems = selectedOrders.reduce((sum, o) => sum + o.quantity, 0)
-
-  const supplierOrderCounts = useMemo(() => {
-    const counts = new Map<string, number>()
+  useEffect(() => {
+    const groups = new Map<string, SupplierGroup>()
+    
+    const unassignedOrders: OrderForSupplier[] = []
+    const supplierOrdersMap = new Map<string, OrderForSupplier[]>()
+    
     orders.forEach((order) => {
-      const supplierId = order.supplierId || 'unassigned'
-      counts.set(supplierId, (counts.get(supplierId) || 0) + 1)
+      if (order.supplierId) {
+        const existing = supplierOrdersMap.get(order.supplierId) || []
+        existing.push(order)
+        supplierOrdersMap.set(order.supplierId, existing)
+      } else {
+        unassignedOrders.push(order)
+      }
     })
-    return counts
-  }, [orders])
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedOrderIds(new Set(filteredOrders.map((o) => o.id)))
-    } else {
-      setSelectedOrderIds(new Set())
+    
+    suppliers.forEach((supplier) => {
+      const supplierOrders = supplierOrdersMap.get(supplier.id) || []
+      groups.set(supplier.id, {
+        supplier,
+        orders: supplierOrders,
+        isOpen: supplierOrders.length > 0,
+        selectedIds: new Set(supplierOrders.map(o => o.id)),
+      })
+    })
+    
+    if (unassignedOrders.length > 0) {
+      groups.set('unassigned', {
+        supplier: null,
+        orders: unassignedOrders,
+        isOpen: true,
+        selectedIds: new Set(),
+      })
     }
+    
+    setSupplierGroups(groups)
+  }, [orders, suppliers])
+
+  const toggleGroup = (supplierId: string) => {
+    setSupplierGroups(prev => {
+      const newGroups = new Map(prev)
+      const group = newGroups.get(supplierId)
+      if (group) {
+        newGroups.set(supplierId, { ...group, isOpen: !group.isOpen })
+      }
+      return newGroups
+    })
   }
 
-  const handleSelectOrder = (orderId: string, checked: boolean) => {
-    const newSelected = new Set(selectedOrderIds)
-    if (checked) {
-      newSelected.add(orderId)
-    } else {
-      newSelected.delete(orderId)
-    }
-    setSelectedOrderIds(newSelected)
+  const toggleOrderSelection = (supplierId: string, orderId: string, checked: boolean) => {
+    setSupplierGroups(prev => {
+      const newGroups = new Map(prev)
+      const group = newGroups.get(supplierId)
+      if (group) {
+        const newSelectedIds = new Set(group.selectedIds)
+        if (checked) {
+          newSelectedIds.add(orderId)
+        } else {
+          newSelectedIds.delete(orderId)
+        }
+        newGroups.set(supplierId, { ...group, selectedIds: newSelectedIds })
+      }
+      return newGroups
+    })
   }
 
-  const handleGenerateMessage = async () => {
-    if (!selectedSupplier || selectedOrders.length === 0) {
-      toast.error('공급사와 주문을 선택해주세요.')
+  const toggleAllInGroup = (supplierId: string, checked: boolean) => {
+    setSupplierGroups(prev => {
+      const newGroups = new Map(prev)
+      const group = newGroups.get(supplierId)
+      if (group) {
+        const newSelectedIds = checked 
+          ? new Set(group.orders.map(o => o.id))
+          : new Set<string>()
+        newGroups.set(supplierId, { ...group, selectedIds: newSelectedIds })
+      }
+      return newGroups
+    })
+  }
+
+  const handleGenerateMessage = async (supplierId: string) => {
+    const group = supplierGroups.get(supplierId)
+    if (!group || !group.supplier || group.selectedIds.size === 0) {
+      toast.error('주문을 선택해주세요.')
       return
     }
 
-    const generatedMessage = await generateOrderMessage(selectedOrders, selectedSupplier)
-    setMessage(generatedMessage)
+    const selectedOrders = group.orders.filter(o => group.selectedIds.has(o.id))
+    
+    let message: string
+    if (group.supplier.messageTemplate) {
+      message = formatMessageFromTemplate(group.supplier.messageTemplate, selectedOrders, group.supplier)
+    } else {
+      message = await generateOrderMessage(selectedOrders, group.supplier)
+    }
+    
+    setGeneratedMessages(prev => new Map(prev).set(supplierId, message))
+    setActiveSupplier(supplierId)
     toast.success('발주 메시지가 생성되었습니다.')
   }
 
-  const handleCopy = async () => {
+  const formatMessageFromTemplate = (
+    template: string, 
+    selectedOrders: OrderForSupplier[], 
+    supplier: SupplierForOrder
+  ): string => {
+    const orderLines = selectedOrders.map(o => 
+      `- ${o.productName}${o.productOption ? ` (${o.productOption})` : ''} x${o.quantity}`
+    ).join('\n')
+    
+    const totalQty = selectedOrders.reduce((sum, o) => sum + o.quantity, 0)
+    const date = new Date().toLocaleDateString('ko-KR')
+    
+    return template
+      .replace(/\{supplier_name\}/g, supplier.name)
+      .replace(/\{order_count\}/g, String(selectedOrders.length))
+      .replace(/\{total_quantity\}/g, String(totalQty))
+      .replace(/\{order_list\}/g, orderLines)
+      .replace(/\{date\}/g, date)
+  }
+
+  const handleCopy = async (supplierId: string) => {
+    const message = generatedMessages.get(supplierId)
     if (!message) {
       toast.error('먼저 메시지를 생성해주세요.')
       return
@@ -123,18 +210,19 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleSend = () => {
-    if (!selectedSupplier || selectedOrderIds.size === 0) {
+  const handleSend = (supplierId: string) => {
+    const group = supplierGroups.get(supplierId)
+    if (!group || !group.supplier || group.selectedIds.size === 0) {
       toast.error('공급업체와 주문을 선택해주세요.')
       return
     }
 
     startTransition(async () => {
-      const orderIds = Array.from(selectedOrderIds)
+      const orderIds = Array.from(group.selectedIds)
       const result = await sendOrdersToSupplier(
-        selectedSupplier.id,
+        group.supplier!.id,
         orderIds,
-        sendNotification && !!selectedSupplier.contactNumber
+        sendNotification && !!group.supplier!.contactNumber
       )
 
       if (result.success) {
@@ -142,14 +230,14 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
           toast.success(
             `${result.orderCount}건의 주문이 전송되었습니다. ${result.notificationMethod} 알림이 발송되었습니다.`
           )
-        } else if (sendNotification && selectedSupplier.contactNumber) {
+        } else if (sendNotification && group.supplier!.contactNumber) {
           toast.warning(
             `${result.orderCount}건의 주문이 전송되었습니다. 알림 발송 실패: ${result.notificationError || '알 수 없는 오류'}`
           )
-          handleCopy()
+          handleCopy(supplierId)
         } else {
           toast.success(`${result.orderCount}건의 주문이 전송되었습니다.`)
-          handleCopy()
+          handleCopy(supplierId)
         }
         router.refresh()
       } else {
@@ -157,6 +245,56 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
       }
     })
   }
+
+  const handleSendAll = () => {
+    let sentCount = 0
+    supplierGroups.forEach((group, supplierId) => {
+      if (group.supplier && group.selectedIds.size > 0) {
+        handleSend(supplierId)
+        sentCount++
+      }
+    })
+    if (sentCount === 0) {
+      toast.error('전송할 주문이 없습니다.')
+    }
+  }
+
+  const handleSaveTemplate = async (supplierId: string) => {
+    const result = await updateSupplier({
+      id: supplierId,
+      messageTemplate: templateDraft || null,
+      sendScheduleTime: scheduleDraft || null,
+      sendScheduleEnabled: scheduleEnabledDraft,
+    })
+    
+    if (result.success) {
+      toast.success('설정이 저장되었습니다.')
+      setEditingTemplate(null)
+      router.refresh()
+    } else {
+      toast.error(result.error || '저장에 실패했습니다.')
+    }
+  }
+
+  const openTemplateDialog = (supplier: SupplierForOrder) => {
+    setEditingTemplate(supplier.id)
+    setTemplateDraft(supplier.messageTemplate || defaultTemplate)
+    setScheduleDraft(supplier.sendScheduleTime || '')
+    setScheduleEnabledDraft(supplier.sendScheduleEnabled || false)
+  }
+
+  const defaultTemplate = `[발주서] {date}
+
+{supplier_name} 담당자님께
+
+금일 발주 내역을 전달드립니다.
+
+{order_list}
+
+총 {order_count}건, {total_quantity}개
+
+확인 부탁드립니다.
+감사합니다.`
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('ko-KR', {
@@ -166,6 +304,11 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
       minute: '2-digit',
     })
   }
+
+  const totalOrderCount = orders.length
+  const totalSupplierCount = suppliers.filter(s => 
+    supplierGroups.get(s.id)?.orders.length ?? 0 > 0
+  ).length
 
   if (orders.length === 0) {
     return (
@@ -199,236 +342,244 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
       <Header title="공급업체 전송" subtitle="Send to Supplier" />
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
-        <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          뒤로가기
-        </Button>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between border-b border-border py-4">
-                <div className="flex items-center gap-3">
-                  <CardTitle className="text-lg font-bold">주문 목록</CardTitle>
-                  <Badge variant="secondary">{filteredOrders.length}건</Badge>
-                </div>
-                <Button variant="outline" size="sm">
-                  <FileDown className="h-4 w-4 mr-2" />
-                  CSV 내보내기
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={
-                            filteredOrders.length > 0 &&
-                            selectedOrderIds.size === filteredOrders.length
-                          }
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </TableHead>
-                      <TableHead className="text-xs font-semibold uppercase">주문번호</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase">상품</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase">SKU</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase text-center">
-                        수량
-                      </TableHead>
-                      <TableHead className="text-xs font-semibold uppercase">주문일</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedOrderIds.has(order.id)}
-                            onCheckedChange={(checked) =>
-                              handleSelectOrder(order.id, checked as boolean)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium text-primary">
-                          #{order.platformOrderId}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs font-medium">
-                              {order.productSku.slice(0, 2)}
-                            </div>
-                            <span className="text-sm truncate max-w-[200px]">
-                              {order.productName}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {order.productSku}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center font-medium">x{order.quantity}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(order.orderDate)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-muted/30">
-                  <span className="text-sm text-muted-foreground">
-                    {selectedOrderIds.size}건 선택됨
-                  </span>
-                  <div className="flex gap-4 text-sm">
-                    <span>
-                      총 수량: <strong>{totalItems}개</strong>
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            뒤로가기
+          </Button>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Users className="h-4 w-4" />
+              <span>{totalSupplierCount}개 업체</span>
+              <span>•</span>
+              <Package className="h-4 w-4" />
+              <span>{totalOrderCount}건</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              <Switch
+                checked={sendNotification}
+                onCheckedChange={setSendNotification}
+                disabled={!notificationConfig?.smsConfigured && !notificationConfig?.kakaoConfigured}
+              />
+              <span className="text-sm">알림 발송</span>
+            </div>
+            
+            <Button onClick={handleSendAll} disabled={isPending}>
+              <Send className="h-4 w-4 mr-2" />
+              전체 전송
+            </Button>
           </div>
+        </div>
 
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="border-b border-border py-4">
-                <CardTitle className="text-lg font-bold">전송 설정</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    공급업체
-                  </Label>
-                  <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="공급업체 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id}>
-                          <div className="flex items-center justify-between gap-2">
-                            <span>{supplier.name}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {supplierOrderCounts.get(supplier.id) || 0}건
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedSupplier && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        연락처 ({selectedSupplier.contactMethod})
-                      </Label>
-                      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                        <Badge variant="outline" className="text-xs">
-                          {selectedSupplier.contactMethod === 'Kakao' ? 'K' : 'SMS'}
+        <div className="space-y-4">
+          {Array.from(supplierGroups.entries()).map(([supplierId, group]) => (
+            <Card key={supplierId}>
+              <Collapsible open={group.isOpen} onOpenChange={() => toggleGroup(supplierId)}>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {group.isOpen ? (
+                          <ChevronDown className="h-5 w-5" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5" />
+                        )}
+                        <div>
+                          <CardTitle className="text-base font-semibold">
+                            {group.supplier?.name || '미지정 주문'}
+                          </CardTitle>
+                          {group.supplier && (
+                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                              <Badge variant="outline" className="text-xs">
+                                {group.supplier.contactMethod}
+                              </Badge>
+                              <span>{group.supplier.contactNumber || '연락처 없음'}</span>
+                              {group.supplier.sendScheduleEnabled && group.supplier.sendScheduleTime && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  매일 {group.supplier.sendScheduleTime}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Badge variant="secondary">
+                          {group.selectedIds.size}/{group.orders.length}건 선택
                         </Badge>
-                        <span className="font-mono text-sm">
-                          {selectedSupplier.contactNumber || '연락처 없음'}
-                        </span>
+                        
+                        {group.supplier && (
+                          <Dialog open={editingTemplate === supplierId} onOpenChange={(open) => !open && setEditingTemplate(null)}>
+                            <DialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => openTemplateDialog(group.supplier!)}
+                              >
+                                <Settings className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>{group.supplier.name} 설정</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 pt-4">
+                                <div className="space-y-2">
+                                  <Label>메시지 템플릿</Label>
+                                  <Textarea
+                                    value={templateDraft}
+                                    onChange={(e) => setTemplateDraft(e.target.value)}
+                                    className="min-h-[200px] font-mono text-sm"
+                                    placeholder={defaultTemplate}
+                                  />
+                                  <p className="text-xs text-muted-foreground">
+                                    사용 가능 변수: {'{supplier_name}'}, {'{order_count}'}, {'{total_quantity}'}, {'{order_list}'}, {'{date}'}
+                                  </p>
+                                </div>
+                                
+                                <div className="flex items-center gap-4">
+                                  <div className="flex-1 space-y-2">
+                                    <Label>자동 전송 시간</Label>
+                                    <Input
+                                      type="time"
+                                      value={scheduleDraft}
+                                      onChange={(e) => setScheduleDraft(e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2 pt-6">
+                                    <Switch
+                                      checked={scheduleEnabledDraft}
+                                      onCheckedChange={setScheduleEnabledDraft}
+                                    />
+                                    <Label>활성화</Label>
+                                  </div>
+                                </div>
+                                
+                                <Button onClick={() => handleSaveTemplate(supplierId)} className="w-full">
+                                  저장
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                        
+                        {group.supplier && group.orders.length > 0 && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleGenerateMessage(supplierId)}
+                              disabled={group.selectedIds.size === 0}
+                            >
+                              메시지 생성
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSend(supplierId)}
+                              disabled={isPending || group.selectedIds.size === 0}
+                            >
+                              <Send className="h-4 w-4 mr-1" />
+                              전송
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
-
-                    {selectedSupplier.contactNumber && (
-                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Bell className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <span className="text-sm font-medium">알림 발송</span>
-                            <p className="text-xs text-muted-foreground">
-                              {selectedSupplier.contactMethod === 'Kakao' 
-                                ? notificationConfig?.kakaoConfigured 
-                                  ? '카카오 알림톡' 
-                                  : notificationConfig?.smsConfigured 
-                                    ? 'SMS (카카오 미설정)' 
-                                    : '미설정'
-                                : notificationConfig?.smsConfigured 
-                                  ? 'SMS' 
-                                  : '미설정'}
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={sendNotification}
-                          onCheckedChange={setSendNotification}
-                          disabled={!notificationConfig?.smsConfigured && !notificationConfig?.kakaoConfigured}
-                        />
+                  </CardHeader>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent>
+                  <CardContent className="p-0 border-t">
+                    {group.orders.length === 0 ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        이 공급업체에 연결된 주문이 없습니다.
                       </div>
+                    ) : (
+                      <>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-10">
+                                <Checkbox
+                                  checked={group.selectedIds.size === group.orders.length}
+                                  onCheckedChange={(checked) => toggleAllInGroup(supplierId, checked as boolean)}
+                                />
+                              </TableHead>
+                              <TableHead className="text-xs font-semibold uppercase">주문번호</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase">상품</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase">옵션</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase text-center">수량</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase">수령인</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase">주문일</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {group.orders.map((order) => (
+                              <TableRow key={order.id}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={group.selectedIds.has(order.id)}
+                                    onCheckedChange={(checked) =>
+                                      toggleOrderSelection(supplierId, order.id, checked as boolean)
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell className="font-mono text-sm text-primary">
+                                  #{order.platformOrderId?.slice(-8)}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm truncate max-w-[200px] block">
+                                    {order.productName}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {order.productOption || '-'}
+                                </TableCell>
+                                <TableCell className="text-center font-medium">x{order.quantity}</TableCell>
+                                <TableCell className="text-sm">
+                                  {order.receiverName || order.customerName}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {formatDate(order.orderDate)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        
+                        {activeSupplier === supplierId && generatedMessages.has(supplierId) && (
+                          <div className="p-4 border-t bg-muted/30">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-sm font-medium">생성된 메시지</Label>
+                              <Button variant="ghost" size="sm" onClick={() => handleCopy(supplierId)}>
+                                {copied ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                            <Textarea
+                              value={generatedMessages.get(supplierId) || ''}
+                              onChange={(e) => {
+                                setGeneratedMessages(prev => new Map(prev).set(supplierId, e.target.value))
+                              }}
+                              className="min-h-[150px] font-mono text-sm bg-background"
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleGenerateMessage}
-                  disabled={selectedOrderIds.size === 0 || !selectedSupplier}
-                >
-                  메시지 생성
-                </Button>
-              </CardContent>
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between border-b border-border py-4">
-                <CardTitle className="text-base font-semibold">메시지 미리보기</CardTitle>
-                <Button variant="ghost" size="sm" onClick={handleCopy} disabled={!message}>
-                  {copied ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <Textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="메시지 생성 버튼을 클릭하여 발주 메시지를 생성하세요."
-                  className="min-h-[200px] font-mono text-sm bg-muted resize-none"
-                />
-              </CardContent>
-            </Card>
-
-            <div className="flex flex-col gap-2">
-              <Button
-                size="lg"
-                className="w-full"
-                onClick={handleSend}
-                disabled={isPending || !message || selectedOrderIds.size === 0}
-              >
-                <Send className="h-5 w-5 mr-2" />
-                {isPending
-                  ? '처리 중...'
-                  : selectedSupplier?.contactMethod === 'Kakao'
-                  ? '카카오톡으로 전송'
-                  : 'SMS로 전송'}
-              </Button>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleCopy}
-                  disabled={!message}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  텍스트 복사
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Printer className="h-4 w-4 mr-2" />
-                  목록 인쇄
-                </Button>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </>

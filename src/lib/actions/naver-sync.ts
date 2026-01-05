@@ -104,8 +104,31 @@ export async function syncNaverOrders(params: {
 
     console.log('[syncNaverOrders] Total orders fetched:', allOrders.length)
 
+    const { data: productsWithSuppliers } = await supabase
+      .from('products')
+      .select('name, supplier_id')
+      .eq('store_id', store.id)
+      .not('supplier_id', 'is', null)
+
+    const productSupplierMap = new Map<string, string>()
+    if (productsWithSuppliers) {
+      for (const p of productsWithSuppliers) {
+        if (p.supplier_id) {
+          productSupplierMap.set(p.name.toLowerCase(), p.supplier_id)
+        }
+      }
+    }
+
     for (const naverOrder of allOrders) {
       const orderData = mapNaverOrderToDb(naverOrder, store.id)
+      
+      if (naverOrder.productName) {
+        const productNameLower = naverOrder.productName.toLowerCase()
+        const supplierId = productSupplierMap.get(productNameLower)
+        if (supplierId) {
+          (orderData as Record<string, unknown>).supplier_id = supplierId
+        }
+      }
       
       const { error: upsertError } = await supabase
         .from('orders')

@@ -10,9 +10,11 @@ export interface OrderForSupplier {
   platformOrderId: string
   productName: string
   productSku: string
+  productOption: string | null
   quantity: number
   customerName: string
   customerAddress: string
+  receiverName: string | null
   orderDate: string
   supplierId: string | null
   supplierName: string | null
@@ -23,6 +25,10 @@ export interface SupplierForOrder {
   name: string
   contactNumber: string | null
   contactMethod: ContactMethod
+  messageTemplate: string | null
+  sendScheduleTime: string | null
+  sendScheduleEnabled: boolean
+  autoSendEnabled: boolean
 }
 
 interface OrderRow {
@@ -32,6 +38,10 @@ interface OrderRow {
   customer_name: string | null
   customer_address: string | null
   order_date: string
+  product_option: string | null
+  receiver_name: string | null
+  product_name: string | null
+  supplier_id: string | null
   products: {
     id: string
     name: string
@@ -71,6 +81,10 @@ export async function getOrdersForSupplierSend(
       customer_name,
       customer_address,
       order_date,
+      product_name,
+      product_option,
+      receiver_name,
+      supplier_id,
       products (
         id,
         name,
@@ -92,13 +106,15 @@ export async function getOrdersForSupplierSend(
   const transformedOrders: OrderForSupplier[] = typedOrders.map((order) => ({
     id: order.id,
     platformOrderId: order.platform_order_id || order.id.slice(0, 8).toUpperCase(),
-    productName: order.products?.name || 'Unknown Product',
+    productName: order.product_name || order.products?.name || 'Unknown Product',
     productSku: order.products?.sku || 'N/A',
+    productOption: order.product_option || null,
     quantity: order.quantity,
     customerName: order.customer_name || 'Unknown',
     customerAddress: order.customer_address || '',
+    receiverName: order.receiver_name || null,
     orderDate: order.order_date,
-    supplierId: order.products?.supplier_id || null,
+    supplierId: order.supplier_id || order.products?.supplier_id || null,
     supplierName: order.products?.suppliers?.name || null,
   }))
 
@@ -147,6 +163,10 @@ export async function getOrdersBySupplier(
       customer_name,
       customer_address,
       order_date,
+      product_name,
+      product_option,
+      receiver_name,
+      supplier_id,
       products (
         id,
         name,
@@ -169,13 +189,15 @@ export async function getOrdersBySupplier(
   const transformedOrders: OrderForSupplier[] = typedOrders.map((order) => ({
     id: order.id,
     platformOrderId: order.platform_order_id || order.id.slice(0, 8).toUpperCase(),
-    productName: order.products?.name || 'Unknown Product',
+    productName: order.product_name || order.products?.name || 'Unknown Product',
     productSku: order.products?.sku || 'N/A',
+    productOption: order.product_option || null,
     quantity: order.quantity,
     customerName: order.customer_name || 'Unknown',
     customerAddress: order.customer_address || '',
+    receiverName: order.receiver_name || null,
     orderDate: order.order_date,
-    supplierId: order.products?.supplier_id || null,
+    supplierId: order.supplier_id || order.products?.supplier_id || null,
     supplierName: order.products?.suppliers?.name || null,
   }))
 
@@ -195,7 +217,7 @@ export async function getSuppliersForOrders(): Promise<{
 
   const { data: suppliers, error } = await supabase
     .from('suppliers')
-    .select('id, name, contact_number, contact_method')
+    .select('id, name, contact_number, contact_method, message_template, send_schedule_time, send_schedule_enabled, auto_send_enabled')
     .eq('user_id', userData.user.id)
     .order('name')
 
@@ -208,6 +230,10 @@ export async function getSuppliersForOrders(): Promise<{
     name: string
     contact_number: string | null
     contact_method: string
+    message_template: string | null
+    send_schedule_time: string | null
+    send_schedule_enabled: boolean
+    auto_send_enabled: boolean
   }
 
   const typedSuppliers = suppliers as unknown as SupplierRow[]
@@ -218,6 +244,10 @@ export async function getSuppliersForOrders(): Promise<{
       name: s.name,
       contactNumber: s.contact_number,
       contactMethod: s.contact_method as ContactMethod,
+      messageTemplate: s.message_template,
+      sendScheduleTime: s.send_schedule_time,
+      sendScheduleEnabled: s.send_schedule_enabled ?? false,
+      autoSendEnabled: s.auto_send_enabled ?? false,
     })),
     error: null,
   }

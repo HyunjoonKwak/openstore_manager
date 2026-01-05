@@ -9,6 +9,12 @@ export interface SupplierWithStats {
   name: string
   contactNumber: string | null
   contactMethod: ContactMethod
+  messageTemplate: string | null
+  sendScheduleTime: string | null
+  sendScheduleEnabled: boolean
+  autoSendEnabled: boolean
+  courierId: string | null
+  defaultCourierAccount: string | null
   productCount: number
   lastOrderDate: string | null
   createdAt: string
@@ -19,6 +25,12 @@ interface SupplierRow {
   name: string
   contact_number: string | null
   contact_method: string
+  message_template: string | null
+  send_schedule_time: string | null
+  send_schedule_enabled: boolean
+  auto_send_enabled: boolean
+  courier_id: string | null
+  default_courier_account: string | null
   created_at: string
 }
 
@@ -60,6 +72,12 @@ export async function getSuppliers(): Promise<{ data: SupplierWithStats[] | null
     name: supplier.name,
     contactNumber: supplier.contact_number,
     contactMethod: supplier.contact_method as ContactMethod,
+    messageTemplate: supplier.message_template,
+    sendScheduleTime: supplier.send_schedule_time,
+    sendScheduleEnabled: supplier.send_schedule_enabled ?? false,
+    autoSendEnabled: supplier.auto_send_enabled ?? false,
+    courierId: supplier.courier_id,
+    defaultCourierAccount: supplier.default_courier_account,
     productCount: countMap.get(supplier.id) || 0,
     lastOrderDate: null,
     createdAt: supplier.created_at,
@@ -109,6 +127,12 @@ export async function createSupplier(
       name: typedData.name,
       contactNumber: typedData.contact_number,
       contactMethod: typedData.contact_method as ContactMethod,
+      messageTemplate: typedData.message_template,
+      sendScheduleTime: typedData.send_schedule_time,
+      sendScheduleEnabled: typedData.send_schedule_enabled ?? false,
+      autoSendEnabled: typedData.auto_send_enabled ?? false,
+      courierId: typedData.courier_id,
+      defaultCourierAccount: typedData.default_courier_account,
       productCount: 0,
       lastOrderDate: null,
       createdAt: typedData.created_at,
@@ -122,6 +146,12 @@ interface UpdateSupplierInput {
   name?: string
   contactNumber?: string
   contactMethod?: ContactMethod
+  messageTemplate?: string | null
+  sendScheduleTime?: string | null
+  sendScheduleEnabled?: boolean
+  autoSendEnabled?: boolean
+  courierId?: string | null
+  defaultCourierAccount?: string | null
 }
 
 export async function updateSupplier(
@@ -129,10 +159,16 @@ export async function updateSupplier(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
-  const updateData: Record<string, string | null> = {}
+  const updateData: Record<string, string | boolean | null> = {}
   if (input.name !== undefined) updateData.name = input.name
   if (input.contactNumber !== undefined) updateData.contact_number = input.contactNumber
   if (input.contactMethod !== undefined) updateData.contact_method = input.contactMethod
+  if (input.messageTemplate !== undefined) updateData.message_template = input.messageTemplate
+  if (input.sendScheduleTime !== undefined) updateData.send_schedule_time = input.sendScheduleTime
+  if (input.sendScheduleEnabled !== undefined) updateData.send_schedule_enabled = input.sendScheduleEnabled
+  if (input.autoSendEnabled !== undefined) updateData.auto_send_enabled = input.autoSendEnabled
+  if (input.courierId !== undefined) updateData.courier_id = input.courierId
+  if (input.defaultCourierAccount !== undefined) updateData.default_courier_account = input.defaultCourierAccount
 
   const { error } = await supabase
     .from('suppliers')

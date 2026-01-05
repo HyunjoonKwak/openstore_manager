@@ -85,6 +85,12 @@ export interface Database {
           name: string
           contact_number: string | null
           contact_method: ContactMethod
+          message_template: string | null
+          send_schedule_time: string | null
+          send_schedule_enabled: boolean
+          auto_send_enabled: boolean
+          courier_id: string | null
+          default_courier_account: string | null
           created_at: string
         }
         Insert: {
@@ -93,6 +99,12 @@ export interface Database {
           name: string
           contact_number?: string | null
           contact_method?: ContactMethod
+          message_template?: string | null
+          send_schedule_time?: string | null
+          send_schedule_enabled?: boolean
+          auto_send_enabled?: boolean
+          courier_id?: string | null
+          default_courier_account?: string | null
           created_at?: string
         }
         Update: {
@@ -101,6 +113,12 @@ export interface Database {
           name?: string
           contact_number?: string | null
           contact_method?: ContactMethod
+          message_template?: string | null
+          send_schedule_time?: string | null
+          send_schedule_enabled?: boolean
+          auto_send_enabled?: boolean
+          courier_id?: string | null
+          default_courier_account?: string | null
           created_at?: string
         }
         Relationships: [
@@ -108,6 +126,12 @@ export interface Database {
             foreignKeyName: 'suppliers_user_id_fkey'
             columns: ['user_id']
             referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'suppliers_courier_id_fkey'
+            columns: ['courier_id']
+            referencedRelation: 'couriers'
             referencedColumns: ['id']
           }
         ]
@@ -216,6 +240,9 @@ export interface Database {
           zip_code: string | null
           naver_order_id: string | null
           delivery_memo: string | null
+          supplier_id: string | null
+          supplier_sent_at: string | null
+          supplier_order_status: string | null
         }
         Insert: {
           id?: string
@@ -241,6 +268,9 @@ export interface Database {
           zip_code?: string | null
           naver_order_id?: string | null
           delivery_memo?: string | null
+          supplier_id?: string | null
+          supplier_sent_at?: string | null
+          supplier_order_status?: string | null
         }
         Update: {
           id?: string
@@ -266,6 +296,9 @@ export interface Database {
           zip_code?: string | null
           naver_order_id?: string | null
           delivery_memo?: string | null
+          supplier_id?: string | null
+          supplier_sent_at?: string | null
+          supplier_order_status?: string | null
         }
         Relationships: [
           {
@@ -278,6 +311,92 @@ export interface Database {
             foreignKeyName: 'orders_product_id_fkey'
             columns: ['product_id']
             referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'orders_supplier_id_fkey'
+            columns: ['supplier_id']
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      couriers: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          code: string
+          api_type: string | null
+          api_config: Json
+          is_default: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          code: string
+          api_type?: string | null
+          api_config?: Json
+          is_default?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          code?: string
+          api_type?: string | null
+          api_config?: Json
+          is_default?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'couriers_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      supplier_order_logs: {
+        Row: {
+          id: string
+          supplier_id: string
+          order_ids: string[]
+          message_content: string | null
+          send_method: string
+          status: string
+          error_message: string | null
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          supplier_id: string
+          order_ids: string[]
+          message_content?: string | null
+          send_method: string
+          status?: string
+          error_message?: string | null
+          sent_at?: string
+        }
+        Update: {
+          id?: string
+          supplier_id?: string
+          order_ids?: string[]
+          message_content?: string | null
+          send_method?: string
+          status?: string
+          error_message?: string | null
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'supplier_order_logs_supplier_id_fkey'
+            columns: ['supplier_id']
+            referencedRelation: 'suppliers'
             referencedColumns: ['id']
           }
         ]
@@ -587,3 +706,5 @@ export type SyncLog = Tables<'sync_logs'>
 export type Settlement = Tables<'settlements'>
 export type SyncHistory = Tables<'sync_history'>
 export type StockSyncLog = Tables<'stock_sync_logs'>
+export type Courier = Tables<'couriers'>
+export type SupplierOrderLog = Tables<'supplier_order_logs'>
