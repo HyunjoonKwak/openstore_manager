@@ -10,6 +10,7 @@ export interface SupplierWithStats {
   name: string
   contactNumber: string | null
   contactMethod: ContactMethod
+  webhookUrl: string | null
   messageTemplate: string | null
   sendScheduleTime: string | null
   sendScheduleEnabled: boolean
@@ -26,6 +27,7 @@ interface SupplierRow {
   name: string
   contact_number: string | null
   contact_method: string
+  webhook_url: string | null
   message_template: string | null
   send_schedule_time: string | null
   send_schedule_enabled: boolean
@@ -73,6 +75,7 @@ export async function getSuppliers(): Promise<{ data: SupplierWithStats[] | null
     name: supplier.name,
     contactNumber: supplier.contact_number,
     contactMethod: supplier.contact_method as ContactMethod,
+    webhookUrl: supplier.webhook_url,
     messageTemplate: supplier.message_template,
     sendScheduleTime: supplier.send_schedule_time,
     sendScheduleEnabled: supplier.send_schedule_enabled ?? false,
@@ -91,6 +94,7 @@ interface CreateSupplierInput {
   name: string
   contactNumber?: string
   contactMethod: ContactMethod
+  webhookUrl?: string
 }
 
 export async function createSupplier(
@@ -110,6 +114,7 @@ export async function createSupplier(
       name: input.name,
       contact_number: input.contactNumber || null,
       contact_method: input.contactMethod,
+      webhook_url: input.webhookUrl || null,
     })
     .select()
     .single()
@@ -128,6 +133,7 @@ export async function createSupplier(
       name: typedData.name,
       contactNumber: typedData.contact_number,
       contactMethod: typedData.contact_method as ContactMethod,
+      webhookUrl: typedData.webhook_url,
       messageTemplate: typedData.message_template,
       sendScheduleTime: typedData.send_schedule_time,
       sendScheduleEnabled: typedData.send_schedule_enabled ?? false,
@@ -147,6 +153,7 @@ interface UpdateSupplierInput {
   name?: string
   contactNumber?: string
   contactMethod?: ContactMethod
+  webhookUrl?: string | null
   messageTemplate?: string | null
   sendScheduleTime?: string | null
   sendScheduleEnabled?: boolean
@@ -164,6 +171,7 @@ export async function updateSupplier(
   if (input.name !== undefined) updateData.name = input.name
   if (input.contactNumber !== undefined) updateData.contact_number = input.contactNumber
   if (input.contactMethod !== undefined) updateData.contact_method = input.contactMethod
+  if (input.webhookUrl !== undefined) updateData.webhook_url = input.webhookUrl
   if (input.messageTemplate !== undefined) updateData.message_template = input.messageTemplate
   if (input.sendScheduleTime !== undefined) updateData.send_schedule_time = input.sendScheduleTime
   if (input.sendScheduleEnabled !== undefined) updateData.send_schedule_enabled = input.sendScheduleEnabled

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { Plus, MoreHorizontal, Phone, MessageSquare, Edit, Trash, Settings, Truck, Clock, FileText, Variable, Copy, Info } from 'lucide-react'
+import { Plus, MoreHorizontal, Phone, MessageSquare, Edit, Trash, Settings, Truck, Clock, FileText, Variable, Copy, Info, Send, Eye, Loader2 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -57,6 +57,7 @@ import {
 } from '@/lib/actions/couriers'
 import type { ContactMethod } from '@/types/database.types'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
+import { sendTestNotification } from '@/lib/notifications'
 
 interface SuppliersClientProps {
   initialSuppliers: SupplierWithStats[]
@@ -104,6 +105,7 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
     name: '',
     contactNumber: '',
     contactMethod: 'Kakao' as ContactMethod,
+    webhookUrl: '',
   })
 
   const [courierFormData, setCourierFormData] = useState({
@@ -121,12 +123,15 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
     defaultCourierAccount: '',
   })
 
+  const [showPreview, setShowPreview] = useState(false)
+  const [isSendingTest, setIsSendingTest] = useState(false)
+
   useEffect(() => {
     getCourierCodes().then(setCourierCodes)
   }, [])
 
   const resetForm = () => {
-    setFormData({ name: '', contactNumber: '', contactMethod: 'Kakao' })
+    setFormData({ name: '', contactNumber: '', contactMethod: 'Kakao', webhookUrl: '' })
     setEditingSupplier(null)
   }
 
@@ -142,6 +147,7 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
         name: supplier.name,
         contactNumber: supplier.contactNumber || '',
         contactMethod: supplier.contactMethod,
+        webhookUrl: supplier.webhookUrl || '',
       })
     } else {
       resetForm()
@@ -173,7 +179,62 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
       courierId: supplier.courierId || '',
       defaultCourierAccount: supplier.defaultCourierAccount || '',
     })
+    setShowPreview(false)
     setIsSettingsDialogOpen(true)
+  }
+
+  const isWebhookMethod = formData.contactMethod === 'Telegram' || formData.contactMethod === 'Discord'
+
+  const renderPreview = (template: string, supplierName: string): string => {
+    const today = new Date().toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    return template
+      .replace(/{supplier_name}/g, supplierName)
+      .replace(/{date}/g, today)
+      .replace(/{order_count}/g, '3')
+      .replace(/{total_quantity}/g, '7')
+      .replace(/{total_amount}/g, '150,000')
+      .replace(/{order_list}/g, '- 테스트 상품A (옵션1) x3\n- 테스트 상품B x2\n- 테스트 상품C (Large) x2')
+      .replace(/{receiver_list}/g, '1. 홍길동 / 010-1234-5678\n   서울시 강남구 테헤란로 123\n2. 김철수 / 010-9876-5432\n   부산시 해운대구 해변로 456')
+  }
+
+  const handleSendTest = async () => {
+    if (!settingsSupplier) return
+
+    const isWebhook = settingsSupplier.contactMethod === 'Telegram' || settingsSupplier.contactMethod === 'Discord'
+    
+    if (isWebhook && !settingsSupplier.webhookUrl) {
+      toast.error('웹훅 URL이 설정되지 않았습니다.')
+      return
+    }
+    if (!isWebhook && !settingsSupplier.contactNumber) {
+      toast.error('연락처가 설정되지 않았습니다.')
+      return
+    }
+
+    setIsSendingTest(true)
+    try {
+      const result = await sendTestNotification({
+        supplierName: settingsSupplier.name,
+        contactMethod: settingsSupplier.contactMethod,
+        contactNumber: settingsSupplier.contactNumber || undefined,
+        webhookUrl: settingsSupplier.webhookUrl || undefined,
+        messageTemplate: settingsData.messageTemplate || DEFAULT_TEMPLATE,
+      })
+
+      if (result.success) {
+        toast.success(`테스트 메시지가 ${result.method}로 발송되었습니다.`)
+      } else {
+        toast.error(result.error || '테스트 발송에 실패했습니다.')
+      }
+    } catch {
+      toast.error('테스트 발송 중 오류가 발생했습니다.')
+    } finally {
+      setIsSendingTest(false)
+    }
   }
 
   const handleSave = () => {
@@ -182,12 +243,21 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
     if (!formData.name.trim()) {
       errors.push('업체명')
     }
-    if (!formData.contactNumber.trim()) {
-      errors.push('연락처')
+    
+    if (isWebhookMethod) {
+      if (!formData.webhookUrl.trim()) {
+        errors.push('웹훅 URL')
+      } else if (!formData.webhookUrl.startsWith('https://')) {
+        errors.push('유효한 웹훅 URL (https://로 시작)')
+      }
     } else {
-      const phonePattern = /^[0-9]{2,3}-?[0-9]{3,4}-?[0-9]{4}$/
-      if (!phonePattern.test(formData.contactNumber.replace(/-/g, ''))) {
-        errors.push('유효한 연락처 형식 (예: 010-1234-5678)')
+      if (!formData.contactNumber.trim()) {
+        errors.push('연락처')
+      } else {
+        const phonePattern = /^[0-9]{2,3}-?[0-9]{3,4}-?[0-9]{4}$/
+        if (!phonePattern.test(formData.contactNumber.replace(/-/g, ''))) {
+          errors.push('유효한 연락처 형식 (예: 010-1234-5678)')
+        }
       }
     }
     
@@ -201,8 +271,9 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
         const result = await updateSupplier({
           id: editingSupplier.id,
           name: formData.name,
-          contactNumber: formData.contactNumber,
+          contactNumber: isWebhookMethod ? undefined : formData.contactNumber,
           contactMethod: formData.contactMethod,
+          webhookUrl: isWebhookMethod ? formData.webhookUrl : undefined,
         })
 
         if (result.success) {
@@ -220,8 +291,9 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
       } else {
         const result = await createSupplier({
           name: formData.name,
-          contactNumber: formData.contactNumber,
+          contactNumber: isWebhookMethod ? undefined : formData.contactNumber,
           contactMethod: formData.contactMethod,
+          webhookUrl: isWebhookMethod ? formData.webhookUrl : undefined,
         })
 
         if (result.data) {
@@ -409,17 +481,6 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="contactNumber">연락처</Label>
-                      <Input
-                        id="contactNumber"
-                        value={formData.contactNumber}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, contactNumber: e.target.value }))
-                        }
-                        placeholder="010-0000-0000"
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="contactMethod">연락 방법</Label>
                       <Select
                         value={formData.contactMethod}
@@ -436,9 +497,45 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                         <SelectContent>
                           <SelectItem value="Kakao">카카오톡</SelectItem>
                           <SelectItem value="SMS">SMS</SelectItem>
+                          <SelectItem value="Telegram">Telegram</SelectItem>
+                          <SelectItem value="Discord">Discord</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+                    {formData.contactMethod === 'Telegram' || formData.contactMethod === 'Discord' ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="webhookUrl">
+                          {formData.contactMethod === 'Telegram' ? 'Telegram Bot 웹훅 URL' : 'Discord 웹훅 URL'}
+                        </Label>
+                        <Input
+                          id="webhookUrl"
+                          value={formData.webhookUrl}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, webhookUrl: e.target.value }))
+                          }
+                          placeholder={formData.contactMethod === 'Telegram' 
+                            ? 'https://api.telegram.org/bot...' 
+                            : 'https://discord.com/api/webhooks/...'}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {formData.contactMethod === 'Telegram' 
+                            ? 'BotFather에서 받은 봇 토큰으로 웹훅 URL을 구성하세요' 
+                            : 'Discord 채널 설정 > 연동 > 웹훅에서 URL을 복사하세요'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="contactNumber">연락처</Label>
+                        <Input
+                          id="contactNumber"
+                          value={formData.contactNumber}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, contactNumber: e.target.value }))
+                          }
+                          placeholder="010-0000-0000"
+                        />
+                      </div>
+                    )}
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -487,7 +584,9 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                         <TableRow key={supplier.id}>
                           <TableCell className="font-medium">{supplier.name}</TableCell>
                           <TableCell className="font-mono text-sm">
-                            {supplier.contactNumber || '-'}
+                            {supplier.contactMethod === 'Telegram' || supplier.contactMethod === 'Discord'
+                              ? (supplier.webhookUrl ? 'Webhook' : '-')
+                              : (supplier.contactNumber || '-')}
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -495,13 +594,19 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                               className={
                                 supplier.contactMethod === 'Kakao'
                                   ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
-                                  : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                  : supplier.contactMethod === 'SMS'
+                                  ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                  : supplier.contactMethod === 'Telegram'
+                                  ? 'bg-sky-500/10 text-sky-500 border-sky-500/20'
+                                  : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
                               }
                             >
                               {supplier.contactMethod === 'Kakao' ? (
                                 <MessageSquare className="h-3 w-3 mr-1" />
-                              ) : (
+                              ) : supplier.contactMethod === 'SMS' ? (
                                 <Phone className="h-3 w-3 mr-1" />
+                              ) : (
+                                <MessageSquare className="h-3 w-3 mr-1" />
                               )}
                               {supplier.contactMethod}
                             </Badge>
@@ -776,19 +881,54 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                   </TooltipProvider>
                 </div>
                 
-                <Textarea
-                  id="messageTemplate"
-                  value={settingsData.messageTemplate}
-                  onChange={(e) =>
-                    setSettingsData((prev) => ({ ...prev, messageTemplate: e.target.value }))
-                  }
-                  className="min-h-[200px] font-mono text-sm"
-                  placeholder={DEFAULT_TEMPLATE}
-                />
+                {showPreview ? (
+                  <div className="min-h-[200px] p-3 bg-muted/30 rounded-md border">
+                    <pre className="whitespace-pre-wrap text-sm font-mono">
+                      {renderPreview(settingsData.messageTemplate || DEFAULT_TEMPLATE, settingsSupplier?.name || '공급업체')}
+                    </pre>
+                  </div>
+                ) : (
+                  <Textarea
+                    id="messageTemplate"
+                    value={settingsData.messageTemplate}
+                    onChange={(e) =>
+                      setSettingsData((prev) => ({ ...prev, messageTemplate: e.target.value }))
+                    }
+                    className="min-h-[200px] font-mono text-sm"
+                    placeholder={DEFAULT_TEMPLATE}
+                  />
+                )}
                 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Info className="h-3 w-3" />
-                  <span>변수 버튼을 클릭하면 커서 위치에 삽입됩니다</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Info className="h-3 w-3" />
+                    <span>변수 버튼을 클릭하면 커서 위치에 삽입됩니다</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPreview(!showPreview)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      {showPreview ? '편집' : '미리보기'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSendTest}
+                      disabled={isSendingTest}
+                    >
+                      {isSendingTest ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-1" />
+                      )}
+                      테스트 발송
+                    </Button>
+                  </div>
                 </div>
               </div>
 

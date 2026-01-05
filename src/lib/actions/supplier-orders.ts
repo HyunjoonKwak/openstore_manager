@@ -25,6 +25,7 @@ export interface SupplierForOrder {
   id: string
   name: string
   contactNumber: string | null
+  webhookUrl: string | null
   contactMethod: ContactMethod
   messageTemplate: string | null
   sendScheduleTime: string | null
@@ -223,7 +224,7 @@ export async function getSuppliersForOrders(): Promise<{
 
   const { data: suppliers, error } = await supabase
     .from('suppliers')
-    .select('id, name, contact_number, contact_method, message_template, send_schedule_time, send_schedule_enabled, auto_send_enabled')
+    .select('id, name, contact_number, webhook_url, contact_method, message_template, send_schedule_time, send_schedule_enabled, auto_send_enabled')
     .eq('user_id', userData.user.id)
     .order('name')
 
@@ -235,6 +236,7 @@ export async function getSuppliersForOrders(): Promise<{
     id: string
     name: string
     contact_number: string | null
+    webhook_url: string | null
     contact_method: string
     message_template: string | null
     send_schedule_time: string | null
@@ -249,6 +251,7 @@ export async function getSuppliersForOrders(): Promise<{
       id: s.id,
       name: s.name,
       contactNumber: s.contact_number,
+      webhookUrl: s.webhook_url,
       contactMethod: s.contact_method as ContactMethod,
       messageTemplate: s.message_template,
       sendScheduleTime: s.send_schedule_time,
@@ -375,7 +378,7 @@ export async function sendOrdersToSupplier(
 
   const { data: supplier } = await supabase
     .from('suppliers')
-    .select('id, name, contact_number, contact_method')
+    .select('id, name, contact_number, webhook_url, contact_method')
     .eq('id', supplierId)
     .single()
 
@@ -387,6 +390,7 @@ export async function sendOrdersToSupplier(
     id: string
     name: string
     contact_number: string | null
+    webhook_url: string | null
     contact_method: string
   }
   const typedSupplier = supplier as unknown as SupplierRow
@@ -404,7 +408,10 @@ export async function sendOrdersToSupplier(
   let notificationMethod: ContactMethod | undefined
   let notificationError: string | undefined
 
-  if (sendNotification && typedSupplier.contact_number) {
+  const isWebhookMethod = typedSupplier.contact_method === 'Telegram' || typedSupplier.contact_method === 'Discord'
+  const canSendNotification = isWebhookMethod ? !!typedSupplier.webhook_url : !!typedSupplier.contact_number
+
+  if (sendNotification && canSendNotification) {
     const { data: orders } = await supabase
       .from('orders')
       .select(`
@@ -433,7 +440,8 @@ export async function sendOrdersToSupplier(
 
     const result = await sendOrderNotification({
       supplierName: typedSupplier.name,
-      supplierPhone: typedSupplier.contact_number,
+      supplierPhone: typedSupplier.contact_number ?? undefined,
+      webhookUrl: typedSupplier.webhook_url ?? undefined,
       contactMethod: typedSupplier.contact_method as ContactMethod,
       orderCount: orderIds.length,
       productSummary,

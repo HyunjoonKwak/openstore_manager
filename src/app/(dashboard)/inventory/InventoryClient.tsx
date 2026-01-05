@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Plus, MoreHorizontal, Package, AlertTriangle, TrendingDown, CheckCircle, Edit, Trash, Search, RefreshCw, Upload, FileSpreadsheet, ShoppingBag, Ban, FileText, ArrowUpRight, ImageIcon, Check, X, Pencil, Copy } from 'lucide-react'
+import { Plus, MoreHorizontal, Package, AlertTriangle, TrendingDown, CheckCircle, Edit, Trash, Search, RefreshCw, Upload, FileSpreadsheet, ShoppingBag, Ban, FileText, ArrowUpRight, ImageIcon, Check, X, Pencil, Copy, Sparkles, Loader2 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -101,7 +101,7 @@ export function InventoryClient({
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductWithSupplier | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('판매중')
   const [isPending, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -130,6 +130,17 @@ export function InventoryClient({
   const [isCopying, setIsCopying] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTargetProduct, setDeleteTargetProduct] = useState<ProductWithSupplier | null>(null)
+  
+  const [addMode, setAddMode] = useState<'manual' | 'ai'>('manual')
+  const [aiKeywords, setAiKeywords] = useState('')
+  const [aiCategory, setAiCategory] = useState('electronics')
+  const [aiTone, setAiTone] = useState('professional')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [aiGenerated, setAiGenerated] = useState<{
+    title: string
+    features: string[]
+    description: string
+  } | null>(null)
 
   const resetForm = () => {
     setFormData({
@@ -145,6 +156,9 @@ export function InventoryClient({
       description: '',
     })
     setEditingProduct(null)
+    setAddMode('manual')
+    setAiKeywords('')
+    setAiGenerated(null)
   }
 
   const handleOpenDialog = (product?: ProductWithSupplier) => {
@@ -166,6 +180,51 @@ export function InventoryClient({
       resetForm()
     }
     setIsDialogOpen(true)
+  }
+
+  const handleAiGenerate = async () => {
+    if (!aiKeywords.trim()) {
+      toast.error('키워드를 입력해주세요.')
+      return
+    }
+
+    setIsGenerating(true)
+    try {
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keywords: aiKeywords,
+          category: aiCategory,
+          tone: aiTone,
+          options: { seo: true, html: false },
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Generation failed')
+      }
+
+      const data = await response.json()
+      setAiGenerated(data)
+      toast.success('AI가 상품 정보를 생성했습니다!')
+    } catch {
+      toast.error('API 키가 설정되지 않았습니다. 설정 페이지에서 OpenAI API 키를 입력하세요.')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleApplyAiContent = () => {
+    if (!aiGenerated) return
+    
+    setFormData(prev => ({
+      ...prev,
+      name: aiGenerated.title,
+      description: aiGenerated.description,
+    }))
+    setAddMode('manual')
+    toast.success('AI 생성 내용이 적용되었습니다. 가격과 재고를 입력해주세요.')
   }
 
   const recalculateStats = (productList: ProductWithSupplier[]) => {
@@ -580,6 +639,114 @@ export function InventoryClient({
                     {editingProduct ? '상품 수정' : '새 상품 추가'}
                   </DialogTitle>
                 </DialogHeader>
+                
+                {!editingProduct && (
+                  <div className="flex gap-2 mb-4">
+                    <Button
+                      variant={addMode === 'manual' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setAddMode('manual')}
+                      className="flex-1"
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      수동 등록
+                    </Button>
+                    <Button
+                      variant={addMode === 'ai' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setAddMode('ai')}
+                      className="flex-1"
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      AI 생성 등록
+                    </Button>
+                  </div>
+                )}
+
+                {addMode === 'ai' && !editingProduct ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>상품 키워드</Label>
+                      <Input
+                        value={aiKeywords}
+                        onChange={(e) => setAiKeywords(e.target.value)}
+                        placeholder="예: 무선 블루투스 이어폰, 노이즈캔슬링"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>카테고리</Label>
+                        <Select value={aiCategory} onValueChange={setAiCategory}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="electronics">전자제품</SelectItem>
+                            <SelectItem value="fashion">패션</SelectItem>
+                            <SelectItem value="home">홈/리빙</SelectItem>
+                            <SelectItem value="beauty">뷰티</SelectItem>
+                            <SelectItem value="food">식품</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>톤 & 스타일</Label>
+                        <Select value={aiTone} onValueChange={setAiTone}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="professional">전문적</SelectItem>
+                            <SelectItem value="friendly">친근한</SelectItem>
+                            <SelectItem value="luxury">럭셔리</SelectItem>
+                            <SelectItem value="casual">캐주얼</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      className="w-full" 
+                      onClick={handleAiGenerate}
+                      disabled={isGenerating || !aiKeywords.trim()}
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      )}
+                      {isGenerating ? 'AI 생성 중...' : 'AI로 상품정보 생성'}
+                    </Button>
+
+                    {aiGenerated && (
+                      <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">생성된 상품명</Label>
+                          <p className="font-medium">{aiGenerated.title}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">핵심 특징</Label>
+                          <ul className="text-sm space-y-1">
+                            {aiGenerated.features.map((f, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className="text-primary">•</span>
+                                {f}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">상품 설명</Label>
+                          <p className="text-sm text-muted-foreground">{aiGenerated.description}</p>
+                        </div>
+                        <Button className="w-full" onClick={handleApplyAiContent}>
+                          <Check className="h-4 w-4 mr-2" />
+                          이 내용으로 상품 등록하기
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
                 <Tabs defaultValue="basic" className="w-full">
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="basic">기본정보</TabsTrigger>
@@ -754,6 +921,9 @@ export function InventoryClient({
                     </TabsContent>
                   </ScrollArea>
                 </Tabs>
+                )}
+                
+                {(addMode === 'manual' || editingProduct) && (
                 <DialogFooter className="mt-4">
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                     취소
@@ -762,6 +932,7 @@ export function InventoryClient({
                     {isPending ? '저장 중...' : editingProduct ? '수정' : '추가'}
                   </Button>
                 </DialogFooter>
+                )}
               </DialogContent>
             </Dialog>
           </div>
@@ -803,7 +974,7 @@ export function InventoryClient({
                     <p className="text-muted-foreground mb-4">
                       다른 검색어로 다시 시도하거나 필터를 변경해보세요.
                     </p>
-                    <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>
+                    <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('판매중'); }}>
                       검색 초기화
                     </Button>
                   </>

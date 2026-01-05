@@ -6,15 +6,12 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Package,
-  Sparkles,
   Settings,
   Truck,
-  PlusCircle,
   Rocket,
   DollarSign,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
 interface NavItem {
@@ -30,7 +27,6 @@ const navItems: NavItem[] = [
   { label: '공급업체', href: '/suppliers', icon: Truck },
   { label: '재고관리', href: '/inventory', icon: Package },
   { label: '정산관리', href: '/settlements', icon: DollarSign },
-  { label: 'AI 상세페이지', href: '/ai-generator', icon: Sparkles },
 ]
 
 const bottomNavItems: NavItem[] = [
@@ -92,11 +88,6 @@ export function Sidebar({ className }: SidebarProps) {
         </nav>
 
         <div className="mt-auto flex flex-col gap-2">
-          <Button className="w-full gap-2" size="default">
-            <PlusCircle className="h-4 w-4" />
-            AI 상품 생성
-          </Button>
-
           {bottomNavItems.map((item) => {
             const isActive = pathname.startsWith(item.href)
             return (

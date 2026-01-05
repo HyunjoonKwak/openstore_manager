@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Truck,
-  Sparkles,
+  Package,
   Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -15,7 +15,7 @@ const mobileNavItems = [
   { label: '대시보드', href: '/dashboard', icon: LayoutDashboard },
   { label: '주문', href: '/orders', icon: ShoppingCart },
   { label: '공급업체', href: '/suppliers', icon: Truck },
-  { label: 'AI', href: '/ai-generator', icon: Sparkles },
+  { label: '재고', href: '/inventory', icon: Package },
   { label: '설정', href: '/settings', icon: Settings },
 ]
 

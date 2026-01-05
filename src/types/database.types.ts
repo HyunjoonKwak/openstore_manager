@@ -8,7 +8,7 @@ export type Json =
 
 export type OrderStatus = 'New' | 'Ordered' | 'Shipped' | 'Cancelled'
 export type UserRole = 'owner' | 'staff'
-export type ContactMethod = 'SMS' | 'Kakao'
+export type ContactMethod = 'SMS' | 'Kakao' | 'Telegram' | 'Discord'
 export type DetailPageStatus = 'Draft' | 'Completed'
 export type Platform = 'Naver' | 'Coupang' | 'Gmarket' | '11st' | 'Other'
 export type ProductStatus = 'SALE' | 'SUSPENSION' | 'WAIT' | 'UNADMISSION' | 'REJECTION' | 'PROHIBITION' | 'DELETE'
@@ -85,6 +85,7 @@ export interface Database {
           name: string
           contact_number: string | null
           contact_method: ContactMethod
+          webhook_url: string | null
           message_template: string | null
           send_schedule_time: string | null
           send_schedule_enabled: boolean
@@ -99,6 +100,7 @@ export interface Database {
           name: string
           contact_number?: string | null
           contact_method?: ContactMethod
+          webhook_url?: string | null
           message_template?: string | null
           send_schedule_time?: string | null
           send_schedule_enabled?: boolean
@@ -113,6 +115,7 @@ export interface Database {
           name?: string
           contact_number?: string | null
           contact_method?: ContactMethod
+          webhook_url?: string | null
           message_template?: string | null
           send_schedule_time?: string | null
           send_schedule_enabled?: boolean
