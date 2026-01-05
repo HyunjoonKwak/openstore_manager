@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { Plus, MoreHorizontal, Phone, MessageSquare, Edit, Trash, Settings, Truck, Clock, FileText } from 'lucide-react'
+import { Plus, MoreHorizontal, Phone, MessageSquare, Edit, Trash, Settings, Truck, Clock, FileText, Variable, Copy, Info } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Table,
   TableBody,
@@ -73,6 +74,16 @@ const DEFAULT_TEMPLATE = `[발주서] {date}
 
 확인 부탁드립니다.
 감사합니다.`
+
+const TEMPLATE_VARIABLES = [
+  { key: 'supplier_name', label: '공급업체명', description: '공급업체 이름', example: '(주)ABC상사' },
+  { key: 'date', label: '날짜', description: '오늘 날짜', example: '2024. 1. 5.' },
+  { key: 'order_count', label: '주문 건수', description: '선택된 주문 개수', example: '5' },
+  { key: 'total_quantity', label: '총 수량', description: '전체 상품 수량 합계', example: '23' },
+  { key: 'order_list', label: '주문 목록', description: '상품명, 옵션, 수량 목록', example: '- 상품A (옵션1) x3\n- 상품B x2' },
+  { key: 'receiver_list', label: '수령인 목록', description: '수령인별 상세 정보', example: '1. 홍길동 / 010-1234-5678\n   서울시 강남구...' },
+  { key: 'total_amount', label: '총 금액', description: '주문 총액 (원)', example: '150,000' },
+]
 
 export function SuppliersClient({ initialSuppliers, initialCouriers }: SuppliersClientProps) {
   const [suppliers, setSuppliers] = useState<SupplierWithStats[]>(initialSuppliers)
@@ -674,22 +685,70 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-6 py-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
                   <Label>메시지 템플릿</Label>
                 </div>
+                
+                <div className="flex flex-wrap gap-1.5 p-2 bg-muted/50 rounded-lg">
+                  <span className="text-xs text-muted-foreground mr-1 py-1">변수:</span>
+                  <TooltipProvider delayDuration={200}>
+                    {TEMPLATE_VARIABLES.map((v) => (
+                      <Tooltip key={v.key}>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs font-mono px-2"
+                            onClick={() => {
+                              const textarea = document.getElementById('messageTemplate') as HTMLTextAreaElement
+                              if (textarea) {
+                                const start = textarea.selectionStart
+                                const end = textarea.selectionEnd
+                                const text = settingsData.messageTemplate
+                                const newText = text.substring(0, start) + `{${v.key}}` + text.substring(end)
+                                setSettingsData((prev) => ({ ...prev, messageTemplate: newText }))
+                                setTimeout(() => {
+                                  textarea.focus()
+                                  textarea.setSelectionRange(start + v.key.length + 2, start + v.key.length + 2)
+                                }, 0)
+                              } else {
+                                setSettingsData((prev) => ({ 
+                                  ...prev, 
+                                  messageTemplate: prev.messageTemplate + `{${v.key}}` 
+                                }))
+                              }
+                            }}
+                          >
+                            {`{${v.key}}`}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-[200px]">
+                          <p className="font-medium">{v.label}</p>
+                          <p className="text-xs text-muted-foreground">{v.description}</p>
+                          <p className="text-xs mt-1 font-mono bg-muted px-1 rounded">예: {v.example}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TooltipProvider>
+                </div>
+                
                 <Textarea
+                  id="messageTemplate"
                   value={settingsData.messageTemplate}
                   onChange={(e) =>
                     setSettingsData((prev) => ({ ...prev, messageTemplate: e.target.value }))
                   }
-                  className="min-h-[180px] font-mono text-sm"
+                  className="min-h-[200px] font-mono text-sm"
                   placeholder={DEFAULT_TEMPLATE}
                 />
-                <p className="text-xs text-muted-foreground">
-                  사용 가능 변수: {'{supplier_name}'}, {'{order_count}'}, {'{total_quantity}'}, {'{order_list}'}, {'{date}'}
-                </p>
+                
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Info className="h-3 w-3" />
+                  <span>변수 버튼을 클릭하면 커서 위치에 삽입됩니다</span>
+                </div>
               </div>
 
               <div className="space-y-4 border-t pt-4">
@@ -740,16 +799,19 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                   <div className="space-y-2">
                     <Label className="text-sm text-muted-foreground">기본 택배업체</Label>
                     <Select
-                      value={settingsData.courierId}
+                      value={settingsData.courierId || 'no-courier'}
                       onValueChange={(value) =>
-                        setSettingsData((prev) => ({ ...prev, courierId: value }))
+                        setSettingsData((prev) => ({ 
+                          ...prev, 
+                          courierId: value === 'no-courier' ? '' : value 
+                        }))
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="택배업체 선택" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">선택 안함</SelectItem>
+                        <SelectItem value="no-courier">선택 안함</SelectItem>
                         {couriers.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.name} ({c.code})

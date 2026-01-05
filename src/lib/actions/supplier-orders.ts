@@ -15,6 +15,7 @@ export interface OrderForSupplier {
   customerName: string
   customerAddress: string
   receiverName: string | null
+  totalAmount: number | null
   orderDate: string
   supplierId: string | null
   supplierName: string | null
@@ -42,6 +43,7 @@ interface OrderRow {
   receiver_name: string | null
   product_name: string | null
   supplier_id: string | null
+  total_payment_amount: number | null
   products: {
     id: string
     name: string
@@ -85,6 +87,7 @@ export async function getOrdersForSupplierSend(
       product_option,
       receiver_name,
       supplier_id,
+      total_payment_amount,
       products (
         id,
         name,
@@ -113,6 +116,7 @@ export async function getOrdersForSupplierSend(
     customerName: order.customer_name || 'Unknown',
     customerAddress: order.customer_address || '',
     receiverName: order.receiver_name || null,
+    totalAmount: order.total_payment_amount || null,
     orderDate: order.order_date,
     supplierId: order.supplier_id || order.products?.supplier_id || null,
     supplierName: order.products?.suppliers?.name || null,
@@ -167,6 +171,7 @@ export async function getOrdersBySupplier(
       product_option,
       receiver_name,
       supplier_id,
+      total_payment_amount,
       products (
         id,
         name,
@@ -196,6 +201,7 @@ export async function getOrdersBySupplier(
     customerName: order.customer_name || 'Unknown',
     customerAddress: order.customer_address || '',
     receiverName: order.receiver_name || null,
+    totalAmount: order.total_payment_amount || null,
     orderDate: order.order_date,
     supplierId: order.supplier_id || order.products?.supplier_id || null,
     supplierName: order.products?.suppliers?.name || null,

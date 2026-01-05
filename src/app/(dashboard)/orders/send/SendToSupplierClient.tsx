@@ -187,14 +187,23 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
       `- ${o.productName}${o.productOption ? ` (${o.productOption})` : ''} x${o.quantity}`
     ).join('\n')
     
+    const receiverLines = selectedOrders.map((o, i) => {
+      const name = o.receiverName || o.customerName || '정보없음'
+      const address = o.customerAddress || ''
+      return `${i + 1}. ${name}\n   ${address}`
+    }).join('\n')
+    
     const totalQty = selectedOrders.reduce((sum, o) => sum + o.quantity, 0)
+    const totalAmount = selectedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
     const date = new Date().toLocaleDateString('ko-KR')
     
     return template
       .replace(/\{supplier_name\}/g, supplier.name)
       .replace(/\{order_count\}/g, String(selectedOrders.length))
       .replace(/\{total_quantity\}/g, String(totalQty))
+      .replace(/\{total_amount\}/g, totalAmount.toLocaleString())
       .replace(/\{order_list\}/g, orderLines)
+      .replace(/\{receiver_list\}/g, receiverLines)
       .replace(/\{date\}/g, date)
   }
 
