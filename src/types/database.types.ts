@@ -14,6 +14,11 @@ export type Platform = 'Naver' | 'Coupang' | 'Gmarket' | '11st' | 'Other'
 export type ProductStatus = 'SALE' | 'SUSPENSION' | 'WAIT' | 'UNADMISSION' | 'REJECTION' | 'PROHIBITION' | 'DELETE'
 export type SyncType = 'orders' | 'products' | 'both'
 export type SyncLogStatus = 'success' | 'failed' | 'running'
+export type SettlementStatus = 'pending' | 'confirmed' | 'paid'
+export type SyncHistoryType = 'orders' | 'products' | 'stock' | 'settlement' | 'detail_page'
+export type SyncDirection = 'pull' | 'push'
+export type SyncHistoryStatus = 'started' | 'completed' | 'failed'
+export type StockSyncSource = 'local' | 'naver' | 'manual'
 
 export interface Database {
   public: {
@@ -121,6 +126,11 @@ export interface Database {
           image_url: string | null
           category: string | null
           brand: string | null
+          detail_content: string | null
+          detail_attributes: Json
+          naver_channel_product_no: number | null
+          naver_origin_product_no: number | null
+          last_detail_sync_at: string | null
           created_at: string
           updated_at: string | null
         }
@@ -137,6 +147,11 @@ export interface Database {
           image_url?: string | null
           category?: string | null
           brand?: string | null
+          detail_content?: string | null
+          detail_attributes?: Json
+          naver_channel_product_no?: number | null
+          naver_origin_product_no?: number | null
+          last_detail_sync_at?: string | null
           created_at?: string
           updated_at?: string | null
         }
@@ -153,6 +168,11 @@ export interface Database {
           image_url?: string | null
           category?: string | null
           brand?: string | null
+          detail_content?: string | null
+          detail_attributes?: Json
+          naver_channel_product_no?: number | null
+          naver_origin_product_no?: number | null
+          last_detail_sync_at?: string | null
           created_at?: string
           updated_at?: string | null
         }
@@ -184,6 +204,11 @@ export interface Database {
           tracking_number: string | null
           courier_code: string | null
           order_date: string
+          naver_product_order_id: string | null
+          unit_price: number | null
+          total_payment_amount: number | null
+          naver_order_status: string | null
+          orderer_tel: string | null
         }
         Insert: {
           id?: string
@@ -197,6 +222,11 @@ export interface Database {
           tracking_number?: string | null
           courier_code?: string | null
           order_date?: string
+          naver_product_order_id?: string | null
+          unit_price?: number | null
+          total_payment_amount?: number | null
+          naver_order_status?: string | null
+          orderer_tel?: string | null
         }
         Update: {
           id?: string
@@ -210,6 +240,11 @@ export interface Database {
           tracking_number?: string | null
           courier_code?: string | null
           order_date?: string
+          naver_product_order_id?: string | null
+          unit_price?: number | null
+          total_payment_amount?: number | null
+          naver_order_status?: string | null
+          orderer_tel?: string | null
         }
         Relationships: [
           {
@@ -355,6 +390,147 @@ export interface Database {
           }
         ]
       }
+      settlements: {
+        Row: {
+          id: string
+          store_id: string
+          settlement_date: string
+          order_count: number
+          sales_amount: number
+          commission_amount: number
+          delivery_fee_amount: number
+          discount_amount: number
+          settlement_amount: number
+          status: SettlementStatus
+          naver_settlement_no: string | null
+          raw_data: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          settlement_date: string
+          order_count?: number
+          sales_amount?: number
+          commission_amount?: number
+          delivery_fee_amount?: number
+          discount_amount?: number
+          settlement_amount?: number
+          status?: SettlementStatus
+          naver_settlement_no?: string | null
+          raw_data?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          settlement_date?: string
+          order_count?: number
+          sales_amount?: number
+          commission_amount?: number
+          delivery_fee_amount?: number
+          discount_amount?: number
+          settlement_amount?: number
+          status?: SettlementStatus
+          naver_settlement_no?: string | null
+          raw_data?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'settlements_store_id_fkey'
+            columns: ['store_id']
+            referencedRelation: 'stores'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      sync_history: {
+        Row: {
+          id: string
+          store_id: string
+          sync_type: SyncHistoryType
+          direction: SyncDirection
+          status: SyncHistoryStatus
+          items_processed: number
+          items_failed: number
+          error_message: string | null
+          started_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          sync_type: SyncHistoryType
+          direction: SyncDirection
+          status?: SyncHistoryStatus
+          items_processed?: number
+          items_failed?: number
+          error_message?: string | null
+          started_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          sync_type?: SyncHistoryType
+          direction?: SyncDirection
+          status?: SyncHistoryStatus
+          items_processed?: number
+          items_failed?: number
+          error_message?: string | null
+          started_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'sync_history_store_id_fkey'
+            columns: ['store_id']
+            referencedRelation: 'stores'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      stock_sync_logs: {
+        Row: {
+          id: string
+          product_id: string
+          previous_quantity: number
+          new_quantity: number
+          source: StockSyncSource
+          sync_direction: SyncDirection
+          synced_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          previous_quantity: number
+          new_quantity: number
+          source: StockSyncSource
+          sync_direction: SyncDirection
+          synced_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          previous_quantity?: number
+          new_quantity?: number
+          source?: StockSyncSource
+          sync_direction?: SyncDirection
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'stock_sync_logs_product_id_fkey'
+            columns: ['product_id']
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -387,3 +563,6 @@ export type Order = Tables<'orders'>
 export type DetailPage = Tables<'detail_pages'>
 export type SyncSchedule = Tables<'sync_schedules'>
 export type SyncLog = Tables<'sync_logs'>
+export type Settlement = Tables<'settlements'>
+export type SyncHistory = Tables<'sync_history'>
+export type StockSyncLog = Tables<'stock_sync_logs'>

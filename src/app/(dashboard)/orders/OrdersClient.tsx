@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Filter, Download, Play, Send, Printer, Archive, ChevronDown, Search, RefreshCw, Upload, FileSpreadsheet } from 'lucide-react'
+import { Filter, Download, Play, Send, Printer, Archive, ChevronDown, Search, RefreshCw, Upload, FileSpreadsheet, Clock, AlertCircle } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,8 @@ import { OrdersTable, type OrderTableItem } from '@/components/dashboard/OrdersT
 import { updateOrderStatus, cancelOrder } from '@/lib/actions/orders'
 import { syncNaverOrders } from '@/lib/actions/naver-sync'
 import { uploadOrdersFromExcel, generateOrderTemplate } from '@/lib/actions/excel-upload'
+import { getStoreSyncStatus, type SyncStatus } from '@/lib/actions/store-management'
+import { useStore } from '@/contexts/StoreContext'
 import { toast } from 'sonner'
 import type { OrderStatus } from '@/types/database.types'
 import { cn } from '@/lib/utils'
@@ -23,6 +25,7 @@ interface OrdersClientProps {
 
 export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const router = useRouter()
+  const { currentStore } = useStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
@@ -30,8 +33,51 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const [isPending, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
 
   const pendingCount = orders.filter((o) => o.status === 'New').length
+
+  useEffect(() => {
+    if (currentStore?.id) {
+      loadSyncStatus()
+    }
+  }, [currentStore?.id])
+
+  async function loadSyncStatus() {
+    if (!currentStore?.id) return
+    const result = await getStoreSyncStatus(currentStore.id)
+    if (result.data) {
+      setSyncStatus(result.data)
+    }
+  }
+
+  const formatRelativeTime = (dateStr: string | null) => {
+    if (!dateStr) return null
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffMins < 1) return '방금 전'
+    if (diffMins < 60) return `${diffMins}분 전`
+    if (diffHours < 24) return `${diffHours}시간 전`
+    return `${diffDays}일 전`
+  }
+
+  const formatNextSync = (dateStr: string | null) => {
+    if (!dateStr) return null
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = date.getTime() - now.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+
+    if (diffMins <= 0) return '곧 동기화'
+    if (diffMins < 60) return `${diffMins}분 후`
+    const diffHours = Math.floor(diffMins / 60)
+    return `${diffHours}시간 후`
+  }
 
   const filteredOrders = orders.filter((order) => {
     if (!searchQuery) return true
@@ -51,6 +97,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
       if (result.success) {
         toast.success(`${result.syncedCount}건의 주문이 동기화되었습니다.`)
         router.refresh()
+        await loadSyncStatus()
       } else {
         toast.error(result.error || '동기화에 실패했습니다.')
       }
@@ -158,7 +205,29 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {syncStatus && (
+              <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground mr-2">
+                {syncStatus.lastSyncAt && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    <span>마지막: {formatRelativeTime(syncStatus.lastSyncAt)}</span>
+                  </div>
+                )}
+                {syncStatus.isEnabled && syncStatus.nextSyncAt && (
+                  <div className="flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3" />
+                    <span>다음: {formatNextSync(syncStatus.nextSyncAt)}</span>
+                  </div>
+                )}
+                {!syncStatus.isEnabled && (
+                  <div className="flex items-center gap-1 text-warning">
+                    <AlertCircle className="h-3 w-3" />
+                    <span>자동동기화 꺼짐</span>
+                  </div>
+                )}
+              </div>
+            )}
             <Button
               variant="outline"
               size="sm"

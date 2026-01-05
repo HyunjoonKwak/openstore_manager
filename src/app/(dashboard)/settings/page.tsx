@@ -30,12 +30,14 @@ import {
   createOrUpdateSyncSchedule,
   type SyncType,
 } from '@/lib/actions/sync-schedules'
+import { StoreManagement } from '@/components/settings/StoreManagement'
 import type { Platform } from '@/types/database.types'
 
 export default function SettingsPage() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isTesting, setIsTesting] = useState(false)
+  const [isTestingOpenAI, setIsTestingOpenAI] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   const [profile, setProfile] = useState({
@@ -157,6 +159,33 @@ export default function SettingsPage() {
     }
   }
 
+  const handleTestOpenAI = async () => {
+    if (!apiKeys.openaiApiKey) {
+      toast.error('OpenAI API 키를 먼저 입력하고 저장해주세요.')
+      return
+    }
+
+    setIsTestingOpenAI(true)
+    try {
+      const response = await fetch('/api/ai/test-connection', {
+        method: 'POST',
+      })
+      const result = await response.json()
+      
+      if (result.success) {
+        toast.success(result.message, {
+          description: `사용 가능 모델: ${result.details.modelsAvailable}개 (GPT-4: ${result.details.gpt4Available ? 'O' : 'X'})`,
+        })
+      } else {
+        toast.error(result.error || '연결 테스트 실패')
+      }
+    } catch {
+      toast.error('연결 테스트 중 오류가 발생했습니다.')
+    } finally {
+      setIsTestingOpenAI(false)
+    }
+  }
+
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -214,6 +243,8 @@ export default function SettingsPage() {
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
         <div className="max-w-2xl space-y-6">
+          <StoreManagement />
+
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -331,20 +362,38 @@ export default function SettingsPage() {
               
               <Separator />
               
-              <div className="space-y-2">
-                <Label htmlFor="openaiKey">OpenAI API 키</Label>
-                <Input
-                  id="openaiKey"
-                  type="password"
-                  value={apiKeys.openaiApiKey}
-                  onChange={(e) =>
-                    setApiKeys((prev) => ({ ...prev, openaiApiKey: e.target.value }))
-                  }
-                  placeholder="sk-••••••••••••••••"
-                />
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">OpenAI API</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleTestOpenAI}
+                    disabled={isTestingOpenAI || !apiKeys.openaiApiKey}
+                  >
+                    {isTestingOpenAI ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    연결 테스트
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   AI 상세페이지 생성 기능에 사용됩니다.
                 </p>
+                <div className="space-y-2">
+                  <Label htmlFor="openaiKey">API 키</Label>
+                  <Input
+                    id="openaiKey"
+                    type="password"
+                    value={apiKeys.openaiApiKey}
+                    onChange={(e) =>
+                      setApiKeys((prev) => ({ ...prev, openaiApiKey: e.target.value }))
+                    }
+                    placeholder="sk-••••••••••••••••"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

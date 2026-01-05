@@ -1,8 +1,19 @@
-import type { MockOrder, MockSupplier } from './mock-data'
+export interface OrderForMessage {
+  product: {
+    sku: string
+    name: string
+  }
+  quantity: number
+  total: number
+}
+
+export interface SupplierForMessage {
+  name: string
+}
 
 export function generateSupplierMessage(
-  orders: MockOrder[],
-  supplier: MockSupplier
+  orders: OrderForMessage[],
+  supplier: SupplierForMessage
 ): string {
   const itemsList = orders
     .map((order, index) => {
@@ -31,8 +42,8 @@ ${itemsList}
 }
 
 export function generateEnglishMessage(
-  orders: MockOrder[],
-  supplier: MockSupplier
+  orders: OrderForMessage[],
+  supplier: SupplierForMessage
 ): string {
   const itemsList = orders
     .map((order, index) => {

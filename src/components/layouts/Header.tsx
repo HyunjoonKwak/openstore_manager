@@ -1,11 +1,14 @@
 'use client'
 
-import { Bell, Search, Menu } from 'lucide-react'
+import { Bell, Search, Menu, Store, ChevronDown, Check, Plus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sidebar } from './Sidebar'
+import { useStore } from '@/contexts/StoreContext'
+import Link from 'next/link'
 
 interface HeaderProps {
   title: string
@@ -13,6 +16,7 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
+  const { stores, currentStore, switchStore, isLoading } = useStore()
   const now = new Date()
   const formattedDate = now.toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -64,9 +68,46 @@ export function Header({ title, subtitle }: HeaderProps) {
           />
         </div>
 
+        {!isLoading && stores.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Store className="h-4 w-4" />
+                <span className="hidden sm:inline max-w-[120px] truncate">
+                  {currentStore?.storeName || '스토어 선택'}
+                </span>
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {stores.map((store) => (
+                <DropdownMenuItem
+                  key={store.id}
+                  onClick={() => switchStore(store.id)}
+                  className="flex items-center justify-between cursor-pointer"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{store.storeName}</span>
+                    <span className="text-xs text-muted-foreground">{store.platform}</span>
+                  </div>
+                  {currentStore?.id === store.id && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
+                  <Plus className="h-4 w-4" />
+                  <span>스토어 추가</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
           <span className="sr-only">알림</span>
         </Button>
 

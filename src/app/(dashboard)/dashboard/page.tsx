@@ -1,16 +1,30 @@
-import { TrendingUp, ShoppingBag, Zap, Cpu, Download, Filter, ChevronDown, BarChart3, PieChart } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Package, Download, Filter, ChevronDown, BarChart3, PieChart } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { KPICard, TrendFooter, LinkFooter, ProgressFooter } from '@/components/dashboard/KPICard'
+import { KPICard, TrendFooter, LinkFooter } from '@/components/dashboard/KPICard'
 import { OrdersTable, type OrderTableItem } from '@/components/dashboard/OrdersTable'
 import { SimpleBarChart, StatusDonut } from '@/components/dashboard/SimpleChart'
 import { getOrders, getOrderStats, getWeeklyStats, getOrderStatusCounts } from '@/lib/actions/orders'
-import { mockOrders, mockKPIData } from '@/lib/mock-data'
 
-function transformMockOrders(): OrderTableItem[] {
-  return mockOrders.map((order) => ({
+const defaultKPIData = {
+  dailyRevenue: 0,
+  revenueChange: 0,
+  newOrders: 0,
+  pendingOrders: 0,
+  totalOrders: 0,
+}
+
+export default async function DashboardPage() {
+  const [ordersResult, statsResult, weeklyStatsResult, statusCountsResult] = await Promise.all([
+    getOrders(),
+    getOrderStats(),
+    getWeeklyStats(),
+    getOrderStatusCounts(),
+  ])
+
+  const orders: OrderTableItem[] = (ordersResult.data || []).map((order) => ({
     id: order.id,
     platformOrderId: order.platformOrderId,
     product: {
@@ -23,33 +37,8 @@ function transformMockOrders(): OrderTableItem[] {
     quantity: order.quantity,
     status: order.status,
   }))
-}
 
-export default async function DashboardPage() {
-  const [ordersResult, statsResult, weeklyStatsResult, statusCountsResult] = await Promise.all([
-    getOrders(),
-    getOrderStats(),
-    getWeeklyStats(),
-    getOrderStatusCounts(),
-  ])
-
-  const orders: OrderTableItem[] = ordersResult.data && ordersResult.data.length > 0
-    ? ordersResult.data.map((order) => ({
-        id: order.id,
-        platformOrderId: order.platformOrderId,
-        product: {
-          name: order.product.name,
-          sku: order.product.sku,
-        },
-        customer: order.customer,
-        date: order.date,
-        total: order.total,
-        quantity: order.quantity,
-        status: order.status,
-      }))
-    : transformMockOrders()
-
-  const kpiData = statsResult.data || mockKPIData
+  const kpiData = statsResult.data || defaultKPIData
 
   const weeklyStats = weeklyStatsResult.data || []
   const revenueChartData = weeklyStats.map((s) => ({
@@ -126,30 +115,16 @@ export default async function DashboardPage() {
           />
 
           <KPICard
-            title="자동 처리율"
-            value={`${mockKPIData.fulfillmentRate}%`}
-            icon={<Zap className="h-5 w-5" />}
+            title="총 주문"
+            value={String(kpiData.totalOrders)}
+            icon={<Package className="h-5 w-5" />}
             iconBgColor="bg-purple-500/10"
             iconColor="text-purple-400"
             footer={
-              <TrendFooter
-                value={`+${mockKPIData.fulfillmentChange}%`}
-                label="효율성"
-                isPositive={mockKPIData.fulfillmentChange > 0}
-              />
-            }
-          />
-
-          <KPICard
-            title="AI 작업 중"
-            value={String(mockKPIData.aiTasksRunning)}
-            icon={<Cpu className="h-5 w-5 animate-pulse" />}
-            iconBgColor="bg-warning/10"
-            iconColor="text-warning"
-            footer={
-              <ProgressFooter
-                progress={mockKPIData.aiTasksProgress}
-                label="처리중..."
+              <LinkFooter
+                value="전체 주문 보기"
+                label=""
+                color="text-muted-foreground"
               />
             }
           />

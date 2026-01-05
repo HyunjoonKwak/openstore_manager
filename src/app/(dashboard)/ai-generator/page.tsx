@@ -286,7 +286,7 @@ export default function AIGeneratorPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">AI 크레딧</p>
-                <p className="text-lg font-bold">850 / 1,000</p>
+                <p className="text-lg font-bold">무제한</p>
               </div>
             </CardContent>
           </Card>

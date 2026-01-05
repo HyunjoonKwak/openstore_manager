@@ -11,6 +11,7 @@ import {
   Truck,
   PlusCircle,
   Rocket,
+  DollarSign,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -25,9 +26,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: '대시보드', href: '/dashboard', icon: LayoutDashboard },
-  { label: '주문관리', href: '/orders', icon: ShoppingCart, badge: 42 },
+  { label: '주문관리', href: '/orders', icon: ShoppingCart },
   { label: '공급업체', href: '/suppliers', icon: Truck },
   { label: '재고관리', href: '/inventory', icon: Package },
+  { label: '정산관리', href: '/settlements', icon: DollarSign },
   { label: 'AI 상세페이지', href: '/ai-generator', icon: Sparkles },
 ]
 

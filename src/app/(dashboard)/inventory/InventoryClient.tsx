@@ -3,13 +3,16 @@
 import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Plus, MoreHorizontal, Package, AlertTriangle, TrendingDown, CheckCircle, Edit, Trash, Search, RefreshCw, Upload, FileSpreadsheet, ShoppingBag, Ban } from 'lucide-react'
+import { Plus, MoreHorizontal, Package, AlertTriangle, TrendingDown, CheckCircle, Edit, Trash, Search, RefreshCw, Upload, FileSpreadsheet, ShoppingBag, Ban, FileText, ArrowUpRight, ImageIcon, Check, X, Pencil, Copy } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Table,
   TableBody,
@@ -46,8 +49,9 @@ import {
   deleteProduct,
   type ProductWithSupplier,
 } from '@/lib/actions/products'
-import { syncNaverProducts } from '@/lib/actions/naver-sync'
+import { syncNaverProducts, syncAllStockToNaver } from '@/lib/actions/naver-sync'
 import { uploadProductsFromExcel, generateProductTemplate } from '@/lib/actions/excel-upload'
+import { copyProductToStore } from '@/lib/actions/store-management'
 import type { SupplierWithStats } from '@/lib/actions/suppliers'
 import { cn } from '@/lib/utils'
 
@@ -100,6 +104,7 @@ export function InventoryClient({
   const [isPending, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isStockSyncing, setIsStockSyncing] = useState(false)
 
   const defaultStoreId = stores[0]?.id || ''
 
@@ -110,7 +115,18 @@ export function InventoryClient({
     sku: '',
     supplierId: '',
     storeId: defaultStoreId,
+    imageUrl: '',
+    category: '',
+    brand: '',
+    description: '',
   })
+  
+  const [editingCell, setEditingCell] = useState<{ id: string; field: 'price' | 'stockQuantity' } | null>(null)
+  const [editingValue, setEditingValue] = useState('')
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false)
+  const [copyTargetProduct, setCopyTargetProduct] = useState<ProductWithSupplier | null>(null)
+  const [copyTargetStoreId, setCopyTargetStoreId] = useState('')
+  const [isCopying, setIsCopying] = useState(false)
 
   const resetForm = () => {
     setFormData({
@@ -120,6 +136,10 @@ export function InventoryClient({
       sku: '',
       supplierId: '',
       storeId: defaultStoreId,
+      imageUrl: '',
+      category: '',
+      brand: '',
+      description: '',
     })
     setEditingProduct(null)
   }
@@ -134,6 +154,10 @@ export function InventoryClient({
         sku: product.sku || '',
         supplierId: product.supplierId || '',
         storeId: product.storeId,
+        imageUrl: product.imageUrl || '',
+        category: product.category || '',
+        brand: product.brand || '',
+        description: '',
       })
     } else {
       resetForm()
@@ -161,6 +185,20 @@ export function InventoryClient({
       }
     } finally {
       setIsSyncing(false)
+    }
+  }
+
+  const handleStockSync = async () => {
+    setIsStockSyncing(true)
+    try {
+      const result = await syncAllStockToNaver()
+      if (result.success) {
+        toast.success(`${result.syncedCount}개 상품의 재고가 스마트스토어에 반영되었습니다.`)
+      } else {
+        toast.error(result.error || '재고 동기화에 실패했습니다.')
+      }
+    } finally {
+      setIsStockSyncing(false)
     }
   }
 
@@ -290,6 +328,86 @@ export function InventoryClient({
     })
   }
 
+  const handleOpenCopyDialog = (product: ProductWithSupplier) => {
+    setCopyTargetProduct(product)
+    const otherStores = stores.filter(s => s.id !== product.storeId)
+    if (otherStores.length > 0) {
+      setCopyTargetStoreId(otherStores[0].id)
+    }
+    setCopyDialogOpen(true)
+  }
+
+  const handleCopyProduct = async () => {
+    if (!copyTargetProduct || !copyTargetStoreId) {
+      toast.error('복사할 스토어를 선택해주세요.')
+      return
+    }
+
+    setIsCopying(true)
+    try {
+      const result = await copyProductToStore(copyTargetProduct.id, copyTargetStoreId)
+      if (result.success) {
+        toast.success('상품이 복사되었습니다.')
+        setCopyDialogOpen(false)
+        setCopyTargetProduct(null)
+        router.refresh()
+      } else {
+        toast.error(result.error || '복사에 실패했습니다.')
+      }
+    } finally {
+      setIsCopying(false)
+    }
+  }
+
+  const handleInlineEdit = (id: string, field: 'price' | 'stockQuantity', currentValue: number) => {
+    setEditingCell({ id, field })
+    setEditingValue(String(currentValue))
+  }
+
+  const handleInlineSave = async () => {
+    if (!editingCell) return
+    
+    const numericValue = Number(editingValue)
+    if (isNaN(numericValue) || numericValue < 0) {
+      toast.error('올바른 숫자를 입력해주세요.')
+      return
+    }
+
+    const result = await updateProduct({
+      id: editingCell.id,
+      [editingCell.field]: numericValue,
+    })
+
+    if (result.success) {
+      const updatedProducts = products.map((p) =>
+        p.id === editingCell.id
+          ? { ...p, [editingCell.field]: numericValue }
+          : p
+      )
+      setProducts(updatedProducts)
+      if (editingCell.field === 'stockQuantity') {
+        recalculateStats(updatedProducts)
+      }
+      toast.success('수정되었습니다.')
+    } else {
+      toast.error(result.error || '수정에 실패했습니다.')
+    }
+    setEditingCell(null)
+  }
+
+  const handleInlineCancel = () => {
+    setEditingCell(null)
+    setEditingValue('')
+  }
+
+  const handleInlineKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleInlineSave()
+    } else if (e.key === 'Escape') {
+      handleInlineCancel()
+    }
+  }
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch = !searchQuery || 
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -298,7 +416,7 @@ export function InventoryClient({
       product.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.brand?.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesStatus = statusFilter === 'all' || product.status === statusFilter
+    const matchesStatus = statusFilter === 'all' || (product.status || '') === statusFilter
 
     return matchesSearch && matchesStatus
   })
@@ -406,7 +524,15 @@ export function InventoryClient({
               disabled={isSyncing}
             >
               <RefreshCw className={cn('h-4 w-4 mr-2', isSyncing && 'animate-spin')} />
-              네이버 동기화
+              상품 동기화
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleStockSync}
+              disabled={isStockSyncing}
+            >
+              <ArrowUpRight className={cn('h-4 w-4 mr-2', isStockSyncing && 'animate-pulse')} />
+              {isStockSyncing ? '재고 동기화 중...' : '재고 → 네이버'}
             </Button>
             <Button
               variant="outline"
@@ -427,94 +553,187 @@ export function InventoryClient({
                   상품 추가
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-2xl max-h-[85vh]">
                 <DialogHeader>
                   <DialogTitle>
                     {editingProduct ? '상품 수정' : '새 상품 추가'}
                   </DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">상품명 *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                      placeholder="상품명을 입력하세요"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="price">가격 *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        value={formData.price}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="stockQuantity">재고 수량</Label>
-                      <Input
-                        id="stockQuantity"
-                        type="number"
-                        value={formData.stockQuantity}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, stockQuantity: e.target.value }))}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sku">SKU</Label>
-                    <Input
-                      id="sku"
-                      value={formData.sku}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, sku: e.target.value }))}
-                      placeholder="상품 고유 코드"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="supplier">공급업체</Label>
-                    <Select
-                      value={formData.supplierId}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, supplierId: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="공급업체 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">없음</SelectItem>
-                        {suppliers.map((supplier) => (
-                          <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {stores.length > 1 && (
-                    <div className="space-y-2">
-                      <Label htmlFor="store">스토어</Label>
-                      <Select
-                        value={formData.storeId}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, storeId: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="스토어 선택" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stores.map((store) => (
-                            <SelectItem key={store.id} value={store.id}>
-                              {store.storeName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-                <DialogFooter>
+                <Tabs defaultValue="basic" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="basic">기본정보</TabsTrigger>
+                    <TabsTrigger value="detail">상세정보</TabsTrigger>
+                    <TabsTrigger value="etc">기타</TabsTrigger>
+                  </TabsList>
+                  
+                  <ScrollArea className="h-[400px] pr-4">
+                    <TabsContent value="basic" className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">상품명 *</Label>
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                          placeholder="상품명을 입력하세요"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="price">가격 *</Label>
+                          <Input
+                            id="price"
+                            type="number"
+                            value={formData.price}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                            placeholder="0"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="stockQuantity">재고 수량</Label>
+                          <Input
+                            id="stockQuantity"
+                            type="number"
+                            value={formData.stockQuantity}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, stockQuantity: e.target.value }))}
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="sku">SKU</Label>
+                          <Input
+                            id="sku"
+                            value={formData.sku}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, sku: e.target.value }))}
+                            placeholder="상품 고유 코드"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="brand">브랜드</Label>
+                          <Input
+                            id="brand"
+                            value={formData.brand}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, brand: e.target.value }))}
+                            placeholder="브랜드명"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="category">카테고리</Label>
+                        <Input
+                          id="category"
+                          value={formData.category}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+                          placeholder="예: 패션 > 의류 > 상의"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="detail" className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="imageUrl">대표 이미지 URL</Label>
+                        <Input
+                          id="imageUrl"
+                          value={formData.imageUrl}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                          placeholder="https://..."
+                        />
+                        {formData.imageUrl && (
+                          <div className="mt-2 flex items-center gap-4">
+                            <Image
+                              src={formData.imageUrl}
+                              alt="미리보기"
+                              width={80}
+                              height={80}
+                              className="rounded-lg object-cover border"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setFormData((prev) => ({ ...prev, imageUrl: '' }))}
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              삭제
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="description">상품 설명</Label>
+                        <Textarea
+                          id="description"
+                          value={formData.description}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                          placeholder="상품에 대한 간단한 설명..."
+                          className="min-h-[150px]"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="etc" className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="supplier">공급업체</Label>
+                        <Select
+                          value={formData.supplierId}
+                          onValueChange={(value) => setFormData((prev) => ({ ...prev, supplierId: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="공급업체 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">없음</SelectItem>
+                            {suppliers.map((supplier) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {stores.length > 1 && (
+                        <div className="space-y-2">
+                          <Label htmlFor="store">스토어</Label>
+                          <Select
+                            value={formData.storeId}
+                            onValueChange={(value) => setFormData((prev) => ({ ...prev, storeId: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="스토어 선택" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {stores.map((store) => (
+                                <SelectItem key={store.id} value={store.id}>
+                                  {store.storeName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      {editingProduct?.platformProductId && (
+                        <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                          <p className="text-sm font-medium">네이버 연동 정보</p>
+                          <p className="text-xs text-muted-foreground">
+                            이 상품은 네이버 스마트스토어와 연동되어 있습니다.
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setIsDialogOpen(false)
+                              router.push(`/inventory/${editingProduct.id}/detail`)
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            상세페이지 편집
+                          </Button>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </ScrollArea>
+                </Tabs>
+                <DialogFooter className="mt-4">
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                     취소
                   </Button>
@@ -589,11 +808,59 @@ export function InventoryClient({
                           <span className="line-clamp-1">{product.category.split('>').pop()}</span>
                         ) : '-'}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatPrice(product.price)}
+                      <TableCell className="text-right">
+                        {editingCell?.id === product.id && editingCell?.field === 'price' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Input
+                              type="number"
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onKeyDown={handleInlineKeyDown}
+                              className="h-7 w-24 text-right"
+                              autoFocus
+                            />
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleInlineSave}>
+                              <Check className="h-3 w-3 text-green-500" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleInlineCancel}>
+                              <X className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            className="font-medium hover:text-primary hover:underline cursor-pointer"
+                            onClick={() => handleInlineEdit(product.id, 'price', product.price)}
+                          >
+                            {formatPrice(product.price)}
+                          </button>
+                        )}
                       </TableCell>
-                      <TableCell className="text-center font-medium">
-                        {product.stockQuantity.toLocaleString()}
+                      <TableCell className="text-center">
+                        {editingCell?.id === product.id && editingCell?.field === 'stockQuantity' ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Input
+                              type="number"
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onKeyDown={handleInlineKeyDown}
+                              className="h-7 w-20 text-center"
+                              autoFocus
+                            />
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleInlineSave}>
+                              <Check className="h-3 w-3 text-green-500" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleInlineCancel}>
+                              <X className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            className="font-medium hover:text-primary hover:underline cursor-pointer"
+                            onClick={() => handleInlineEdit(product.id, 'stockQuantity', product.stockQuantity)}
+                          >
+                            {product.stockQuantity.toLocaleString()}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         {getStatusBadge(product.status)}
@@ -611,8 +878,25 @@ export function InventoryClient({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleOpenDialog(product)}>
                               <Edit className="h-4 w-4 mr-2" />
-                              수정
+                              빠른 수정
                             </DropdownMenuItem>
+                            {product.platformProductId ? (
+                              <DropdownMenuItem onClick={() => router.push(`/inventory/${product.id}/detail`)}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                네이버 상세편집
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handleOpenDialog(product)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                상세 수정
+                              </DropdownMenuItem>
+                            )}
+                            {stores.length > 1 && (
+                              <DropdownMenuItem onClick={() => handleOpenCopyDialog(product)}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                다른 스토어로 복사
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => handleDelete(product.id)}
@@ -631,6 +915,61 @@ export function InventoryClient({
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={copyDialogOpen} onOpenChange={setCopyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>다른 스토어로 상품 복사</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 border rounded-lg bg-muted/30">
+              <p className="font-medium">{copyTargetProduct?.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {copyTargetProduct?.brand && `${copyTargetProduct.brand} · `}
+                {(copyTargetProduct?.price || 0).toLocaleString()}원
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>복사할 스토어</Label>
+              <Select value={copyTargetStoreId} onValueChange={setCopyTargetStoreId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="스토어 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.filter(s => s.id !== copyTargetProduct?.storeId).map((store) => (
+                    <SelectItem key={store.id} value={store.id}>
+                      {store.storeName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              * SKU는 자동으로 _copy 접미사가 붙습니다.
+              <br />
+              * 복사된 상품은 로컬에만 저장되며, 네이버에 업로드하려면 별도로 진행해야 합니다.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopyDialogOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleCopyProduct} disabled={isCopying || !copyTargetStoreId}>
+              {isCopying ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  복사 중...
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4 mr-2" />
+                  복사
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

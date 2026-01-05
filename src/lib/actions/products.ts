@@ -294,6 +294,147 @@ export async function deleteProduct(
   return { success: true, error: null }
 }
 
+export interface LocalProductDetail {
+  id: string
+  name: string
+  price: number
+  stockQuantity: number
+  sku: string | null
+  supplierId: string | null
+  supplierName: string | null
+  storeId: string
+  status: string | null
+  platformProductId: string | null
+  imageUrl: string | null
+  category: string | null
+  brand: string | null
+  description: string | null
+  createdAt: string
+  isNaverLinked: boolean
+}
+
+export async function getProductById(
+  productId: string
+): Promise<{ data: LocalProductDetail | null; error: string | null }> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { data: null, error: 'Unauthorized' }
+  }
+
+  interface ProductDetailRow {
+    id: string
+    name: string
+    price: number
+    stock_quantity: number
+    sku: string | null
+    supplier_id: string | null
+    store_id: string
+    status: string | null
+    platform_product_id: string | null
+    image_url: string | null
+    category: string | null
+    brand: string | null
+    description: string | null
+    created_at: string
+    suppliers: { name: string } | null
+  }
+
+  const { data: product, error } = await supabase
+    .from('products')
+    .select(`
+      id,
+      name,
+      price,
+      stock_quantity,
+      sku,
+      supplier_id,
+      store_id,
+      status,
+      platform_product_id,
+      image_url,
+      category,
+      brand,
+      description,
+      created_at,
+      suppliers (name)
+    `)
+    .eq('id', productId)
+    .single()
+
+  if (error) {
+    return { data: null, error: error.message }
+  }
+
+  const typedProduct = product as unknown as ProductDetailRow
+
+  return {
+    data: {
+      id: typedProduct.id,
+      name: typedProduct.name,
+      price: typedProduct.price,
+      stockQuantity: typedProduct.stock_quantity,
+      sku: typedProduct.sku,
+      supplierId: typedProduct.supplier_id,
+      supplierName: typedProduct.suppliers?.name || null,
+      storeId: typedProduct.store_id,
+      status: typedProduct.status,
+      platformProductId: typedProduct.platform_product_id,
+      imageUrl: typedProduct.image_url,
+      category: typedProduct.category,
+      brand: typedProduct.brand,
+      description: typedProduct.description,
+      createdAt: typedProduct.created_at,
+      isNaverLinked: !!typedProduct.platform_product_id,
+    },
+    error: null,
+  }
+}
+
+export interface UpdateProductDetailInput {
+  id: string
+  name?: string
+  price?: number
+  stockQuantity?: number
+  sku?: string
+  supplierId?: string | null
+  imageUrl?: string | null
+  category?: string | null
+  brand?: string | null
+  description?: string | null
+}
+
+export async function updateProductDetail(
+  input: UpdateProductDetailInput
+): Promise<{ success: boolean; error: string | null }> {
+  const supabase = await createClient()
+
+  const updateData: Record<string, string | number | null> = {}
+  if (input.name !== undefined) updateData.name = input.name
+  if (input.price !== undefined) updateData.price = input.price
+  if (input.stockQuantity !== undefined) updateData.stock_quantity = input.stockQuantity
+  if (input.sku !== undefined) updateData.sku = input.sku
+  if (input.supplierId !== undefined) updateData.supplier_id = input.supplierId
+  if (input.imageUrl !== undefined) updateData.image_url = input.imageUrl
+  if (input.category !== undefined) updateData.category = input.category
+  if (input.brand !== undefined) updateData.brand = input.brand
+  if (input.description !== undefined) updateData.description = input.description
+
+  const { error } = await supabase
+    .from('products')
+    .update(updateData)
+    .eq('id', input.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/inventory')
+  revalidatePath(`/inventory/${input.id}/detail`)
+  return { success: true, error: null }
+}
+
 export async function getUserStores(): Promise<{ data: { id: string; storeName: string }[] | null; error: string | null }> {
   const supabase = await createClient()
 
