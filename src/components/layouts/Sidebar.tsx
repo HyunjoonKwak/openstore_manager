@@ -10,6 +10,8 @@ import {
   Truck,
   Rocket,
   DollarSign,
+  BarChart3,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +29,8 @@ const navItems: NavItem[] = [
   { label: '공급업체', href: '/suppliers', icon: Truck },
   { label: '재고관리', href: '/inventory', icon: Package },
   { label: '정산관리', href: '/settlements', icon: DollarSign },
+  { label: '벤치마킹', href: '/benchmarking', icon: BarChart3 },
+  { label: 'AI 생성기', href: '/ai-generator', icon: Sparkles },
 ]
 
 const bottomNavItems: NavItem[] = [

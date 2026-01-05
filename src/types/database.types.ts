@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type OrderStatus = 'New' | 'Ordered' | 'Shipped' | 'Cancelled'
+export type OrderStatus = 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Cancelled'
 export type UserRole = 'owner' | 'staff'
 export type ContactMethod = 'SMS' | 'Kakao' | 'Telegram' | 'Discord'
 export type DetailPageStatus = 'Draft' | 'Completed'
@@ -16,6 +16,8 @@ export type SyncType = 'orders' | 'products' | 'both'
 export type SyncLogStatus = 'success' | 'failed' | 'running'
 export type SettlementStatus = 'pending' | 'confirmed' | 'paid'
 export type SyncHistoryType = 'orders' | 'products' | 'stock' | 'settlement' | 'detail_page'
+export type AnalysisLogStatus = 'pending' | 'completed' | 'failed'
+export type AiUsageType = 'benchmarking_structure' | 'benchmarking_style' | 'benchmarking_image' | 'ai_generate' | 'ai_analyze'
 export type SyncDirection = 'pull' | 'push'
 export type SyncHistoryStatus = 'started' | 'completed' | 'failed'
 export type StockSyncSource = 'local' | 'naver' | 'manual'
@@ -674,6 +676,120 @@ export interface Database {
           }
         ]
       }
+      analysis_logs: {
+        Row: {
+          id: string
+          user_id: string
+          target_url: string
+          target_platform: string
+          analysis_result: Json
+          status: AnalysisLogStatus
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          target_url: string
+          target_platform?: string
+          analysis_result?: Json
+          status?: AnalysisLogStatus
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          target_url?: string
+          target_platform?: string
+          analysis_result?: Json
+          status?: AnalysisLogStatus
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'analysis_logs_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      saved_assets: {
+        Row: {
+          id: string
+          log_id: string
+          asset_type: string
+          asset_url: string | null
+          content: string | null
+        }
+        Insert: {
+          id?: string
+          log_id: string
+          asset_type: string
+          asset_url?: string | null
+          content?: string | null
+        }
+        Update: {
+          id?: string
+          log_id?: string
+          asset_type?: string
+          asset_url?: string | null
+          content?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'saved_assets_log_id_fkey'
+            columns: ['log_id']
+            referencedRelation: 'analysis_logs'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      ai_usage_logs: {
+        Row: {
+          id: string
+          user_id: string
+          usage_type: AiUsageType
+          model: string
+          prompt_tokens: number
+          completion_tokens: number
+          total_tokens: number
+          estimated_cost_usd: number
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          usage_type: AiUsageType
+          model: string
+          prompt_tokens: number
+          completion_tokens: number
+          total_tokens: number
+          estimated_cost_usd: number
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          usage_type?: AiUsageType
+          model?: string
+          prompt_tokens?: number
+          completion_tokens?: number
+          total_tokens?: number
+          estimated_cost_usd?: number
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ai_usage_logs_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -711,3 +827,6 @@ export type SyncHistory = Tables<'sync_history'>
 export type StockSyncLog = Tables<'stock_sync_logs'>
 export type Courier = Tables<'couriers'>
 export type SupplierOrderLog = Tables<'supplier_order_logs'>
+export type AnalysisLog = Tables<'analysis_logs'>
+export type SavedAsset = Tables<'saved_assets'>
+export type AiUsageLog = Tables<'ai_usage_logs'>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
+import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
 
 interface ApiConfigJson {
   openaiApiKey?: string
@@ -57,8 +58,9 @@ Output JSON format:
 
     const userPrompt = `Generate product content for: ${keywords}`
 
+    const model = 'gpt-4o'
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -73,7 +75,34 @@ Output JSON format:
     }
 
     const parsed = JSON.parse(content)
-    return NextResponse.json(parsed)
+
+    const usage = completion.usage
+    let usageInfo = null
+
+    if (usage) {
+      const costUsd = await calculateCost(model, usage.prompt_tokens, usage.completion_tokens)
+      const costKrw = await formatCostKRW(costUsd)
+
+      usageInfo = {
+        model,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        costUsd,
+        costKrw,
+      }
+
+      await recordAiUsage({
+        usageType: 'ai_generate',
+        model,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        metadata: { keywords, category, tone },
+      })
+    }
+
+    return NextResponse.json({ ...parsed, usage: usageInfo })
   } catch (error) {
     console.error('AI Generation error:', error)
     return NextResponse.json(

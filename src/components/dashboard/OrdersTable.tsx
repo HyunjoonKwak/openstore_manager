@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings2, Package, Truck, GripVertical } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -117,6 +117,8 @@ interface OrdersTableProps {
   onSelectionChange?: (ids: string[]) => void
   onStatusChange?: (orderId: string, status: OrderStatus) => void
   onCancel?: (order: OrderTableItem) => void
+  onTrackingInput?: (order: OrderTableItem) => void
+  onTrackingView?: (order: OrderTableItem) => void
 }
 
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
@@ -125,10 +127,18 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> = 
     className: 'bg-warning/10 text-warning border-warning/20',
   },
   Ordered: {
-    label: '주문완료',
+    label: '발주확인',
     className: 'bg-primary/10 text-primary border-primary/20',
   },
-  Shipped: {
+  Dispatched: {
+    label: '발송처리',
+    className: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  },
+  Delivering: {
+    label: '배송중',
+    className: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
+  },
+  Delivered: {
     label: '배송완료',
     className: 'bg-green-500/10 text-green-500 border-green-500/20',
   },
@@ -186,10 +196,14 @@ export function OrdersTable({
   onSelectionChange,
   onStatusChange,
   onCancel,
+  onTrackingInput,
+  onTrackingView,
 }: OrdersTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS)
+  const [draggedColumn, setDraggedColumn] = useState<OrderColumnKey | null>(null)
+  const [dragOverColumn, setDragOverColumn] = useState<OrderColumnKey | null>(null)
   
   useEffect(() => {
     setColumns(loadColumns())
@@ -212,6 +226,57 @@ export function OrdersTable({
     setPageSize(size)
     savePageSize(size)
     setCurrentPage(1)
+  }
+
+  const handleDragStart = (e: React.DragEvent, columnKey: OrderColumnKey) => {
+    setDraggedColumn(columnKey)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', columnKey)
+  }
+
+  const handleDragOver = (e: React.DragEvent, columnKey: OrderColumnKey) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (draggedColumn && draggedColumn !== columnKey) {
+      setDragOverColumn(columnKey)
+    }
+  }
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetColumnKey: OrderColumnKey) => {
+    e.preventDefault()
+    
+    if (!draggedColumn || draggedColumn === targetColumnKey) {
+      setDraggedColumn(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    const draggedIndex = columns.findIndex(c => c.key === draggedColumn)
+    const targetIndex = columns.findIndex(c => c.key === targetColumnKey)
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedColumn(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    const newColumns = [...columns]
+    const [removed] = newColumns.splice(draggedIndex, 1)
+    newColumns.splice(targetIndex, 0, removed)
+
+    setColumns(newColumns)
+    saveColumns(newColumns)
+    setDraggedColumn(null)
+    setDragOverColumn(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null)
+    setDragOverColumn(null)
   }
 
   const visibleColumns = columns.filter(c => c.visible)
@@ -343,6 +408,7 @@ export function OrdersTable({
                 key={col.key}
                 checked={col.visible}
                 onCheckedChange={() => toggleColumn(col.key)}
+                onSelect={(e) => e.preventDefault()}
               >
                 {col.label}
               </DropdownMenuCheckboxItem>
@@ -363,8 +429,24 @@ export function OrdersTable({
                 </TableHead>
               )}
               {visibleColumns.map((col) => (
-                <TableHead key={col.key} className="text-xs font-semibold uppercase whitespace-nowrap">
-                  {col.label}
+                <TableHead
+                  key={col.key}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, col.key)}
+                  onDragOver={(e) => handleDragOver(e, col.key)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, col.key)}
+                  onDragEnd={handleDragEnd}
+                  className={cn(
+                    'text-xs font-semibold uppercase whitespace-nowrap cursor-grab active:cursor-grabbing select-none',
+                    draggedColumn === col.key && 'opacity-50',
+                    dragOverColumn === col.key && 'bg-primary/10 border-l-2 border-primary'
+                  )}
+                >
+                  <div className="flex items-center gap-1">
+                    <GripVertical className="h-3 w-3 text-muted-foreground/50" />
+                    {col.label}
+                  </div>
                 </TableHead>
               ))}
               <TableHead className="text-xs font-semibold uppercase text-center w-12"></TableHead>
@@ -410,18 +492,34 @@ export function OrdersTable({
                           onClick={() => onStatusChange?.(order.id, 'Ordered')}
                           disabled={order.status !== 'New'}
                         >
-                          주문확정
+                          발주확인
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => onStatusChange?.(order.id, 'Shipped')}
-                          disabled={order.status === 'Shipped' || order.status === 'Cancelled'}
+                          onClick={() => onStatusChange?.(order.id, 'Delivered')}
+                          disabled={order.status === 'Delivered' || order.status === 'Cancelled' || !order.trackingNumber}
                         >
                           배송완료
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => onTrackingInput?.(order)}
+                          disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
+                        >
+                          <Package className="h-4 w-4 mr-2" />
+                          운송장 입력
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onTrackingView?.(order)}
+                          disabled={!order.trackingNumber}
+                        >
+                          <Truck className="h-4 w-4 mr-2" />
+                          배송조회
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
                           onClick={() => onCancel?.(order)}
-                          disabled={order.status === 'Cancelled' || order.status === 'Shipped'}
+                          disabled={order.status === 'Cancelled' || order.status === 'Delivered' || order.status === 'Dispatched' || order.status === 'Delivering'}
                         >
                           취소
                         </DropdownMenuItem>

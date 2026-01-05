@@ -19,6 +19,10 @@ export interface StoreProfile {
     naverClientSecret?: string
     openaiApiKey?: string
   }
+  deliveryCheckSettings?: {
+    times: number[]
+    enabled: boolean
+  }
 }
 
 interface StoreRow {
@@ -32,6 +36,8 @@ interface ApiConfigJson {
   naverClientId?: string
   naverClientSecret?: string
   openaiApiKey?: string
+  deliveryCheckTimes?: number[] // 배송확인 시간 (KST 시간, 예: [9, 15, 21])
+  deliveryCheckEnabled?: boolean
 }
 
 export async function getUserProfile(): Promise<{ data: UserProfile | null; error: string | null }> {
@@ -85,6 +91,10 @@ export async function getStoreProfile(): Promise<{ data: StoreProfile | null; er
         naverClientId: apiConfig.naverClientId || '',
         naverClientSecret: apiConfig.naverClientSecret || '',
         openaiApiKey: apiConfig.openaiApiKey || '',
+      },
+      deliveryCheckSettings: {
+        times: apiConfig.deliveryCheckTimes || [9, 15, 21],
+        enabled: apiConfig.deliveryCheckEnabled ?? true,
       },
     },
     error: null,
@@ -148,5 +158,50 @@ export async function createOrUpdateStore(
 
   revalidatePath('/settings')
   revalidatePath('/inventory')
+  return { success: true, error: null }
+}
+
+export interface DeliveryCheckSettingsInput {
+  times: number[]
+  enabled: boolean
+}
+
+export async function updateDeliveryCheckSettings(
+  input: DeliveryCheckSettingsInput
+): Promise<{ success: boolean; error: string | null }> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const { data: existingStore } = await supabase
+    .from('stores')
+    .select('id, api_config')
+    .eq('user_id', userData.user.id)
+    .single()
+
+  if (!existingStore) {
+    return { success: false, error: '스토어를 먼저 생성해주세요.' }
+  }
+
+  const currentConfig = (existingStore.api_config || {}) as ApiConfigJson
+  const updatedConfig = {
+    ...currentConfig,
+    deliveryCheckTimes: input.times,
+    deliveryCheckEnabled: input.enabled,
+  }
+
+  const { error } = await supabase
+    .from('stores')
+    .update({ api_config: updatedConfig })
+    .eq('id', existingStore.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/settings')
   return { success: true, error: null }
 }

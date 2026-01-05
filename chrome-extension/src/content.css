@@ -1,0 +1,91 @@
+#store-analyzer-btn {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+  z-index: 999999;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+#store-analyzer-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+}
+
+#store-analyzer-btn:active {
+  transform: scale(0.95);
+}
+
+#store-analyzer-btn.loading {
+  pointer-events: none;
+}
+
+#store-analyzer-btn.loading svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.store-analyzer-notification {
+  position: fixed;
+  bottom: 170px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 999999;
+  animation: slideIn 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.store-analyzer-notification.success {
+  background: #10b981;
+  color: white;
+}
+
+.store-analyzer-notification.error {
+  background: #ef4444;
+  color: white;
+}
+
+.store-analyzer-notification.info {
+  background: #3b82f6;
+  color: white;
+}
+
+.store-analyzer-notification.fade-out {
+  animation: fadeOut 0.3s ease forwards;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

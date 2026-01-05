@@ -1,36 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Store Manager
 
-## Getting Started
+스마트스토어 통합 관리 솔루션 - 주문 관리, 재고 관리, AI 상세페이지 생성, 경쟁사 벤치마킹 분석을 한 곳에서.
 
-First, run the development server:
+## 주요 기능
+
+- **대시보드**: 오늘의 주문, 매출, 재고 현황을 한눈에 확인
+- **주문 관리**: 주문 목록 조회, 상태 관리, 배송 처리, 공급업체 발주
+- **재고 관리**: 상품별 재고 현황, 입/출고 관리, 저재고 알림
+- **공급업체 관리**: 공급업체 정보 관리, 발주 메시지 생성
+- **AI 상세페이지 생성**: OpenAI 기반 상품 설명 자동 생성
+- **벤치마킹 분석**: 경쟁사 상세페이지 구조/디자인/마케팅 분석
+- **자동 동기화**: 네이버 스마트스토어 API 연동 (주문/상품 자동 동기화)
+
+## 기술 스택
+
+- **Framework**: Next.js 16 (App Router, Server Actions)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS, Shadcn/UI
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth
+- **AI**: OpenAI GPT-4o
+- **Deployment**: Vercel
+
+## 시작하기
+
+### 요구사항
+
+- Node.js 18.17 이상
+- npm, yarn, pnpm 중 하나
+- Supabase 프로젝트
+
+### 설치
 
 ```bash
+# 1. 저장소 클론
+git clone https://github.com/your-username/store-manager.git
+cd store-manager
+
+# 2. 의존성 설치
+npm install
+
+# 3. 환경 변수 설정
+cp .env.example .env.local
+# .env.local 파일을 열고 값을 채우세요
+
+# 4. 개발 서버 실행
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 확인하세요.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 환경 변수
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`.env.example` 파일을 참고하여 `.env.local`에 아래 값들을 설정하세요:
 
-## Learn More
+| 변수명 | 필수 | 설명 |
+|--------|------|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase 프로젝트 URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase Anonymous Key |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase Service Role Key (CRON용) |
+| `OPENAI_API_KEY` | ❌ | OpenAI API Key (AI 기능 사용시) |
+| `CRON_SECRET` | ❌ | 자동 동기화 보안 키 |
+| `COOLSMS_API_KEY` | ❌ | CoolSMS API Key (SMS 알림용) |
+| `COOLSMS_API_SECRET` | ❌ | CoolSMS API Secret |
+| `COOLSMS_SENDER_ID` | ❌ | 발신번호 |
+| `KAKAO_ALIMTALK_API_KEY` | ❌ | 카카오 알림톡 API Key |
+| `KAKAO_ALIMTALK_SENDER_ID` | ❌ | 카카오 채널 ID |
+| `KAKAO_ALIMTALK_TEMPLATE_ID` | ❌ | 알림톡 템플릿 ID |
 
-To learn more about Next.js, take a look at the following resources:
+## 데이터베이스 설정
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Supabase 프로젝트에서 다음 테이블들을 생성해야 합니다:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `users` - 사용자 정보
+- `stores` - 스토어 정보 및 API 설정
+- `orders` - 주문 정보
+- `products` - 상품 정보
+- `suppliers` - 공급업체 정보
+- `supplier_order_items` - 발주 내역
+- `couriers` - 택배사 정보
+- `sync_schedules` - 동기화 스케줄
+- `detail_pages` - AI 생성 상세페이지
+- `analysis_logs` - 벤치마킹 분석 로그
 
-## Deploy on Vercel
+자세한 스키마는 `docs/4_Database_Design.md`를 참고하세요.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 프로젝트 구조
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── (auth)/            # 인증 관련 페이지 (로그인, 회원가입)
+│   ├── (dashboard)/       # 대시보드 페이지들
+│   │   ├── dashboard/     # 메인 대시보드
+│   │   ├── orders/        # 주문 관리
+│   │   ├── inventory/     # 재고 관리
+│   │   ├── suppliers/     # 공급업체 관리
+│   │   ├── ai-generator/  # AI 상세페이지 생성
+│   │   ├── benchmarking/  # 벤치마킹 분석
+│   │   ├── analysis/      # 분석 결과
+│   │   └── settings/      # 설정
+│   └── api/               # API Routes
+├── components/            # React 컴포넌트
+│   ├── ui/               # Shadcn/UI 컴포넌트
+│   ├── layouts/          # 레이아웃 컴포넌트
+│   └── dashboard/        # 대시보드 전용 컴포넌트
+├── lib/                   # 유틸리티 및 라이브러리
+│   ├── actions/          # Server Actions
+│   ├── supabase/         # Supabase 클라이언트
+│   ├── notifications/    # 알림 (SMS, 카카오)
+│   └── logistics/        # 물류 API (한진)
+├── contexts/             # React Context
+└── types/                # TypeScript 타입 정의
+```
+
+## 배포
+
+### Vercel 배포
+
+1. [Vercel](https://vercel.com)에 GitHub 저장소 연결
+2. 환경 변수 설정 (Settings > Environment Variables)
+3. 자동 배포 활성화
+
+### CRON 설정 (자동 동기화)
+
+Vercel에서 CRON 기능을 사용하려면 `vercel.json`에 설정을 추가하세요:
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
+```
+
+## 스크립트
+
+```bash
+npm run dev      # 개발 서버 실행
+npm run build    # 프로덕션 빌드
+npm run start    # 프로덕션 서버 실행
+npm run lint     # ESLint 검사
+```
+
+## 문서
+
+자세한 문서는 `docs/` 폴더를 참고하세요:
+
+- `1_PRD.md` - 제품 요구사항 정의
+- `2_TRD.md` - 기술 요구사항 정의
+- `3_User_Flow.md` - 사용자 플로우
+- `4_Database_Design.md` - 데이터베이스 설계
+- `5_Design_System.md` - 디자인 시스템
+- `6_TASKS.md` - 구현 태스크
+- `7_Coding_Guide.md` - 코딩 가이드
+
+## 라이선스
+
+MIT License

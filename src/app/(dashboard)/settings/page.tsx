@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Save, LogOut, User, Key, Bell, Loader2, CheckCircle, RefreshCw, Clock, MessageSquare, ExternalLink, AlertCircle, Phone } from 'lucide-react'
+import { Save, LogOut, User, Key, Bell, Loader2, CheckCircle, RefreshCw, Clock, MessageSquare, ExternalLink, AlertCircle, Phone, Zap, TrendingUp, Truck } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -36,6 +36,7 @@ import {
   getUserProfile,
   getStoreProfile,
   createOrUpdateStore,
+  updateDeliveryCheckSettings,
 } from '@/lib/actions/settings'
 import { testNaverConnection } from '@/lib/actions/naver-sync'
 import {
@@ -44,6 +45,7 @@ import {
   type SyncType,
 } from '@/lib/actions/sync-schedules'
 import { StoreManagement } from '@/components/settings/StoreManagement'
+import { getAiUsageSummary, type UsageSummary } from '@/lib/actions/ai-usage'
 import type { Platform } from '@/types/database.types'
 
 export default function SettingsPage() {
@@ -93,6 +95,13 @@ export default function SettingsPage() {
     nextSyncAt: null as string | null,
   })
 
+  const [aiUsage, setAiUsage] = useState<UsageSummary | null>(null)
+
+  const [deliveryCheckSettings, setDeliveryCheckSettings] = useState({
+    times: [9, 15, 21] as number[],
+    enabled: true,
+  })
+
   useEffect(() => {
     async function loadProfile() {
       const [userResult, storeResult] = await Promise.all([
@@ -118,6 +127,9 @@ export default function SettingsPage() {
           naverClientSecret: storeResult.data.apiConfig.naverClientSecret || '',
           openaiApiKey: storeResult.data.apiConfig.openaiApiKey || '',
         })
+        if (storeResult.data.deliveryCheckSettings) {
+          setDeliveryCheckSettings(storeResult.data.deliveryCheckSettings)
+        }
 
         const scheduleResult = await getSyncScheduleByStore(storeResult.data.id)
         if (scheduleResult.data) {
@@ -142,7 +154,15 @@ export default function SettingsPage() {
 
     loadProfile()
     checkNotificationStatus()
+    loadAiUsage()
   }, [])
+
+  const loadAiUsage = async () => {
+    const result = await getAiUsageSummary(30)
+    if (result.data) {
+      setAiUsage(result.data)
+    }
+  }
 
   const checkNotificationStatus = async () => {
     try {
@@ -252,6 +272,27 @@ export default function SettingsPage() {
       } else {
         toast.error(result.error || '저장에 실패했습니다.')
       }
+    })
+  }
+
+  const handleSaveDeliveryCheckSettings = () => {
+    startTransition(async () => {
+      const result = await updateDeliveryCheckSettings(deliveryCheckSettings)
+
+      if (result.success) {
+        toast.success('배송확인 설정이 저장되었습니다.')
+      } else {
+        toast.error(result.error || '저장에 실패했습니다.')
+      }
+    })
+  }
+
+  const toggleDeliveryCheckTime = (hour: number) => {
+    setDeliveryCheckSettings((prev) => {
+      const newTimes = prev.times.includes(hour)
+        ? prev.times.filter((t) => t !== hour)
+        : [...prev.times, hour].sort((a, b) => a - b)
+      return { ...prev, times: newTimes }
     })
   }
 
@@ -437,6 +478,75 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {aiUsage && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <Zap className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle>AI 사용량 (최근 30일)</CardTitle>
+                    <CardDescription>OpenAI API 토큰 사용량 및 예상 비용</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">총 토큰</p>
+                    <p className="text-xl font-bold">{aiUsage.totalTokens.toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">입력 토큰</p>
+                    <p className="text-xl font-bold">{aiUsage.totalPromptTokens.toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">출력 토큰</p>
+                    <p className="text-xl font-bold">{aiUsage.totalCompletionTokens.toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-primary/10">
+                    <p className="text-xs text-muted-foreground">예상 비용</p>
+                    <p className="text-xl font-bold text-primary">{aiUsage.totalCostKrw}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    기능별 사용량
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex justify-between p-2 rounded bg-muted/30">
+                      <span className="text-muted-foreground">벤치마킹 (구조)</span>
+                      <span className="font-medium">{aiUsage.usageByType.benchmarking_structure.count}회</span>
+                    </div>
+                    <div className="flex justify-between p-2 rounded bg-muted/30">
+                      <span className="text-muted-foreground">벤치마킹 (스타일)</span>
+                      <span className="font-medium">{aiUsage.usageByType.benchmarking_style.count}회</span>
+                    </div>
+                    <div className="flex justify-between p-2 rounded bg-muted/30">
+                      <span className="text-muted-foreground">AI 콘텐츠 생성</span>
+                      <span className="font-medium">{aiUsage.usageByType.ai_generate.count}회</span>
+                    </div>
+                    <div className="flex justify-between p-2 rounded bg-muted/30">
+                      <span className="text-muted-foreground">AI 페이지 분석</span>
+                      <span className="font-medium">{aiUsage.usageByType.ai_analyze.count}회</span>
+                    </div>
+                  </div>
+                </div>
+
+                {aiUsage.totalTokens === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    아직 AI 기능을 사용하지 않았습니다.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -542,6 +652,80 @@ export default function SettingsPage() {
               >
                 <Save className="h-4 w-4 mr-2" />
                 동기화 설정 저장
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <Truck className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle>배송 상태 자동 확인</CardTitle>
+                  <CardDescription>택배사 API로 배송 상태를 자동 확인합니다</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">자동 확인 활성화</p>
+                  <p className="text-sm text-muted-foreground">
+                    설정된 시간에 배송 상태를 자동으로 확인
+                  </p>
+                </div>
+                <Switch
+                  checked={deliveryCheckSettings.enabled}
+                  onCheckedChange={(checked) =>
+                    setDeliveryCheckSettings((prev) => ({ ...prev, enabled: checked }))
+                  }
+                />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <Label>확인 시간 선택 (KST)</Label>
+                <div className="grid grid-cols-6 gap-2">
+                  {[6, 9, 12, 15, 18, 21].map((hour) => (
+                    <Button
+                      key={hour}
+                      variant={deliveryCheckSettings.times.includes(hour) ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full"
+                      onClick={() => toggleDeliveryCheckTime(hour)}
+                      disabled={!deliveryCheckSettings.enabled}
+                    >
+                      {hour}:00
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  선택한 시간에 발송처리/배송중 상태의 주문들을 자동으로 확인합니다.
+                </p>
+              </div>
+
+              {deliveryCheckSettings.enabled && deliveryCheckSettings.times.length > 0 && (
+                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span>
+                    매일{' '}
+                    {deliveryCheckSettings.times.map((t) => `${t}:00`).join(', ')}
+                    에 자동 확인
+                  </span>
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleSaveDeliveryCheckSettings}
+                disabled={isPending}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                배송확인 설정 저장
               </Button>
             </CardContent>
           </Card>

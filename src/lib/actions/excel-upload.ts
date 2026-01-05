@@ -179,7 +179,9 @@ function parseOrderStatus(value: unknown): OrderStatus {
   const str = String(value).toLowerCase()
   if (str.includes('new') || str.includes('신규') || str.includes('대기')) return 'New'
   if (str.includes('order') || str.includes('주문') || str.includes('확인')) return 'Ordered'
-  if (str.includes('ship') || str.includes('배송') || str.includes('발송')) return 'Shipped'
+  if (str.includes('dispatch') || str.includes('발송')) return 'Dispatched'
+  if (str.includes('delivering') || str.includes('배송중')) return 'Delivering'
+  if (str.includes('deliver') || str.includes('배송완료') || str.includes('완료')) return 'Delivered'
   if (str.includes('cancel') || str.includes('취소')) return 'Cancelled'
   return 'New'
 }

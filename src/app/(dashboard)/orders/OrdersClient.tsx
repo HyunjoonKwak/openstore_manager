@@ -3,14 +3,14 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Filter, Download, Play, Send, Printer, Archive, ChevronDown, Search, RefreshCw, Upload, FileSpreadsheet, Clock, AlertCircle } from 'lucide-react'
+import { Filter, Download, Play, Send, Printer, Archive, ChevronDown, Search, RefreshCw, Upload, FileSpreadsheet, Clock, AlertCircle, Truck } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { OrdersTable, type OrderTableItem } from '@/components/dashboard/OrdersTable'
-import { updateOrderStatus, cancelOrder } from '@/lib/actions/orders'
+import { updateOrderStatus, cancelOrder, checkDeliveryStatusBatch } from '@/lib/actions/orders'
 import { syncNaverOrders } from '@/lib/actions/naver-sync'
 import { uploadOrdersFromExcel, generateOrderTemplate } from '@/lib/actions/excel-upload'
 import { getStoreSyncStatus, type SyncStatus } from '@/lib/actions/store-management'
@@ -19,6 +19,8 @@ import { toast } from 'sonner'
 import type { OrderStatus } from '@/types/database.types'
 import { cn } from '@/lib/utils'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
+import { TrackingNumberDialog } from '@/components/dashboard/TrackingNumberDialog'
+import { TrackingStatusDialog } from '@/components/dashboard/TrackingStatusDialog'
 
 interface OrdersClientProps {
   initialOrders: OrderTableItem[]
@@ -34,9 +36,13 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const [isPending, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isCheckingDelivery, setIsCheckingDelivery] = useState(false)
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelTargetOrder, setCancelTargetOrder] = useState<OrderTableItem | null>(null)
+  const [trackingInputDialogOpen, setTrackingInputDialogOpen] = useState(false)
+  const [trackingViewDialogOpen, setTrackingViewDialogOpen] = useState(false)
+  const [trackingTargetOrder, setTrackingTargetOrder] = useState<OrderTableItem | null>(null)
 
   const pendingCount = orders.filter((o) => o.status === 'New').length
 
@@ -109,6 +115,27 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     }
   }
 
+  const handleCheckDeliveryStatus = async () => {
+    setIsCheckingDelivery(true)
+    try {
+      const result = await checkDeliveryStatusBatch()
+      if (result.success) {
+        if (result.checked === 0) {
+          toast.info('확인할 배송중인 주문이 없습니다.')
+        } else if (result.updated > 0) {
+          toast.success(`${result.checked}건 확인, ${result.updated}건 상태 업데이트됨`)
+          router.refresh()
+        } else {
+          toast.info(`${result.checked}건 확인, 변경사항 없음`)
+        }
+      } else {
+        toast.error(result.error || '배송 상태 확인에 실패했습니다.')
+      }
+    } finally {
+      setIsCheckingDelivery(false)
+    }
+  }
+
   const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -171,6 +198,20 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const handleOpenCancelDialog = (order: OrderTableItem) => {
     setCancelTargetOrder(order)
     setCancelDialogOpen(true)
+  }
+
+  const handleOpenTrackingInputDialog = (order: OrderTableItem) => {
+    setTrackingTargetOrder(order)
+    setTrackingInputDialogOpen(true)
+  }
+
+  const handleOpenTrackingViewDialog = (order: OrderTableItem) => {
+    setTrackingTargetOrder(order)
+    setTrackingViewDialogOpen(true)
+  }
+
+  const handleTrackingSuccess = () => {
+    router.refresh()
   }
 
   const handleCancel = async () => {
@@ -248,6 +289,16 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
               variant="outline"
               size="sm"
               className="h-7 text-xs"
+              onClick={handleCheckDeliveryStatus}
+              disabled={isCheckingDelivery}
+            >
+              <Truck className={cn('h-3 w-3 mr-1', isCheckingDelivery && 'animate-pulse')} />
+              배송확인
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
             >
@@ -306,6 +357,8 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
               onSelectionChange={setSelectedOrderIds}
               onStatusChange={handleStatusChange}
               onCancel={handleOpenCancelDialog}
+              onTrackingInput={handleOpenTrackingInputDialog}
+              onTrackingView={handleOpenTrackingViewDialog}
             />
           </CardContent>
         </Card>
@@ -350,6 +403,28 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
           }
           onConfirm={handleCancel}
         />
+
+        {trackingTargetOrder && (
+          <>
+            <TrackingNumberDialog
+              open={trackingInputDialogOpen}
+              onOpenChange={setTrackingInputDialogOpen}
+              orderId={trackingTargetOrder.id}
+              orderNumber={trackingTargetOrder.platformOrderId}
+              currentTrackingNumber={trackingTargetOrder.trackingNumber}
+              currentCourierCode={trackingTargetOrder.courierCode}
+              onSuccess={handleTrackingSuccess}
+            />
+
+            <TrackingStatusDialog
+              open={trackingViewDialogOpen}
+              onOpenChange={setTrackingViewDialogOpen}
+              trackingNumber={trackingTargetOrder.trackingNumber || ''}
+              courierCode={trackingTargetOrder.courierCode || 'HANJIN'}
+              orderNumber={trackingTargetOrder.platformOrderId}
+            />
+          </>
+        )}
       </div>
     </>
   )

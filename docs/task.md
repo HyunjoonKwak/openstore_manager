@@ -1,0 +1,40 @@
+# Project Planning & Definition
+
+- [ ] Part 1: 아이디어 탐색 (Idea Exploration) <!-- id: 0 -->
+    - [x] Q1. 프로젝트 이름 <!-- id: 1 -->
+    - [x] Q2. 아이디어 요약 <!-- id: 2 -->
+    - [x] Q3. 동기 <!-- id: 3 -->
+    - [x] Q4. 문제 해결 <!-- id: 4 -->
+- [ ] Part 2: 사용자 이해 (User Understanding) <!-- id: 5 -->
+    - [x] Q5. 페르소나 정의 <!-- id: 6 -->
+    - [x] Q6. 사용 상황 <!-- id: 7 -->
+- [ ] Part 3: 핵심 기능 정의 (Core Features) <!-- id: 8 -->
+    - [x] Q7. 핵심 기능 3가지 <!-- id: 9 -->
+    - [x] Q8. MVP 기능 선택 <!-- id: 10 -->
+    - [x] Q9. 회피할 경험 <!-- id: 11 -->
+- [ ] Part 4: 경험 설계 (Experience Design) <!-- id: 12 -->
+    - [x] Q10. UX/UI 분위기 <!-- id: 13 -->
+    - [x] Q11. 톤앤매너 <!-- id: 14 -->
+- [ ] Part 5: 플랫폼 및 기술 환경 (Platform & Tech) <!-- id: 15 -->
+    - [x] Q12. 사용 환경 <!-- id: 16 -->
+    - [x] Q13. 프론트엔드 형태 <!-- id: 17 -->
+    - [x] Q14. 백엔드 규모 <!-- id: 18 -->
+    - [x] Q15. 데이터 성격 <!-- id: 19 -->
+    - [x] Q16. 기술 스택 선호 <!-- id: 20 -->
+    - [x] Q17. 외부 연동 <!-- id: 21 -->
+    - [x] Q18. 데이터 저장 위치 <!-- id: 22 -->
+- [ ] Part 6: 비즈니스 및 성장 (Business & Growth) <!-- id: 23 -->
+    - [x] Q19. 궁극적 변화 <!-- id: 24 -->
+    - [x] Q20. 성공 지표 <!-- id: 25 -->
+    - [x] Q21. 수익 모델 <!-- id: 26 -->
+    - [x] Q22. 검증 질문 <!-- id: 27 -->
+    - [x] Q23. 확장 계획 <!-- id: 28 -->
+    - [x] Q24. 운영 주체 <!-- id: 29 -->
+- [x] 문서 생성 (Generate Documents) <!-- id: 30 -->
+    - [x] 1. PRD (제품 요구사항 정의서) <!-- id: 31 -->
+    - [x] 2. TRD (기술 요구사항 정의서) <!-- id: 32 -->
+    - [x] 3. User Flow <!-- id: 33 -->
+    - [x] 4. Database Design <!-- id: 34 -->
+    - [x] 5. Design System <!-- id: 35 -->
+    - [x] 6. TASKS (AI 개발 파트너용 프롬프트) <!-- id: 36 -->
+    - [x] 7. Coding Convention & AI Guide <!-- id: 37 -->

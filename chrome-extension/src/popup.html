@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스토어 벤치마킹 분석기</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <h1>벤치마킹 분석기</h1>
+      </div>
+    </header>
+
+    <main>
+      <div id="not-supported" class="status-card hidden">
+        <div class="status-icon warning">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <p>지원되지 않는 페이지입니다.</p>
+        <p class="hint">네이버 스마트스토어 상품 페이지에서 사용해주세요.</p>
+      </div>
+
+      <div id="product-info" class="status-card hidden">
+        <div class="product-preview">
+          <img id="product-image" src="" alt="상품 이미지">
+          <div class="product-details">
+            <h2 id="product-title">상품명</h2>
+            <p id="product-price" class="price">가격</p>
+            <p id="store-name" class="store">스토어명</p>
+          </div>
+        </div>
+        
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-value" id="review-count">0</span>
+            <span class="stat-label">리뷰</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="rating">-</span>
+            <span class="stat-label">평점</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="purchase-count">0</span>
+            <span class="stat-label">구매</span>
+          </div>
+        </div>
+
+        <button id="analyze-btn" class="primary-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+          <span>AI 분석 시작</span>
+        </button>
+      </div>
+
+      <div id="analyzing" class="status-card hidden">
+        <div class="loader"></div>
+        <p>분석 중입니다...</p>
+        <p class="hint">GPT-4o가 상품 페이지를 분석하고 있습니다.</p>
+      </div>
+
+      <div id="success" class="status-card hidden">
+        <div class="status-icon success">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <p>분석이 완료되었습니다!</p>
+        <button id="view-result-btn" class="primary-btn">
+          결과 보기
+        </button>
+      </div>
+
+      <div id="error" class="status-card hidden">
+        <div class="status-icon error">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <p id="error-message">오류가 발생했습니다.</p>
+        <button id="retry-btn" class="secondary-btn">다시 시도</button>
+      </div>
+    </main>
+
+    <footer>
+      <div class="settings">
+        <label>서버 주소:</label>
+        <input type="text" id="server-url" placeholder="http://localhost:3000">
+        <button id="save-settings" class="icon-btn" title="저장">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 13l4 4L19 7"/>
+          </svg>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -338,7 +338,7 @@ export async function registerShipment(params: {
       .update({
         tracking_number: params.trackingNumber,
         courier_code: params.deliveryCompanyCode,
-        status: 'Shipped' as OrderStatus,
+        status: 'Dispatched' as OrderStatus,
       })
       .eq('id', params.orderId)
 
@@ -369,13 +369,142 @@ export async function testNaverConnection(): Promise<{ success: boolean; error: 
   }
 }
 
+export async function dispatchToNaver(
+  storeId: string,
+  naverProductOrderId: string,
+  courierCode: string,
+  trackingNumber: string
+): Promise<{ success: boolean; error?: string }> {
+  const { client, error } = await getNaverClient()
+  if (!client || error) {
+    return { success: false, error: error || '네이버 클라이언트 생성 실패' }
+  }
+
+  try {
+    const response = await client.registerShipment({
+      productOrderId: naverProductOrderId,
+      deliveryCompanyCode: courierCode,
+      trackingNumber,
+    })
+
+    if (response.data.failProductOrderInfos.length > 0) {
+      const failInfo = response.data.failProductOrderInfos[0]
+      return { success: false, error: `네이버 발송처리 실패: ${failInfo.message}` }
+    }
+
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '네이버 발송처리 중 오류가 발생했습니다.'
+    return { success: false, error: message }
+  }
+}
+
+export async function markOrderDelivered(orderId: string): Promise<{
+  success: boolean
+  error: string | null
+}> {
+  const supabase = await createClient()
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, naver_product_order_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    return { success: false, error: '주문을 찾을 수 없습니다.' }
+  }
+
+  if (order.status === 'Delivered') {
+    return { success: true, error: null }
+  }
+
+  const { error: updateError } = await supabase
+    .from('orders')
+    .update({ status: 'Delivered' as OrderStatus })
+    .eq('id', orderId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  revalidatePath('/orders')
+  revalidatePath('/dashboard')
+  return { success: true, error: null }
+}
+
+export async function checkAndUpdateDeliveryStatus(orderId: string): Promise<{
+  success: boolean
+  newStatus: string | null
+  error: string | null
+}> {
+  const supabase = await createClient()
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, tracking_number, courier_code, status, naver_product_order_id')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    return { success: false, newStatus: null, error: '주문을 찾을 수 없습니다.' }
+  }
+
+  if (!order.tracking_number) {
+    return { success: false, newStatus: null, error: '운송장 번호가 없습니다.' }
+  }
+
+  if (order.status === 'Delivered') {
+    return { success: true, newStatus: 'Delivered', error: null }
+  }
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/logistics/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trackingNumber: order.tracking_number,
+        courierCode: order.courier_code || 'HANJIN',
+      }),
+    })
+
+    const trackingResult = await response.json()
+
+    if (trackingResult.success && trackingResult.statusCode === 'DELIVERED') {
+      await supabase
+        .from('orders')
+        .update({ status: 'Delivered' as OrderStatus })
+        .eq('id', orderId)
+
+      revalidatePath('/orders')
+      return { success: true, newStatus: 'Delivered', error: null }
+    }
+
+    if (trackingResult.success && trackingResult.statusCode === 'IN_TRANSIT') {
+      if (order.status !== 'Delivering') {
+        await supabase
+          .from('orders')
+          .update({ status: 'Delivering' as OrderStatus })
+          .eq('id', orderId)
+        revalidatePath('/orders')
+      }
+      return { success: true, newStatus: 'Delivering', error: null }
+    }
+
+    return { success: true, newStatus: order.status, error: null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '배송 상태 조회 실패'
+    return { success: false, newStatus: null, error: message }
+  }
+}
+
 function mapNaverOrderStatusToDb(naverStatus: string): OrderStatus {
   const statusMap: Record<string, OrderStatus> = {
     'PAYMENT_WAITING': 'New',
     'PAYED': 'New',
-    'DELIVERING': 'Shipped',
-    'DELIVERED': 'Shipped',
-    'PURCHASE_DECIDED': 'Shipped',
+    'DELIVERING': 'Delivering',
+    'DELIVERED': 'Delivered',
+    'PURCHASE_DECIDED': 'Delivered',
     'EXCHANGED': 'Cancelled',
     'CANCELED': 'Cancelled',
     'RETURNED': 'Cancelled',
@@ -471,6 +600,33 @@ export async function confirmNaverOrders(orderIds: string[]): Promise<{
     const message = err instanceof Error ? err.message : '발주 확인 중 오류가 발생했습니다.'
     return { success: false, confirmedCount: 0, error: message }
   }
+}
+
+export async function requestPurchaseDecision(orderId: string): Promise<{
+  success: boolean
+  error: string | null
+}> {
+  const supabase = await createClient()
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, naver_product_order_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    return { success: false, error: '주문을 찾을 수 없습니다.' }
+  }
+
+  if (order.status !== 'Delivered') {
+    return { success: false, error: '배송완료 상태의 주문만 구매확정 요청이 가능합니다.' }
+  }
+
+  if (!order.naver_product_order_id) {
+    return { success: false, error: '네이버 주문이 아닙니다.' }
+  }
+
+  return { success: true, error: null }
 }
 
 export async function syncStockToNaver(productId: string): Promise<{

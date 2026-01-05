@@ -223,16 +223,27 @@ export async function updateOrderStatus(
 export async function updateTrackingNumber(
   orderId: string,
   trackingNumber: string,
-  courierCode: string = 'HANJIN'
-): Promise<{ success: boolean; error: string | null }> {
+  courierCode: string = 'HANJIN',
+  syncToNaver: boolean = true
+): Promise<{ success: boolean; error: string | null; naverSyncResult?: { success: boolean; error?: string } }> {
   const supabase = await createClient()
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('naver_product_order_id, store_id')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError) {
+    return { success: false, error: formatErrorMessage(parseError(fetchError, 'order', 'fetch')) }
+  }
 
   const { error } = await supabase
     .from('orders')
     .update({
       tracking_number: trackingNumber,
       courier_code: courierCode,
-      status: 'Shipped' as OrderStatus,
+      status: 'Dispatched' as OrderStatus,
     })
     .eq('id', orderId)
 
@@ -240,15 +251,112 @@ export async function updateTrackingNumber(
     return { success: false, error: formatErrorMessage(parseError(error, 'order', 'update')) }
   }
 
+  let naverSyncResult: { success: boolean; error?: string } | undefined
+
+  if (syncToNaver && order?.naver_product_order_id) {
+    const { dispatchToNaver } = await import('@/lib/actions/naver-sync')
+    naverSyncResult = await dispatchToNaver(order.store_id, order.naver_product_order_id, courierCode, trackingNumber)
+  }
+
   revalidatePath('/orders')
   revalidatePath('/dashboard')
-  return { success: true, error: null }
+  return { success: true, error: null, naverSyncResult }
 }
 
 export async function cancelOrder(
   orderId: string
 ): Promise<{ success: boolean; error: string | null }> {
   return updateOrderStatus(orderId, 'Cancelled')
+}
+
+export async function checkDeliveryStatusBatch(): Promise<{
+  success: boolean
+  checked: number
+  updated: number
+  error: string | null
+}> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { success: false, checked: 0, updated: 0, error: 'Unauthorized' }
+  }
+
+  const { data: stores } = await supabase
+    .from('stores')
+    .select('id')
+    .eq('user_id', userData.user.id)
+
+  if (!stores || stores.length === 0) {
+    return { success: true, checked: 0, updated: 0, error: null }
+  }
+
+  const storeIds = stores.map((s) => s.id)
+
+  const { data: orders, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, tracking_number, courier_code, status')
+    .in('store_id', storeIds)
+    .in('status', ['Dispatched', 'Delivering'])
+    .not('tracking_number', 'is', null)
+    .limit(50)
+
+  if (fetchError) {
+    return { success: false, checked: 0, updated: 0, error: fetchError.message }
+  }
+
+  if (!orders || orders.length === 0) {
+    return { success: true, checked: 0, updated: 0, error: null }
+  }
+
+  const { trackHanjinPackage } = await import('@/lib/logistics/hanjin')
+
+  let checkedCount = 0
+  let updatedCount = 0
+
+  for (const order of orders) {
+    if (!order.tracking_number) continue
+    checkedCount++
+
+    try {
+      const trackingNumber = order.tracking_number
+      const trackingResult = await trackHanjinPackage(trackingNumber, {
+        testMode: trackingNumber.startsWith('TEST'),
+      })
+
+      if (!trackingResult.success) continue
+
+      let newStatus: OrderStatus | null = null
+
+      if (trackingResult.statusCode === 'DELIVERED') {
+        newStatus = 'Delivered'
+      } else if (trackingResult.statusCode === 'IN_TRANSIT' || trackingResult.statusCode === 'OUT_FOR_DELIVERY') {
+        if (order.status === 'Dispatched') {
+          newStatus = 'Delivering'
+        }
+      }
+
+      if (newStatus && newStatus !== order.status) {
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({ status: newStatus })
+          .eq('id', order.id)
+
+        if (!updateError) {
+          updatedCount++
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 200))
+    } catch {
+      continue
+    }
+  }
+
+  revalidatePath('/orders')
+  revalidatePath('/dashboard')
+
+  return { success: true, checked: checkedCount, updated: updatedCount, error: null }
 }
 
 interface CreateOrderInput {
@@ -402,7 +510,7 @@ export async function getOrderStatusCounts(): Promise<{
 
   const storeIds = stores.map((s) => s.id)
 
-  const statuses: OrderStatus[] = ['New', 'Ordered', 'Shipped', 'Cancelled']
+  const statuses: OrderStatus[] = ['New', 'Ordered', 'Dispatched', 'Delivering', 'Delivered', 'Cancelled']
   const counts: { status: string; count: number }[] = []
 
   for (const status of statuses) {

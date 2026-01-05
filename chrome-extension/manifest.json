@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "스토어 벤치마킹 분석기",
+  "version": "1.0.0",
+  "description": "네이버 스마트스토어 상품 페이지를 분석하여 경쟁사 벤치마킹 인사이트를 제공합니다.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://smartstore.naver.com/*",
+    "https://brand.naver.com/*",
+    "https://shopping.naver.com/*",
+    "http://localhost:3000/*",
+    "http://localhost:3001/*"
+  ],
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://smartstore.naver.com/*/products/*",
+        "https://brand.naver.com/*/products/*",
+        "https://shopping.naver.com/*/products/*"
+      ],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"]
+    }
+  ]
+}

@@ -143,7 +143,14 @@ export default function AIGeneratorPage() {
       const data = await response.json()
       setGenerated(data)
       setHasGenerated(true)
-      toast.success('콘텐츠 생성이 완료되었습니다!')
+      
+      const usageMessage = data.usage 
+        ? `토큰: ${data.usage.totalTokens?.toLocaleString()}개 | 예상 비용: ${data.usage.costKrw}`
+        : ''
+      
+      toast.success('콘텐츠 생성이 완료되었습니다!', {
+        description: usageMessage || undefined,
+      })
     } catch {
       toast.error('API 키가 설정되지 않았습니다. 설정 페이지에서 OpenAI API 키를 입력하세요.')
     } finally {
@@ -180,7 +187,14 @@ export default function AIGeneratorPage() {
 
       const data = await response.json()
       setAnalysisResult(data)
-      toast.success('분석이 완료되었습니다!')
+      
+      const usageMessage = data.usage 
+        ? `토큰: ${data.usage.totalTokens?.toLocaleString()}개 | 예상 비용: ${data.usage.costKrw}`
+        : ''
+      
+      toast.success('분석이 완료되었습니다!', {
+        description: usageMessage || undefined,
+      })
     } catch {
       toast.error('API 키가 설정되지 않았습니다. 설정 페이지에서 OpenAI API 키를 입력하세요.')
     } finally {
