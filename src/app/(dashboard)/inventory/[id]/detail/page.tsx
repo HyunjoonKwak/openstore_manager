@@ -579,15 +579,15 @@ export default function ProductDetailEditPage({ params }: PageProps) {
                         <div className="space-y-2">
                           <Label>공급업체 선택</Label>
                           <Select 
-                            value={selectedSupplierId || ''} 
-                            onValueChange={(v) => handleSupplierChange(v || null)}
+                            value={selectedSupplierId || 'none'} 
+                            onValueChange={(v) => handleSupplierChange(v === 'none' ? null : v)}
                             disabled={isSavingSupplier}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="공급업체를 선택하세요" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">없음</SelectItem>
+                              <SelectItem value="none">없음</SelectItem>
                               {suppliers.map((supplier) => (
                                 <SelectItem key={supplier.id} value={supplier.id}>
                                   <div className="flex items-center gap-2">
