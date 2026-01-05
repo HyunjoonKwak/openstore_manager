@@ -101,7 +101,7 @@ export function InventoryClient({
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductWithSupplier | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('판매중')
+  const [statusFilter, setStatusFilter] = useState<string>('SALE')
   const [isPending, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -496,7 +496,16 @@ export function InventoryClient({
       product.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.brand?.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesStatus = statusFilter === 'all' || (product.status || '') === statusFilter
+    let matchesStatus = true
+    if (statusFilter === 'all') {
+      matchesStatus = true
+    } else if (statusFilter === 'lowstock') {
+      matchesStatus = product.stockQuantity <= 10
+    } else if (statusFilter === 'PROHIBITION') {
+      matchesStatus = product.status === 'PROHIBITION' || product.status === 'SUSPENSION'
+    } else {
+      matchesStatus = (product.status || '') === statusFilter
+    }
 
     return matchesSearch && matchesStatus
   })
@@ -536,10 +545,10 @@ export function InventoryClient({
   const prohibitionCount = (statusCounts['PROHIBITION'] || 0) + (statusCounts['SUSPENSION'] || 0)
 
   const statItems = [
-    { label: '전체 상품', value: stats.totalProducts, icon: Package, color: 'text-primary' },
-    { label: '판매중', value: saleCount, icon: ShoppingBag, color: 'text-green-500' },
-    { label: '판매금지/중지', value: prohibitionCount, icon: Ban, color: 'text-destructive' },
-    { label: '재고부족/품절', value: stats.lowStock + stats.outOfStock, icon: AlertTriangle, color: 'text-warning' },
+    { label: '전체 상품', value: stats.totalProducts, icon: Package, color: 'text-primary', filter: 'all' },
+    { label: '판매중', value: saleCount, icon: ShoppingBag, color: 'text-green-500', filter: 'SALE' },
+    { label: '판매금지/중지', value: prohibitionCount, icon: Ban, color: 'text-destructive', filter: 'PROHIBITION' },
+    { label: '재고부족/품절', value: stats.lowStock + stats.outOfStock, icon: AlertTriangle, color: 'text-warning', filter: 'lowstock' },
   ]
 
   return (
@@ -557,7 +566,14 @@ export function InventoryClient({
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {statItems.map((stat) => (
-            <Card key={stat.label}>
+            <Card 
+              key={stat.label} 
+              className={cn(
+                'cursor-pointer transition-all hover:ring-2 hover:ring-primary/50',
+                statusFilter === stat.filter && 'ring-2 ring-primary'
+              )}
+              onClick={() => setStatusFilter(stat.filter)}
+            >
               <CardContent className="flex items-center gap-4 py-4">
                 <div className={cn('rounded-lg bg-muted p-2', stat.color)}>
                   <stat.icon className="h-5 w-5" />
@@ -584,15 +600,15 @@ export function InventoryClient({
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="상태 필터" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">전체 상태</SelectItem>
                 <SelectItem value="SALE">판매중</SelectItem>
-                <SelectItem value="PROHIBITION">판매금지</SelectItem>
-                <SelectItem value="SUSPENSION">판매중지</SelectItem>
+                <SelectItem value="PROHIBITION">판매금지/중지</SelectItem>
                 <SelectItem value="WAIT">승인대기</SelectItem>
+                <SelectItem value="lowstock">재고부족/품절</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -974,7 +990,7 @@ export function InventoryClient({
                     <p className="text-muted-foreground mb-4">
                       다른 검색어로 다시 시도하거나 필터를 변경해보세요.
                     </p>
-                    <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('판매중'); }}>
+                    <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('SALE'); }}>
                       검색 초기화
                     </Button>
                   </>
