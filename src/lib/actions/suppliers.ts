@@ -164,3 +164,41 @@ export async function deleteSupplier(
   revalidatePath('/suppliers')
   return { success: true, error: null }
 }
+
+export interface SupplierSimple {
+  id: string
+  name: string
+  contactNumber: string | null
+  contactMethod: ContactMethod
+}
+
+export async function getSuppliersSimple(): Promise<{ data: SupplierSimple[] | null; error: string | null }> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { data: null, error: 'Unauthorized' }
+  }
+
+  const { data: suppliers, error } = await supabase
+    .from('suppliers')
+    .select('id, name, contact_number, contact_method')
+    .eq('user_id', userData.user.id)
+    .order('name', { ascending: true })
+
+  if (error) {
+    return { data: null, error: error.message }
+  }
+
+  const typedSuppliers = suppliers as unknown as SupplierRow[]
+
+  return {
+    data: typedSuppliers.map((s) => ({
+      id: s.id,
+      name: s.name,
+      contactNumber: s.contact_number,
+      contactMethod: s.contact_method as ContactMethod,
+    })),
+    error: null,
+  }
+}

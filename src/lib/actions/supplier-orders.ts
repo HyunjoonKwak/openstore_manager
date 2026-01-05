@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { OrderStatus, ContactMethod } from '@/types/database.types'
+import { sendOrderNotification, getNotificationStatus } from '@/lib/notifications'
 
 export interface OrderForSupplier {
   id: string
@@ -313,4 +314,117 @@ export async function getOrdersGroupedBySupplier(
   })
 
   return { data: grouped, error: null }
+}
+
+export interface SendOrdersToSupplierResult {
+  success: boolean
+  orderCount: number
+  notificationSent: boolean
+  notificationMethod?: ContactMethod
+  notificationError?: string
+  error?: string
+}
+
+export async function sendOrdersToSupplier(
+  supplierId: string,
+  orderIds: string[],
+  sendNotification: boolean = true
+): Promise<SendOrdersToSupplierResult> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { success: false, orderCount: 0, notificationSent: false, error: 'Unauthorized' }
+  }
+
+  const { data: supplier } = await supabase
+    .from('suppliers')
+    .select('id, name, contact_number, contact_method')
+    .eq('id', supplierId)
+    .single()
+
+  if (!supplier) {
+    return { success: false, orderCount: 0, notificationSent: false, error: '공급업체를 찾을 수 없습니다.' }
+  }
+
+  interface SupplierRow {
+    id: string
+    name: string
+    contact_number: string | null
+    contact_method: string
+  }
+  const typedSupplier = supplier as unknown as SupplierRow
+
+  const { error: updateError } = await supabase
+    .from('orders')
+    .update({ status: 'Ordered' as OrderStatus })
+    .in('id', orderIds)
+
+  if (updateError) {
+    return { success: false, orderCount: 0, notificationSent: false, error: updateError.message }
+  }
+
+  let notificationSent = false
+  let notificationMethod: ContactMethod | undefined
+  let notificationError: string | undefined
+
+  if (sendNotification && typedSupplier.contact_number) {
+    const { data: orders } = await supabase
+      .from('orders')
+      .select(`
+        id,
+        quantity,
+        total_payment_amount,
+        products (name)
+      `)
+      .in('id', orderIds)
+
+    interface OrderWithProduct {
+      id: string
+      quantity: number
+      total_payment_amount: number | null
+      products: { name: string } | null
+    }
+    const typedOrders = (orders || []) as unknown as OrderWithProduct[]
+
+    const productSummary = typedOrders
+      .slice(0, 3)
+      .map(o => `${o.products?.name || '상품'} x${o.quantity}`)
+      .join(', ')
+      + (typedOrders.length > 3 ? ` 외 ${typedOrders.length - 3}건` : '')
+
+    const totalAmount = typedOrders.reduce((sum, o) => sum + (o.total_payment_amount || 0), 0)
+
+    const result = await sendOrderNotification({
+      supplierName: typedSupplier.name,
+      supplierPhone: typedSupplier.contact_number,
+      contactMethod: typedSupplier.contact_method as ContactMethod,
+      orderCount: orderIds.length,
+      productSummary,
+      totalAmount,
+    })
+
+    notificationSent = result.success
+    notificationMethod = result.method
+    notificationError = result.error
+  }
+
+  revalidatePath('/orders')
+  revalidatePath('/orders/send')
+  revalidatePath('/dashboard')
+
+  return {
+    success: true,
+    orderCount: orderIds.length,
+    notificationSent,
+    notificationMethod,
+    notificationError,
+  }
+}
+
+export async function checkNotificationConfig(): Promise<{
+  smsConfigured: boolean
+  kakaoConfigured: boolean
+}> {
+  return getNotificationStatus()
 }

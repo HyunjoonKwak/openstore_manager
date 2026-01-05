@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send, Copy, Check, FileDown, Printer, ArrowLeft, Package } from 'lucide-react'
+import { Send, Copy, Check, FileDown, Printer, ArrowLeft, Package, Bell, MessageSquare, Phone } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -28,7 +29,8 @@ import {
 import { toast } from 'sonner'
 import {
   generateOrderMessage,
-  markOrdersAsOrdered,
+  sendOrdersToSupplier,
+  checkNotificationConfig,
   type OrderForSupplier,
   type SupplierForOrder,
 } from '@/lib/actions/supplier-orders'
@@ -47,6 +49,15 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
   const [message, setMessage] = useState('')
+  const [sendNotification, setSendNotification] = useState(true)
+  const [notificationConfig, setNotificationConfig] = useState<{
+    smsConfigured: boolean
+    kakaoConfigured: boolean
+  } | null>(null)
+
+  useEffect(() => {
+    checkNotificationConfig().then(setNotificationConfig)
+  }, [])
 
   const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId)
 
@@ -113,26 +124,36 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
   }
 
   const handleSend = () => {
-    if (!message) {
-      toast.error('먼저 메시지를 생성해주세요.')
+    if (!selectedSupplier || selectedOrderIds.size === 0) {
+      toast.error('공급업체와 주문을 선택해주세요.')
       return
     }
 
-    handleCopy()
-
     startTransition(async () => {
       const orderIds = Array.from(selectedOrderIds)
-      const result = await markOrdersAsOrdered(orderIds)
+      const result = await sendOrdersToSupplier(
+        selectedSupplier.id,
+        orderIds,
+        sendNotification && !!selectedSupplier.contactNumber
+      )
 
       if (result.success) {
-        toast.success(
-          selectedSupplier?.contactMethod === 'Kakao'
-            ? '카카오톡으로 이동합니다. 메시지를 붙여넣기 해주세요.'
-            : 'SMS 앱으로 이동합니다. 메시지를 붙여넣기 해주세요.'
-        )
+        if (result.notificationSent) {
+          toast.success(
+            `${result.orderCount}건의 주문이 전송되었습니다. ${result.notificationMethod} 알림이 발송되었습니다.`
+          )
+        } else if (sendNotification && selectedSupplier.contactNumber) {
+          toast.warning(
+            `${result.orderCount}건의 주문이 전송되었습니다. 알림 발송 실패: ${result.notificationError || '알 수 없는 오류'}`
+          )
+          handleCopy()
+        } else {
+          toast.success(`${result.orderCount}건의 주문이 전송되었습니다.`)
+          handleCopy()
+        }
         router.refresh()
       } else {
-        toast.error(result.error || '상태 업데이트에 실패했습니다.')
+        toast.error(result.error || '주문 전송에 실패했습니다.')
       }
     })
   }
@@ -300,19 +321,48 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
                 </div>
 
                 {selectedSupplier && (
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      연락처 ({selectedSupplier.contactMethod})
-                    </Label>
-                    <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                      <Badge variant="outline" className="text-xs">
-                        {selectedSupplier.contactMethod === 'Kakao' ? 'K' : 'SMS'}
-                      </Badge>
-                      <span className="font-mono text-sm">
-                        {selectedSupplier.contactNumber || '연락처 없음'}
-                      </span>
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        연락처 ({selectedSupplier.contactMethod})
+                      </Label>
+                      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                        <Badge variant="outline" className="text-xs">
+                          {selectedSupplier.contactMethod === 'Kakao' ? 'K' : 'SMS'}
+                        </Badge>
+                        <span className="font-mono text-sm">
+                          {selectedSupplier.contactNumber || '연락처 없음'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+
+                    {selectedSupplier.contactNumber && (
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Bell className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <span className="text-sm font-medium">알림 발송</span>
+                            <p className="text-xs text-muted-foreground">
+                              {selectedSupplier.contactMethod === 'Kakao' 
+                                ? notificationConfig?.kakaoConfigured 
+                                  ? '카카오 알림톡' 
+                                  : notificationConfig?.smsConfigured 
+                                    ? 'SMS (카카오 미설정)' 
+                                    : '미설정'
+                                : notificationConfig?.smsConfigured 
+                                  ? 'SMS' 
+                                  : '미설정'}
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={sendNotification}
+                          onCheckedChange={setSendNotification}
+                          disabled={!notificationConfig?.smsConfigured && !notificationConfig?.kakaoConfigured}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <Button

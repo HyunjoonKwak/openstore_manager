@@ -243,7 +243,7 @@ export async function getStoreSyncStatus(storeId: string): Promise<{ data: SyncS
 
   const { data: schedule, error } = await supabase
     .from('sync_schedules')
-    .select('last_sync_at, sync_interval, is_enabled, sync_type')
+    .select('last_sync_at, interval_minutes, is_enabled, sync_type')
     .eq('store_id', storeId)
     .single()
 
@@ -256,7 +256,7 @@ export async function getStoreSyncStatus(storeId: string): Promise<{ data: SyncS
 
   interface ScheduleRow {
     last_sync_at: string | null
-    sync_interval: number
+    interval_minutes: number
     is_enabled: boolean
     sync_type: string
   }
@@ -266,7 +266,7 @@ export async function getStoreSyncStatus(storeId: string): Promise<{ data: SyncS
   let nextSyncAt: string | null = null
   if (typedSchedule.last_sync_at && typedSchedule.is_enabled) {
     const lastSync = new Date(typedSchedule.last_sync_at)
-    const nextSync = new Date(lastSync.getTime() + typedSchedule.sync_interval * 60 * 1000)
+    const nextSync = new Date(lastSync.getTime() + typedSchedule.interval_minutes * 60 * 1000)
     nextSyncAt = nextSync.toISOString()
   }
 

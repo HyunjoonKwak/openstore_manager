@@ -7,21 +7,33 @@ import type { OrderStatus } from '@/types/database.types'
 export interface OrderWithProduct {
   id: string
   platformOrderId: string
+  naverOrderId?: string
   product: {
     id: string
     name: string
     sku: string
     price: number
+    option?: string
   }
   customer: {
     name: string
     initials: string
     color: string
+    tel?: string
+  }
+  receiver?: {
+    name: string
+    tel: string
+    address: string
+    zipCode: string
+    memo?: string
   }
   date: string
   total: number
+  unitPrice?: number
   quantity: number
   status: OrderStatus
+  naverStatus?: string
   trackingNumber: string | null
   courierCode: string | null
 }
@@ -58,13 +70,25 @@ function getAvatarColor(name: string): string {
 interface OrderRow {
   id: string
   platform_order_id: string | null
+  naver_order_id: string | null
   product_id: string | null
   quantity: number
   customer_name: string | null
+  orderer_tel: string | null
   status: string
+  naver_order_status: string | null
   tracking_number: string | null
   courier_code: string | null
   order_date: string
+  unit_price: number | null
+  total_payment_amount: number | null
+  product_name: string | null
+  product_option: string | null
+  receiver_name: string | null
+  receiver_tel: string | null
+  customer_address: string | null
+  zip_code: string | null
+  delivery_memo: string | null
   products: {
     id: string
     name: string
@@ -97,13 +121,25 @@ export async function getOrders(): Promise<{ data: OrderWithProduct[] | null; er
     .select(`
       id,
       platform_order_id,
+      naver_order_id,
       product_id,
       quantity,
       customer_name,
+      orderer_tel,
       status,
+      naver_order_status,
       tracking_number,
       courier_code,
       order_date,
+      unit_price,
+      total_payment_amount,
+      product_name,
+      product_option,
+      receiver_name,
+      receiver_tel,
+      customer_address,
+      zip_code,
+      delivery_memo,
       products (
         id,
         name,
@@ -123,25 +159,38 @@ export async function getOrders(): Promise<{ data: OrderWithProduct[] | null; er
   const transformedOrders: OrderWithProduct[] = typedOrders.map((order) => {
     const product = order.products
     const customerName = order.customer_name || 'Unknown'
+    const productName = order.product_name || product?.name || 'Unknown Product'
 
     return {
       id: order.id,
       platformOrderId: order.platform_order_id || order.id.slice(0, 8).toUpperCase(),
+      naverOrderId: order.naver_order_id || undefined,
       product: {
         id: product?.id || '',
-        name: product?.name || 'Unknown Product',
+        name: productName,
         sku: product?.sku || 'N/A',
         price: product?.price || 0,
+        option: order.product_option || undefined,
       },
       customer: {
         name: customerName,
         initials: getInitials(customerName),
         color: getAvatarColor(customerName),
+        tel: order.orderer_tel || undefined,
       },
+      receiver: order.receiver_name ? {
+        name: order.receiver_name,
+        tel: order.receiver_tel || '',
+        address: order.customer_address || '',
+        zipCode: order.zip_code || '',
+        memo: order.delivery_memo || undefined,
+      } : undefined,
       date: order.order_date,
-      total: (product?.price || 0) * order.quantity,
+      total: order.total_payment_amount || (product?.price || 0) * order.quantity,
+      unitPrice: order.unit_price || product?.price || undefined,
       quantity: order.quantity,
       status: order.status as OrderStatus,
+      naverStatus: order.naver_order_status || undefined,
       trackingNumber: order.tracking_number,
       courierCode: order.courier_code,
     }

@@ -209,6 +209,13 @@ export interface Database {
           total_payment_amount: number | null
           naver_order_status: string | null
           orderer_tel: string | null
+          product_name: string | null
+          product_option: string | null
+          receiver_name: string | null
+          receiver_tel: string | null
+          zip_code: string | null
+          naver_order_id: string | null
+          delivery_memo: string | null
         }
         Insert: {
           id?: string
@@ -227,6 +234,13 @@ export interface Database {
           total_payment_amount?: number | null
           naver_order_status?: string | null
           orderer_tel?: string | null
+          product_name?: string | null
+          product_option?: string | null
+          receiver_name?: string | null
+          receiver_tel?: string | null
+          zip_code?: string | null
+          naver_order_id?: string | null
+          delivery_memo?: string | null
         }
         Update: {
           id?: string
@@ -245,6 +259,13 @@ export interface Database {
           total_payment_amount?: number | null
           naver_order_status?: string | null
           orderer_tel?: string | null
+          product_name?: string | null
+          product_option?: string | null
+          receiver_name?: string | null
+          receiver_tel?: string | null
+          zip_code?: string | null
+          naver_order_id?: string | null
+          delivery_memo?: string | null
         }
         Relationships: [
           {

@@ -191,112 +191,104 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
         onChange={handleExcelUpload}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold">전체 주문</h2>
-            <Badge variant="secondary">
-              {orders.length}건
-            </Badge>
-            {pendingCount > 0 && (
-              <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
-                {pendingCount}건 조치필요
+      <div className="flex-1 overflow-hidden p-3 lg:p-4 pb-16 lg:pb-4 flex flex-col">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                {orders.length}건
               </Badge>
-            )}
+              {pendingCount > 0 && (
+                <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">
+                  {pendingCount}건 조치필요
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 py-1 bg-muted/50 rounded">
+              {syncStatus?.lastSyncAt ? (
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  <span>{formatRelativeTime(syncStatus.lastSyncAt)}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  <span>동기화 없음</span>
+                </div>
+              )}
+              {syncStatus && !syncStatus.isEnabled && (
+                <div className="flex items-center gap-1 text-warning">
+                  <AlertCircle className="h-3 w-3" />
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {syncStatus && (
-              <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground mr-2">
-                {syncStatus.lastSyncAt && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>마지막: {formatRelativeTime(syncStatus.lastSyncAt)}</span>
-                  </div>
-                )}
-                {syncStatus.isEnabled && syncStatus.nextSyncAt && (
-                  <div className="flex items-center gap-1">
-                    <RefreshCw className="h-3 w-3" />
-                    <span>다음: {formatNextSync(syncStatus.nextSyncAt)}</span>
-                  </div>
-                )}
-                {!syncStatus.isEnabled && (
-                  <div className="flex items-center gap-1 text-warning">
-                    <AlertCircle className="h-3 w-3" />
-                    <span>자동동기화 꺼짐</span>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="flex flex-wrap items-center gap-1.5">
             <Button
               variant="outline"
               size="sm"
+              className="h-7 text-xs"
               onClick={handleNaverSync}
               disabled={isSyncing}
             >
-              <RefreshCw className={cn('h-4 w-4 mr-2', isSyncing && 'animate-spin')} />
-              네이버 동기화
+              <RefreshCw className={cn('h-3 w-3 mr-1', isSyncing && 'animate-spin')} />
+              동기화
             </Button>
             <Button
               variant="outline"
               size="sm"
+              className="h-7 text-xs"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
             >
-              <Upload className="h-4 w-4 mr-2" />
-              {isUploading ? '업로드 중...' : '엑셀 업로드'}
+              <Upload className="h-3 w-3 mr-1" />
+              업로드
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              템플릿 다운로드
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleDownloadTemplate}>
+              <FileSpreadsheet className="h-3 w-3 mr-1" />
+              템플릿
             </Button>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" className="h-7 text-xs">
+              <Download className="h-3 w-3 mr-1" />
               내보내기
             </Button>
-            <Button size="sm" disabled={isPending}>
-              <Play className="h-4 w-4 mr-2" />
-              일괄 처리
+            <Button size="sm" className="h-7 text-xs" disabled={isPending}>
+              <Play className="h-3 w-3 mr-1" />
+              일괄처리
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-4 mb-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col lg:flex-row gap-2 mb-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               type="search"
               placeholder="주문번호, SKU, 고객명 검색..."
-              className="pl-9"
+              className="pl-8 h-8 text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
               상태: 전체
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
             </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              기간: 최근 7일
-              <ChevronDown className="h-4 w-4" />
+            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
+              기간: 7일
+              <ChevronDown className="h-3 w-3" />
             </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              공급업체: 전체
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="h-4 w-4" />
-              상세필터
+            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
+              <Filter className="h-3 w-3" />
+              필터
             </Button>
           </div>
         </div>
 
-        <Card className="flex flex-col h-[calc(100vh-320px)] min-h-[400px]">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-border py-3">
-            <CardTitle className="text-base font-semibold">주문 목록</CardTitle>
-          </CardHeader>
+        <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <CardContent className="flex-1 p-0 overflow-hidden">
             <OrdersTable
               orders={filteredOrders}

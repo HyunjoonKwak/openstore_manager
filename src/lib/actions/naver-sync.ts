@@ -120,6 +120,31 @@ export async function syncNaverOrders(params: {
       }
     }
 
+    const { data: existingSchedule } = await supabase
+      .from('sync_schedules')
+      .select('id')
+      .eq('store_id', store.id)
+      .eq('sync_type', 'orders')
+      .single()
+
+    if (existingSchedule) {
+      await supabase
+        .from('sync_schedules')
+        .update({ last_sync_at: new Date().toISOString() })
+        .eq('id', existingSchedule.id)
+    } else {
+      await supabase
+        .from('sync_schedules')
+        .insert({
+          user_id: userData.user.id,
+          store_id: store.id,
+          sync_type: 'orders' as const,
+          last_sync_at: new Date().toISOString(),
+          interval_minutes: 30,
+          is_enabled: false,
+        })
+    }
+
     revalidatePath('/orders')
     revalidatePath('/dashboard')
 
@@ -337,8 +362,9 @@ function mapNaverOrderStatusToDb(naverStatus: string): OrderStatus {
 }
 
 function mapNaverOrderToDb(naverOrder: NaverOrder, storeId: string) {
-  const address = naverOrder.shippingAddress 
-    ? `${naverOrder.shippingAddress.baseAddress} ${naverOrder.shippingAddress.detailAddress}`
+  const shipping = naverOrder.shippingAddress
+  const address = shipping
+    ? `${shipping.baseAddress} ${shipping.detailAddress}`
     : null
 
   return {
@@ -356,6 +382,13 @@ function mapNaverOrderToDb(naverOrder: NaverOrder, storeId: string) {
     total_payment_amount: naverOrder.totalPaymentAmount,
     naver_order_status: naverOrder.orderStatus,
     orderer_tel: naverOrder.ordererTel,
+    product_name: naverOrder.productName,
+    product_option: naverOrder.productOption || null,
+    receiver_name: shipping?.name || null,
+    receiver_tel: shipping?.tel1 || null,
+    zip_code: shipping?.zipCode || null,
+    naver_order_id: naverOrder.orderId,
+    delivery_memo: naverOrder.shippingMemo || null,
   }
 }
 

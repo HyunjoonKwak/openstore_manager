@@ -69,6 +69,9 @@ import {
   type UpdateProductToNaverInput,
   type NaverOptionItem,
 } from '@/lib/actions/naver-sync'
+import { getSuppliersSimple, type SupplierSimple } from '@/lib/actions/suppliers'
+import { updateProduct } from '@/lib/actions/products'
+import { Building2 } from 'lucide-react'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -133,6 +136,10 @@ export default function ProductDetailEditPage({ params }: PageProps) {
   const [productData, setProductData] = useState<NaverProductFullDetail | null>(null)
   const [originalData, setOriginalData] = useState<NaverProductFullDetail | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
+  
+  const [suppliers, setSuppliers] = useState<SupplierSimple[]>([])
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null)
+  const [isSavingSupplier, setIsSavingSupplier] = useState(false)
 
   const [newImageUrl, setNewImageUrl] = useState('')
   const [newOptionRow, setNewOptionRow] = useState<Partial<NaverOptionItem>>({
@@ -143,7 +150,33 @@ export default function ProductDetailEditPage({ params }: PageProps) {
 
   useEffect(() => {
     loadProductDetail()
+    loadSuppliers()
   }, [productId])
+  
+  async function loadSuppliers() {
+    const result = await getSuppliersSimple()
+    if (result.data) {
+      setSuppliers(result.data)
+    }
+  }
+  
+  async function handleSupplierChange(supplierId: string | null) {
+    setIsSavingSupplier(true)
+    try {
+      const result = await updateProduct({
+        id: productId,
+        supplierId: supplierId,
+      })
+      if (result.success) {
+        setSelectedSupplierId(supplierId)
+        toast.success('공급업체가 저장되었습니다.')
+      } else {
+        toast.error(result.error || '공급업체 저장 실패')
+      }
+    } finally {
+      setIsSavingSupplier(false)
+    }
+  }
 
   useEffect(() => {
     if (productData && originalData) {
@@ -531,6 +564,49 @@ export default function ProductDetailEditPage({ params }: PageProps) {
                         <div className="space-y-2">
                           <Label>수입사</Label>
                           <Input value={productData.importer || ''} onChange={(e) => updateField('importer', e.target.value)} />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          공급업체
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>공급업체 선택</Label>
+                          <Select 
+                            value={selectedSupplierId || ''} 
+                            onValueChange={(v) => handleSupplierChange(v || null)}
+                            disabled={isSavingSupplier}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="공급업체를 선택하세요" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">없음</SelectItem>
+                              {suppliers.map((supplier) => (
+                                <SelectItem key={supplier.id} value={supplier.id}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{supplier.name}</span>
+                                    {supplier.contactNumber && (
+                                      <span className="text-xs text-muted-foreground">
+                                        ({supplier.contactMethod}: {supplier.contactNumber})
+                                      </span>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {suppliers.length === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              등록된 공급업체가 없습니다. 공급업체 관리에서 추가하세요.
+                            </p>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

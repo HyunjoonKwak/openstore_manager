@@ -258,10 +258,12 @@ export interface NaverOrder {
   shippingAddress: {
     name: string
     tel1: string
+    tel2?: string
     baseAddress: string
     detailAddress: string
     zipCode: string
   }
+  shippingMemo?: string
   deliveryCompanyCode?: string
   trackingNumber?: string
 }
