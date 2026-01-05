@@ -51,6 +51,13 @@ CREATE INDEX IF NOT EXISTS idx_supplier_order_logs_sent_at ON supplier_order_log
 ALTER TABLE couriers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supplier_order_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own couriers" ON couriers;
+DROP POLICY IF EXISTS "Users can insert own couriers" ON couriers;
+DROP POLICY IF EXISTS "Users can update own couriers" ON couriers;
+DROP POLICY IF EXISTS "Users can delete own couriers" ON couriers;
+DROP POLICY IF EXISTS "Users can view own supplier logs" ON supplier_order_logs;
+DROP POLICY IF EXISTS "Users can insert own supplier logs" ON supplier_order_logs;
+
 CREATE POLICY "Users can view own couriers" ON couriers
   FOR SELECT USING (auth.uid() = user_id);
 
