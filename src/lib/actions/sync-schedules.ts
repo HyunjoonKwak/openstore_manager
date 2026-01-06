@@ -14,6 +14,8 @@ export interface SyncSchedule {
   isEnabled: boolean
   lastSyncAt: string | null
   nextSyncAt: string | null
+  syncAtMinute: 0 | 30
+  syncTime: string | null
   createdAt: string
 }
 
@@ -36,6 +38,8 @@ interface SyncScheduleRow {
   is_enabled: boolean
   last_sync_at: string | null
   next_sync_at: string | null
+  sync_at_minute: number | null
+  sync_time: string | null
   created_at: string
 }
 
@@ -82,6 +86,8 @@ export async function getSyncSchedules(): Promise<{
       isEnabled: s.is_enabled,
       lastSyncAt: s.last_sync_at,
       nextSyncAt: s.next_sync_at,
+      syncAtMinute: (s.sync_at_minute ?? 0) as 0 | 30,
+      syncTime: s.sync_time,
       createdAt: s.created_at,
     })),
     error: null,
@@ -124,6 +130,8 @@ export async function getSyncScheduleByStore(storeId: string): Promise<{
       isEnabled: typedSchedule.is_enabled,
       lastSyncAt: typedSchedule.last_sync_at,
       nextSyncAt: typedSchedule.next_sync_at,
+      syncAtMinute: (typedSchedule.sync_at_minute ?? 0) as 0 | 30,
+      syncTime: typedSchedule.sync_time,
       createdAt: typedSchedule.created_at,
     },
     error: null,
@@ -135,6 +143,97 @@ interface CreateOrUpdateSyncScheduleInput {
   syncType: SyncType
   intervalMinutes: number
   isEnabled: boolean
+  syncAtMinute?: 0 | 30
+  syncTime?: string
+}
+
+function calculateNextSyncAt(
+  intervalMinutes: number,
+  syncAtMinute: 0 | 30 = 0,
+  syncTime?: string
+): string {
+  const now = new Date()
+
+  if (intervalMinutes === 1440 && syncTime) {
+    const [hours, minutes] = syncTime.split(':').map(Number)
+    const next = new Date(now)
+    next.setHours(hours, minutes, 0, 0)
+
+    if (next <= now) {
+      next.setDate(next.getDate() + 1)
+    }
+    return next.toISOString()
+  }
+
+  const currentMinute = now.getMinutes()
+  const currentHour = now.getHours()
+
+  let nextMinute: number
+  let nextHour = currentHour
+
+  if (intervalMinutes === 60) {
+    nextMinute = syncAtMinute
+    if (currentMinute >= syncAtMinute) {
+      nextHour = currentHour + 1
+    }
+  } else if (intervalMinutes === 120) {
+    nextMinute = syncAtMinute
+    const hoursUntilNext = currentMinute >= syncAtMinute ? 1 : 0
+    nextHour = currentHour + hoursUntilNext
+    if (nextHour % 2 !== 0) {
+      nextHour += 1
+    }
+  } else if (intervalMinutes === 360) {
+    nextMinute = syncAtMinute
+    const targetHours = [0, 6, 12, 18]
+    const currentTotalMinutes = currentHour * 60 + currentMinute
+    const syncMinuteOffset = syncAtMinute
+
+    for (const h of targetHours) {
+      if (h * 60 + syncMinuteOffset > currentTotalMinutes) {
+        nextHour = h
+        break
+      }
+    }
+    if (nextHour <= currentHour && currentMinute >= syncAtMinute) {
+      nextHour = targetHours[0]
+      const next = new Date(now)
+      next.setDate(next.getDate() + 1)
+      next.setHours(nextHour, nextMinute, 0, 0)
+      return next.toISOString()
+    }
+  } else if (intervalMinutes === 720) {
+    nextMinute = syncAtMinute
+    const targetHours = [0, 12]
+    const currentTotalMinutes = currentHour * 60 + currentMinute
+    const syncMinuteOffset = syncAtMinute
+
+    for (const h of targetHours) {
+      if (h * 60 + syncMinuteOffset > currentTotalMinutes) {
+        nextHour = h
+        break
+      }
+    }
+    if (nextHour <= currentHour && currentMinute >= syncAtMinute) {
+      nextHour = targetHours[0]
+      const next = new Date(now)
+      next.setDate(next.getDate() + 1)
+      next.setHours(nextHour, nextMinute, 0, 0)
+      return next.toISOString()
+    }
+  } else {
+    const next = new Date(now.getTime() + intervalMinutes * 60 * 1000)
+    return next.toISOString()
+  }
+
+  const next = new Date(now)
+  next.setHours(nextHour, nextMinute, 0, 0)
+
+  if (next <= now) {
+    next.setHours(next.getHours() + Math.floor(intervalMinutes / 60))
+  }
+
+  return next.toISOString()
 }
 
 export async function createOrUpdateSyncSchedule(
@@ -146,6 +245,10 @@ export async function createOrUpdateSyncSchedule(
   if (!userData.user) {
     return { success: false, error: 'Unauthorized' }
   }
+
+  const nextSyncAt = input.isEnabled
+    ? calculateNextSyncAt(input.intervalMinutes, input.syncAtMinute, input.syncTime)
+    : null
 
   const { data: existing } = await supabase
     .from('sync_schedules')
@@ -161,6 +264,9 @@ export async function createOrUpdateSyncSchedule(
         sync_type: input.syncType,
         interval_minutes: input.intervalMinutes,
         is_enabled: input.isEnabled,
+        sync_at_minute: input.syncAtMinute ?? 0,
+        sync_time: input.syncTime ?? null,
+        next_sync_at: nextSyncAt,
       })
       .eq('id', existing.id)
 
@@ -174,6 +280,9 @@ export async function createOrUpdateSyncSchedule(
       sync_type: input.syncType,
       interval_minutes: input.intervalMinutes,
       is_enabled: input.isEnabled,
+      sync_at_minute: input.syncAtMinute ?? 0,
+      sync_time: input.syncTime ?? null,
+      next_sync_at: nextSyncAt,
     })
 
     if (error) {
@@ -211,7 +320,7 @@ export async function updateLastSyncAt(
 
   const { data: schedule } = await supabase
     .from('sync_schedules')
-    .select('interval_minutes')
+    .select('interval_minutes, sync_at_minute, sync_time')
     .eq('id', scheduleId)
     .single()
 
@@ -219,10 +328,17 @@ export async function updateLastSyncAt(
     return { success: false, error: 'Schedule not found' }
   }
 
-  const typedSchedule = schedule as unknown as { interval_minutes: number }
-  const nextSyncAt = new Date(
-    Date.now() + typedSchedule.interval_minutes * 60 * 1000
-  ).toISOString()
+  const typedSchedule = schedule as unknown as {
+    interval_minutes: number
+    sync_at_minute: number | null
+    sync_time: string | null
+  }
+
+  const nextSyncAt = calculateNextSyncAt(
+    typedSchedule.interval_minutes,
+    (typedSchedule.sync_at_minute ?? 0) as 0 | 30,
+    typedSchedule.sync_time ?? undefined
+  )
 
   const { error } = await supabase
     .from('sync_schedules')
@@ -361,6 +477,8 @@ export async function getDueSyncSchedules(): Promise<{
       isEnabled: s.is_enabled,
       lastSyncAt: s.last_sync_at,
       nextSyncAt: s.next_sync_at,
+      syncAtMinute: (s.sync_at_minute ?? 0) as 0 | 30,
+      syncTime: s.sync_time,
       createdAt: s.created_at,
       apiConfig: s.stores?.api_config || {},
     })),

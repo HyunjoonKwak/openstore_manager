@@ -33,6 +33,7 @@ import type { Platform } from '@/types/database.types'
 interface StoreFormData {
   storeName: string
   platform: Platform
+  storeUrl: string
   naverClientId: string
   naverClientSecret: string
   openaiApiKey: string
@@ -41,6 +42,7 @@ interface StoreFormData {
 const defaultFormData: StoreFormData = {
   storeName: '',
   platform: 'Naver',
+  storeUrl: '',
   naverClientId: '',
   naverClientSecret: '',
   openaiApiKey: '',
@@ -64,6 +66,7 @@ export function StoreManagement() {
       const result = await createStore({
         storeName: formData.storeName,
         platform: formData.platform,
+        storeUrl: formData.storeUrl || undefined,
         naverClientId: formData.naverClientId || undefined,
         naverClientSecret: formData.naverClientSecret || undefined,
         openaiApiKey: formData.openaiApiKey || undefined,
@@ -90,6 +93,7 @@ export function StoreManagement() {
       const result = await updateStore(editingStore.id, {
         storeName: formData.storeName,
         platform: formData.platform,
+        storeUrl: formData.storeUrl,
         naverClientId: formData.naverClientId,
         naverClientSecret: formData.naverClientSecret,
         openaiApiKey: formData.openaiApiKey,
@@ -124,6 +128,7 @@ export function StoreManagement() {
     setFormData({
       storeName: store.storeName,
       platform: store.platform,
+      storeUrl: store.apiConfig.storeUrl || '',
       naverClientId: store.apiConfig.naverClientId || '',
       naverClientSecret: store.apiConfig.naverClientSecret || '',
       openaiApiKey: store.apiConfig.openaiApiKey || '',
@@ -159,6 +164,20 @@ export function StoreManagement() {
           </SelectContent>
         </Select>
       </div>
+      {formData.platform === 'Naver' && (
+        <div className="space-y-2">
+          <Label htmlFor="storeUrl">스토어 URL 이름</Label>
+          <Input
+            id="storeUrl"
+            value={formData.storeUrl}
+            onChange={(e) => setFormData((prev) => ({ ...prev, storeUrl: e.target.value }))}
+            placeholder="예: us-shop (smartstore.naver.com/us-shop)"
+          />
+          <p className="text-xs text-muted-foreground">
+            스마트스토어 주소에서 smartstore.naver.com/ 뒤의 이름을 입력하세요
+          </p>
+        </div>
+      )}
       <Separator />
       <div className="space-y-2">
         <Label htmlFor="naverClientId">네이버 Client ID</Label>

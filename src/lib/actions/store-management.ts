@@ -12,6 +12,7 @@ export interface StoreInfo {
     naverClientId?: string
     naverClientSecret?: string
     openaiApiKey?: string
+    storeUrl?: string
   }
   createdAt: string
 }
@@ -35,6 +36,7 @@ interface ApiConfigJson {
   naverClientId?: string
   naverClientSecret?: string
   openaiApiKey?: string
+  storeUrl?: string
 }
 
 export async function getStores(): Promise<{ data: StoreInfo[] | null; error: string | null }> {
@@ -68,6 +70,7 @@ export async function getStores(): Promise<{ data: StoreInfo[] | null; error: st
           naverClientId: apiConfig.naverClientId || '',
           naverClientSecret: apiConfig.naverClientSecret || '',
           openaiApiKey: apiConfig.openaiApiKey || '',
+          storeUrl: apiConfig.storeUrl || '',
         },
         createdAt: store.created_at,
       }
@@ -100,6 +103,7 @@ interface CreateStoreInput {
   naverClientId?: string
   naverClientSecret?: string
   openaiApiKey?: string
+  storeUrl?: string
 }
 
 export async function createStore(input: CreateStoreInput): Promise<{ data: StoreInfo | null; error: string | null }> {
@@ -114,6 +118,7 @@ export async function createStore(input: CreateStoreInput): Promise<{ data: Stor
   if (input.naverClientId) apiConfig.naverClientId = input.naverClientId
   if (input.naverClientSecret) apiConfig.naverClientSecret = input.naverClientSecret
   if (input.openaiApiKey) apiConfig.openaiApiKey = input.openaiApiKey
+  if (input.storeUrl) apiConfig.storeUrl = input.storeUrl
 
   const { data: store, error } = await supabase
     .from('stores')
@@ -142,13 +147,14 @@ export async function createStore(input: CreateStoreInput): Promise<{ data: Stor
       id: typedStore.id,
       storeName: typedStore.store_name,
       platform: typedStore.platform as Platform,
-      apiConfig: {
-        naverClientId: config.naverClientId || '',
-        naverClientSecret: config.naverClientSecret || '',
-        openaiApiKey: config.openaiApiKey || '',
+        apiConfig: {
+          naverClientId: config.naverClientId || '',
+          naverClientSecret: config.naverClientSecret || '',
+          openaiApiKey: config.openaiApiKey || '',
+          storeUrl: config.storeUrl || '',
+        },
+        createdAt: typedStore.created_at,
       },
-      createdAt: typedStore.created_at,
-    },
     error: null,
   }
 }
@@ -168,7 +174,7 @@ export async function updateStore(
   if (input.storeName) updateData.store_name = input.storeName
   if (input.platform) updateData.platform = input.platform
 
-  if (input.naverClientId || input.naverClientSecret || input.openaiApiKey) {
+  if (input.naverClientId || input.naverClientSecret || input.openaiApiKey || input.storeUrl !== undefined) {
     const { data: existingStore } = await supabase
       .from('stores')
       .select('api_config')
@@ -181,6 +187,7 @@ export async function updateStore(
     if (input.naverClientId !== undefined) newConfig.naverClientId = input.naverClientId
     if (input.naverClientSecret !== undefined) newConfig.naverClientSecret = input.naverClientSecret
     if (input.openaiApiKey !== undefined) newConfig.openaiApiKey = input.openaiApiKey
+    if (input.storeUrl !== undefined) newConfig.storeUrl = input.storeUrl
     
     updateData.api_config = newConfig
   }

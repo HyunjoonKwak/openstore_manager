@@ -1,8 +1,8 @@
-import { getAnalysisLogs } from '@/lib/actions/analysis'
+import { getBenchmarkSessions } from '@/lib/actions/benchmark'
 import { BenchmarkingClient } from './BenchmarkingClient'
 
 export default async function BenchmarkingPage() {
-  const { data: logs } = await getAnalysisLogs()
+  const { data: sessions } = await getBenchmarkSessions()
 
-  return <BenchmarkingClient initialLogs={logs || []} />
+  return <BenchmarkingClient initialSessions={sessions || []} />
 }

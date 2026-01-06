@@ -241,6 +241,46 @@ export class NaverCommerceClient {
       `/external/v1/pay-settle/settle/daily?${searchParams.toString()}`
     )
   }
+
+  async getCustomerInquiries(params: {
+    startSearchDate: string
+    endSearchDate: string
+    answered?: boolean
+    page?: number
+    size?: number
+  }): Promise<NaverInquiriesResponse> {
+    const searchParams = new URLSearchParams()
+    searchParams.append('startSearchDate', params.startSearchDate)
+    searchParams.append('endSearchDate', params.endSearchDate)
+    if (params.answered !== undefined) searchParams.append('answered', params.answered.toString())
+    if (params.page) searchParams.append('page', params.page.toString())
+    if (params.size) searchParams.append('size', (params.size || 100).toString())
+
+    return this.request<NaverInquiriesResponse>(
+      'GET',
+      `/external/v1/pay-user/inquiries?${searchParams.toString()}`
+    )
+  }
+
+  async getProductQnas(params: {
+    fromDate: string
+    toDate: string
+    answered?: boolean
+    page?: number
+    size?: number
+  }): Promise<NaverQnasResponse> {
+    const searchParams = new URLSearchParams()
+    searchParams.append('fromDate', params.fromDate)
+    searchParams.append('toDate', params.toDate)
+    if (params.answered !== undefined) searchParams.append('answered', params.answered.toString())
+    if (params.page) searchParams.append('page', params.page.toString())
+    if (params.size) searchParams.append('size', (params.size || 100).toString())
+
+    return this.request<NaverQnasResponse>(
+      'GET',
+      `/external/v1/contents/qnas?${searchParams.toString()}`
+    )
+  }
 }
 
 export interface NaverOrder {
@@ -786,4 +826,45 @@ export interface NaverStockUpdateResponse {
     code: string
     message: string
   }>
+}
+
+export interface NaverInquiry {
+  inquiryNo: string
+  category: string
+  title: string
+  inquiryContent: string
+  answered: boolean
+  answerContent?: string
+  answeredDate?: string
+  orderId?: string
+  productOrderId?: string
+  productName?: string
+  customerId: string
+  createdDate: string
+}
+
+export interface NaverInquiriesResponse {
+  contents: NaverInquiry[]
+  totalElements: number
+  page: number
+  size: number
+}
+
+export interface NaverQna {
+  questionId: string
+  question: string
+  answer?: string
+  answered: boolean
+  answeredDate?: string
+  productId: string
+  productName: string
+  maskedWriterId: string
+  createdDate: string
+}
+
+export interface NaverQnasResponse {
+  contents: NaverQna[]
+  totalElements: number
+  page: number
+  size: number
 }

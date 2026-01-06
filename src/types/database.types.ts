@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type OrderStatus = 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Cancelled'
+export type OrderStatus = 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'Cancelled'
 export type UserRole = 'owner' | 'staff'
 export type ContactMethod = 'SMS' | 'Kakao' | 'Telegram' | 'Discord'
 export type DetailPageStatus = 'Draft' | 'Completed'
@@ -22,6 +22,8 @@ export type SyncDirection = 'pull' | 'push'
 export type SyncHistoryStatus = 'started' | 'completed' | 'failed'
 export type StockSyncSource = 'local' | 'naver' | 'manual'
 export type DeliveryTrackingStatus = 'IN_PROGRESS' | 'DELIVERED'
+export type BenchmarkSessionStatus = 'active' | 'archived'
+export type BenchmarkAssetType = 'image' | 'screenshot' | 'text'
 
 export interface Database {
   public: {
@@ -454,6 +456,8 @@ export interface Database {
           is_enabled: boolean
           last_sync_at: string | null
           next_sync_at: string | null
+          sync_at_minute: number | null
+          sync_time: string | null
           created_at: string
           updated_at: string
         }
@@ -466,6 +470,8 @@ export interface Database {
           is_enabled?: boolean
           last_sync_at?: string | null
           next_sync_at?: string | null
+          sync_at_minute?: number | null
+          sync_time?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -478,6 +484,8 @@ export interface Database {
           is_enabled?: boolean
           last_sync_at?: string | null
           next_sync_at?: string | null
+          sync_at_minute?: number | null
+          sync_time?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -864,6 +872,221 @@ export interface Database {
           }
         ]
       }
+      benchmark_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          description: string | null
+          my_product_id: string | null
+          my_page_url: string | null
+          status: BenchmarkSessionStatus
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          description?: string | null
+          my_product_id?: string | null
+          my_page_url?: string | null
+          status?: BenchmarkSessionStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          description?: string | null
+          my_product_id?: string | null
+          my_page_url?: string | null
+          status?: BenchmarkSessionStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'benchmark_sessions_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      benchmark_pages: {
+        Row: {
+          id: string
+          session_id: string
+          url: string
+          title: string | null
+          platform: string
+          thumbnail_url: string | null
+          scroll_position: number
+          display_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          url: string
+          title?: string | null
+          platform?: string
+          thumbnail_url?: string | null
+          scroll_position?: number
+          display_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          url?: string
+          title?: string | null
+          platform?: string
+          thumbnail_url?: string | null
+          scroll_position?: number
+          display_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'benchmark_pages_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'benchmark_sessions'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      benchmark_memos: {
+        Row: {
+          id: string
+          session_id: string
+          page_id: string | null
+          is_my_page: boolean
+          content: string
+          scroll_position: number
+          color: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          page_id?: string | null
+          is_my_page?: boolean
+          content: string
+          scroll_position?: number
+          color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          page_id?: string | null
+          is_my_page?: boolean
+          content?: string
+          scroll_position?: number
+          color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'benchmark_memos_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'benchmark_sessions'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      benchmark_checklists: {
+        Row: {
+          id: string
+          session_id: string
+          content: string
+          is_completed: boolean
+          reference_image_url: string | null
+          priority: number
+          display_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          content: string
+          is_completed?: boolean
+          reference_image_url?: string | null
+          priority?: number
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          content?: string
+          is_completed?: boolean
+          reference_image_url?: string | null
+          priority?: number
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'benchmark_checklists_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'benchmark_sessions'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      benchmark_assets: {
+        Row: {
+          id: string
+          session_id: string
+          page_id: string | null
+          asset_type: BenchmarkAssetType
+          url: string | null
+          content: string | null
+          filename: string | null
+          memo: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          page_id?: string | null
+          asset_type: BenchmarkAssetType
+          url?: string | null
+          content?: string | null
+          filename?: string | null
+          memo?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          page_id?: string | null
+          asset_type?: BenchmarkAssetType
+          url?: string | null
+          content?: string | null
+          filename?: string | null
+          memo?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'benchmark_assets_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'benchmark_sessions'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -905,3 +1128,63 @@ export type AnalysisLog = Tables<'analysis_logs'>
 export type SavedAsset = Tables<'saved_assets'>
 export type AiUsageLog = Tables<'ai_usage_logs'>
 export type DeliveryTracking = Tables<'delivery_trackings'>
+
+export interface BenchmarkSession {
+  id: string
+  user_id: string
+  title: string
+  description: string | null
+  my_product_id: string | null
+  my_page_url: string | null
+  status: BenchmarkSessionStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface BenchmarkPage {
+  id: string
+  session_id: string
+  url: string
+  title: string | null
+  platform: string
+  thumbnail_url: string | null
+  scroll_position: number
+  display_order: number
+  created_at: string
+}
+
+export interface BenchmarkMemo {
+  id: string
+  session_id: string
+  page_id: string | null
+  is_my_page: boolean
+  content: string
+  scroll_position: number
+  color: string
+  created_at: string
+  updated_at: string
+}
+
+export interface BenchmarkChecklist {
+  id: string
+  session_id: string
+  content: string
+  is_completed: boolean
+  reference_image_url: string | null
+  priority: number
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface BenchmarkAsset {
+  id: string
+  session_id: string
+  page_id: string | null
+  asset_type: BenchmarkAssetType
+  url: string | null
+  content: string | null
+  filename: string | null
+  memo: string | null
+  created_at: string
+}

@@ -1,18 +1,17 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Filter, Download, Play, Send, Printer, Archive, ChevronDown, Search, RefreshCw, Upload, FileSpreadsheet, Clock, AlertCircle, Truck } from 'lucide-react'
+import { Filter, Download, Send, ChevronDown, Search, RefreshCw, Clock, AlertCircle, Truck, CheckCircle, Loader2 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { OrdersTable, type OrderTableItem } from '@/components/dashboard/OrdersTable'
-import { updateOrderStatus, cancelOrder, checkDeliveryStatusBatch } from '@/lib/actions/orders'
-import { syncNaverOrders } from '@/lib/actions/naver-sync'
-import { uploadOrdersFromExcel, generateOrderTemplate } from '@/lib/actions/excel-upload'
+import { updateOrderStatus, cancelOrder, checkDeliveryStatusBatch, exportOrdersToExcel } from '@/lib/actions/orders'
+import { syncNaverOrders, confirmNaverOrders } from '@/lib/actions/naver-sync'
 import { getStoreSyncStatus, type SyncStatus } from '@/lib/actions/store-management'
 import { useStore } from '@/contexts/StoreContext'
 import { toast } from 'sonner'
@@ -29,14 +28,14 @@ interface OrdersClientProps {
 export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const router = useRouter()
   const { currentStore } = useStore()
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isPending, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
   const [isCheckingDelivery, setIsCheckingDelivery] = useState(false)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelTargetOrder, setCancelTargetOrder] = useState<OrderTableItem | null>(null)
@@ -45,6 +44,10 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const [trackingTargetOrder, setTrackingTargetOrder] = useState<OrderTableItem | null>(null)
 
   const pendingCount = orders.filter((o) => o.status === 'New').length
+  const selectedNewOrders = selectedOrderIds.filter((id) => {
+    const order = orders.find((o) => o.id === id)
+    return order?.status === 'New'
+  })
 
   useEffect(() => {
     if (currentStore?.id) {
@@ -73,19 +76,6 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     if (diffMins < 60) return `${diffMins}분 전`
     if (diffHours < 24) return `${diffHours}시간 전`
     return `${diffDays}일 전`
-  }
-
-  const formatNextSync = (dateStr: string | null) => {
-    if (!dateStr) return null
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = date.getTime() - now.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-
-    if (diffMins <= 0) return '곧 동기화'
-    if (diffMins < 60) return `${diffMins}분 후`
-    const diffHours = Math.floor(diffMins / 60)
-    return `${diffHours}시간 후`
   }
 
   const filteredOrders = orders.filter((order) => {
@@ -136,48 +126,53 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     }
   }
 
-  const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const handleBulkConfirm = async () => {
+    if (selectedNewOrders.length === 0) {
+      toast.error('발주확인할 신규 주문을 선택해주세요.')
+      return
+    }
 
-    setIsUploading(true)
+    setIsConfirming(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const result = await uploadOrdersFromExcel(formData)
+      const result = await confirmNaverOrders(selectedNewOrders)
       if (result.success) {
-        toast.success(`${result.importedCount}건의 주문이 등록되었습니다.`)
+        toast.success(`${result.confirmedCount}건 발주확인 완료`)
+        setOrders((prev) =>
+          prev.map((o) =>
+            selectedNewOrders.includes(o.id) ? { ...o, status: 'Ordered' as OrderStatus } : o
+          )
+        )
+        setSelectedOrderIds([])
         router.refresh()
       } else {
-        toast.error(result.error || '업로드에 실패했습니다.')
+        toast.error(result.error || '발주확인에 실패했습니다.')
       }
     } finally {
-      setIsUploading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      setIsConfirming(false)
     }
   }
 
-  const handleDownloadTemplate = async () => {
+  const handleExportExcel = async () => {
+    setIsExporting(true)
     try {
-      const base64 = await generateOrderTemplate()
-      const byteCharacters = atob(base64)
-      const byteNumbers = new Array(byteCharacters.length)
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      const result = await exportOrdersToExcel()
+      if (result.data) {
+        const blob = new Blob(
+          [Uint8Array.from(atob(result.data), (c) => c.charCodeAt(0))],
+          { type: 'text/csv;charset=utf-8' }
+        )
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = result.filename
+        a.click()
+        URL.revokeObjectURL(url)
+        toast.success('주문 목록이 다운로드되었습니다.')
+      } else {
+        toast.error(result.error || '다운로드에 실패했습니다.')
       }
-      const byteArray = new Uint8Array(byteNumbers)
-      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = '주문_템플릿.xlsx'
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success('템플릿이 다운로드되었습니다.')
-    } catch {
-      toast.error('템플릿 다운로드에 실패했습니다.')
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -188,7 +183,19 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
         setOrders((prev) =>
           prev.map((o) => (o.id === orderId ? { ...o, status } : o))
         )
-        toast.success('주문 상태가 변경되었습니다.')
+        if (status === 'Ordered') {
+          if (result.naverSyncResult?.success) {
+            toast.success('발주확인 완료 (네이버 동기화 완료)')
+          } else if (result.naverSyncResult?.error) {
+            toast.success('발주확인 완료', {
+              description: `네이버 동기화 실패: ${result.naverSyncResult.error}`,
+            })
+          } else {
+            toast.success('발주확인 완료')
+          }
+        } else {
+          toast.success('주문 상태가 변경되었습니다.')
+        }
       } else {
         toast.error(result.error || '상태 변경에 실패했습니다.')
       }
@@ -216,7 +223,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
 
   const handleCancel = async () => {
     if (!cancelTargetOrder) return
-    
+
     const result = await cancelOrder(cancelTargetOrder.id)
     if (result.success) {
       setOrders((prev) =>
@@ -233,14 +240,6 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     <>
       <Header title="주문 관리" subtitle="Order Management" />
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        className="hidden"
-        onChange={handleExcelUpload}
-      />
-
       <div className="flex-1 overflow-hidden p-3 lg:p-4 pb-16 lg:pb-4 flex flex-col">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-3">
@@ -250,7 +249,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
               </Badge>
               {pendingCount > 0 && (
                 <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">
-                  {pendingCount}건 조치필요
+                  {pendingCount}건 발주확인 필요
                 </Badge>
               )}
             </div>
@@ -299,23 +298,15 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
               variant="outline"
               size="sm"
               className="h-7 text-xs"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
+              onClick={handleExportExcel}
+              disabled={isExporting}
             >
-              <Upload className="h-3 w-3 mr-1" />
-              업로드
-            </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleDownloadTemplate}>
-              <FileSpreadsheet className="h-3 w-3 mr-1" />
-              템플릿
-            </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs">
-              <Download className="h-3 w-3 mr-1" />
-              내보내기
-            </Button>
-            <Button size="sm" className="h-7 text-xs" disabled={isPending}>
-              <Play className="h-3 w-3 mr-1" />
-              일괄처리
+              {isExporting ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Download className="h-3 w-3 mr-1" />
+              )}
+              엑셀 다운로드
             </Button>
           </div>
         </div>
@@ -371,17 +362,28 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
               <CardContent className="flex items-center gap-4 py-3 px-4">
                 <span className="text-sm font-medium">
                   {selectedOrderIds.length}건 선택됨
+                  {selectedNewOrders.length > 0 && (
+                    <span className="text-muted-foreground ml-1">
+                      (신규 {selectedNewOrders.length}건)
+                    </span>
+                  )}
                 </span>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Printer className="h-4 w-4 mr-2" />
-                    라벨출력
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Archive className="h-4 w-4 mr-2" />
-                    보관
-                  </Button>
-                  <Button size="sm" asChild>
+                  {selectedNewOrders.length > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={handleBulkConfirm}
+                      disabled={isConfirming}
+                    >
+                      {isConfirming ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                      )}
+                      일괄 발주확인 ({selectedNewOrders.length}건)
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" asChild>
                     <Link href="/orders/send">
                       <Send className="h-4 w-4 mr-2" />
                       공급업체 전송

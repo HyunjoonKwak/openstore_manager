@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sidebar } from './Sidebar'
 import { useStore } from '@/contexts/StoreContext'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import Link from 'next/link'
 
 interface HeaderProps {
@@ -105,6 +106,8 @@ export function Header({ title, subtitle }: HeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
+        <ThemeToggle />
 
         <Button variant="ghost" size="icon" className="relative h-8 w-8">
           <Bell className="h-4 w-4" />

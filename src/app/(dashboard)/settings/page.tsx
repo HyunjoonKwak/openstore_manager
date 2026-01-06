@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Save, LogOut, User, Key, Bell, Loader2, CheckCircle, RefreshCw, Clock, MessageSquare, ExternalLink, AlertCircle, Phone, Zap, TrendingUp, Truck } from 'lucide-react'
+import { Save, LogOut, User, Key, Bell, Loader2, CheckCircle, RefreshCw, Clock, MessageSquare, ExternalLink, AlertCircle, Phone, Zap, TrendingUp, Truck, Palette, FolderOpen } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -45,7 +45,9 @@ import {
   type SyncType,
 } from '@/lib/actions/sync-schedules'
 import { StoreManagement } from '@/components/settings/StoreManagement'
+import { ThemeSelector } from '@/components/ui/ThemeToggle'
 import { getAiUsageSummary, type UsageSummary } from '@/lib/actions/ai-usage'
+import { useDefaultFolder } from '@/hooks/useDefaultFolder'
 import type { Platform } from '@/types/database.types'
 
 export default function SettingsPage() {
@@ -90,6 +92,8 @@ export default function SettingsPage() {
     storeId: '',
     syncType: 'both' as SyncType,
     intervalMinutes: 60,
+    syncTime: '09:00',
+    syncAtMinute: 0 as 0 | 30,
     isEnabled: false,
     lastSyncAt: null as string | null,
     nextSyncAt: null as string | null,
@@ -101,6 +105,22 @@ export default function SettingsPage() {
     times: [9, 15, 21] as number[],
     enabled: true,
   })
+
+  const {
+    orderDownloadPath,
+    trackingUploadPath,
+    setOrderDownloadPath,
+    setTrackingUploadPath,
+    isLoaded: isFolderSettingsLoaded,
+  } = useDefaultFolder()
+
+  const [useSameFolder, setUseSameFolder] = useState(false)
+
+  useEffect(() => {
+    if (isFolderSettingsLoaded && orderDownloadPath && orderDownloadPath === trackingUploadPath) {
+      setUseSameFolder(true)
+    }
+  }, [isFolderSettingsLoaded, orderDownloadPath, trackingUploadPath])
 
   useEffect(() => {
     async function loadProfile() {
@@ -133,14 +153,17 @@ export default function SettingsPage() {
 
         const scheduleResult = await getSyncScheduleByStore(storeResult.data.id)
         if (scheduleResult.data) {
-          setSyncSettings({
-            storeId: storeResult.data.id,
-            syncType: scheduleResult.data.syncType,
-            intervalMinutes: scheduleResult.data.intervalMinutes,
-            isEnabled: scheduleResult.data.isEnabled,
-            lastSyncAt: scheduleResult.data.lastSyncAt,
-            nextSyncAt: scheduleResult.data.nextSyncAt,
-          })
+          setSyncSettings((prev) => ({
+            ...prev,
+            storeId: storeResult.data!.id,
+            syncType: scheduleResult.data!.syncType,
+            intervalMinutes: scheduleResult.data!.intervalMinutes,
+            isEnabled: scheduleResult.data!.isEnabled,
+            lastSyncAt: scheduleResult.data!.lastSyncAt,
+            nextSyncAt: scheduleResult.data!.nextSyncAt,
+            syncAtMinute: scheduleResult.data!.syncAtMinute,
+            syncTime: scheduleResult.data!.syncTime ?? '09:00',
+          }))
         } else {
           setSyncSettings((prev) => ({
             ...prev,
@@ -265,10 +288,19 @@ export default function SettingsPage() {
         syncType: syncSettings.syncType,
         intervalMinutes: syncSettings.intervalMinutes,
         isEnabled: syncSettings.isEnabled,
+        syncAtMinute: syncSettings.syncAtMinute,
+        syncTime: syncSettings.syncTime,
       })
 
       if (result.success) {
         toast.success('동기화 설정이 저장되었습니다.')
+        const scheduleResult = await getSyncScheduleByStore(syncSettings.storeId)
+        if (scheduleResult.data) {
+          setSyncSettings((prev) => ({
+            ...prev,
+            nextSyncAt: scheduleResult.data!.nextSyncAt,
+          }))
+        }
       } else {
         toast.error(result.error || '저장에 실패했습니다.')
       }
@@ -323,6 +355,95 @@ export default function SettingsPage() {
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
         <div className="max-w-2xl space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <Palette className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle>테마 설정</CardTitle>
+                  <CardDescription>화면 테마를 선택하세요</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ThemeSelector />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <FolderOpen className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle>기본 폴더 설정</CardTitle>
+                  <CardDescription>주문 다운로드 및 운송장 업로드 기본 경로</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">동일 폴더 사용</p>
+                  <p className="text-sm text-muted-foreground">
+                    다운로드와 업로드에 같은 폴더 사용
+                  </p>
+                </div>
+                <Switch
+                  checked={useSameFolder}
+                  onCheckedChange={(checked) => {
+                    setUseSameFolder(checked)
+                    if (checked && orderDownloadPath) {
+                      setTrackingUploadPath(orderDownloadPath)
+                    }
+                  }}
+                />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="orderDownloadPath">주문 다운로드 폴더</Label>
+                <Input
+                  id="orderDownloadPath"
+                  value={orderDownloadPath}
+                  onChange={(e) => {
+                    setOrderDownloadPath(e.target.value)
+                    if (useSameFolder) {
+                      setTrackingUploadPath(e.target.value)
+                    }
+                  }}
+                  placeholder="예: C:\Downloads\주문 또는 /Users/username/Downloads/orders"
+                />
+                <p className="text-xs text-muted-foreground">
+                  주문 엑셀 파일을 다운로드할 기본 폴더 경로
+                </p>
+              </div>
+
+              {!useSameFolder && (
+                <div className="space-y-2">
+                  <Label htmlFor="trackingUploadPath">운송장 업로드 폴더</Label>
+                  <Input
+                    id="trackingUploadPath"
+                    value={trackingUploadPath}
+                    onChange={(e) => setTrackingUploadPath(e.target.value)}
+                    placeholder="예: C:\Downloads\운송장 또는 /Users/username/Downloads/tracking"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    운송장 엑셀 파일을 업로드할 때 기본으로 열릴 폴더 경로
+                  </p>
+                </div>
+              )}
+
+              <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+                <p>💡 설정된 폴더는 발송처리 페이지에서 주문 다운로드 및 운송장 업로드 시 기본 경로로 사용됩니다.</p>
+              </div>
+            </CardContent>
+          </Card>
+
           <StoreManagement />
 
           <Card>
@@ -616,8 +737,6 @@ export default function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="15">15분마다</SelectItem>
-                      <SelectItem value="30">30분마다</SelectItem>
                       <SelectItem value="60">1시간마다</SelectItem>
                       <SelectItem value="120">2시간마다</SelectItem>
                       <SelectItem value="360">6시간마다</SelectItem>
@@ -625,6 +744,61 @@ export default function SettingsPage() {
                       <SelectItem value="1440">하루 1회</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>동기화 시점</Label>
+                  {syncSettings.intervalMinutes === 1440 ? (
+                    <Select
+                      value={syncSettings.syncTime}
+                      onValueChange={(value) =>
+                        setSyncSettings((prev) => ({
+                          ...prev,
+                          syncTime: value,
+                        }))
+                      }
+                      disabled={!syncSettings.isEnabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, i) => {
+                          const hour = i.toString().padStart(2, '0')
+                          return (
+                            <SelectItem key={hour} value={`${hour}:00`}>
+                              {hour}:00
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select
+                      value={String(syncSettings.syncAtMinute)}
+                      onValueChange={(value) =>
+                        setSyncSettings((prev) => ({
+                          ...prev,
+                          syncAtMinute: Number(value) as 0 | 30,
+                        }))
+                      }
+                      disabled={!syncSettings.isEnabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">매 정시 (00분)</SelectItem>
+                        <SelectItem value="30">매 30분 (30분)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {syncSettings.intervalMinutes === 1440
+                      ? `매일 ${syncSettings.syncTime}에 동기화`
+                      : syncSettings.syncAtMinute === 0
+                        ? '매 정시에 동기화 (예: 09:00, 10:00, 11:00...)'
+                        : '매 30분에 동기화 (예: 09:30, 10:30, 11:30...)'}
+                  </p>
                 </div>
               </div>
 

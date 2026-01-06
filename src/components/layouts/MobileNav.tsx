@@ -6,17 +6,17 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Truck,
-  Search,
-  Settings,
+  Send,
+  DollarSign,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const mobileNavItems = [
   { label: '대시보드', href: '/dashboard', icon: LayoutDashboard },
   { label: '주문', href: '/orders', icon: ShoppingCart },
-  { label: '배송조회', href: '/tracking', icon: Search },
+  { label: '발송', href: '/orders/dispatch', icon: Send },
   { label: '공급업체', href: '/suppliers', icon: Truck },
-  { label: '설정', href: '/settings', icon: Settings },
+  { label: '정산', href: '/settlements', icon: DollarSign },
 ]
 
 export function MobileNav() {
@@ -26,7 +26,9 @@ export function MobileNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card lg:hidden">
       <div className="flex items-center justify-around h-16">
         {mobileNavItems.map((item) => {
-          const isActive = pathname.startsWith(item.href)
+          const isActive = item.href === '/orders'
+            ? pathname === '/orders' || pathname === '/orders/send'
+            : pathname.startsWith(item.href)
           return (
             <Link
               key={item.href}

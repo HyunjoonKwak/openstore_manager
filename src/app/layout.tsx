@@ -1,16 +1,11 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import './globals.css'
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-})
 
 export const metadata: Metadata = {
   title: 'SmartStore Manager',
-  description: 'E-commerce management cockpit for smart store operations',
+  description: '스마트스토어 통합 관리 시스템',
 }
 
 export default function RootLayout({
@@ -19,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className="dark">
+    <html lang="ko" suppressHydrationWarning>
       <head>
         <link
           rel="stylesheet"
@@ -28,9 +23,11 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
-        {children}
-        <Toaster />
+      <body className="font-sans antialiased">
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )

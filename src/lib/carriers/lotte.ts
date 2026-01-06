@@ -104,7 +104,8 @@ export class LotteScraper extends CarrierScraper {
       case '25': return 'IN_TRANSIT'
       case '40': return 'OUT_FOR_DELIVERY'
       case '41': return 'DELIVERED'
-      case '45': return 'UNKNOWN'
+      case '42':
+      case '45': return 'DELIVERED'
       default: return 'UNKNOWN'
     }
   }

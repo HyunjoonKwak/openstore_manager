@@ -202,9 +202,27 @@ export async function getOrders(): Promise<{ data: OrderWithProduct[] | null; er
 
 export async function updateOrderStatus(
   orderId: string,
-  status: OrderStatus
-): Promise<{ success: boolean; error: string | null }> {
+  status: OrderStatus,
+  syncToNaver: boolean = true
+): Promise<{ success: boolean; error: string | null; naverSyncResult?: { success: boolean; error?: string } }> {
   const supabase = await createClient()
+
+  let naverSyncResult: { success: boolean; error?: string } | undefined
+
+  if (status === 'Ordered' && syncToNaver) {
+    const { confirmNaverOrders } = await import('@/lib/actions/naver-sync')
+    const confirmResult = await confirmNaverOrders([orderId])
+    naverSyncResult = { 
+      success: confirmResult.success, 
+      error: confirmResult.error || undefined 
+    }
+    
+    if (confirmResult.success) {
+      revalidatePath('/orders')
+      revalidatePath('/dashboard')
+      return { success: true, error: null, naverSyncResult }
+    }
+  }
 
   const { error } = await supabase
     .from('orders')
@@ -217,7 +235,7 @@ export async function updateOrderStatus(
 
   revalidatePath('/orders')
   revalidatePath('/dashboard')
-  return { success: true, error: null }
+  return { success: true, error: null, naverSyncResult }
 }
 
 export async function updateTrackingNumber(
@@ -510,7 +528,7 @@ export async function getOrderStatusCounts(): Promise<{
 
   const storeIds = stores.map((s) => s.id)
 
-  const statuses: OrderStatus[] = ['New', 'Ordered', 'Dispatched', 'Delivering', 'Delivered', 'Cancelled']
+  const statuses: OrderStatus[] = ['New', 'Ordered', 'Dispatched', 'Delivering', 'Delivered', 'Confirmed', 'Cancelled']
   const counts: { status: string; count: number }[] = []
 
   for (const status of statuses) {
@@ -524,6 +542,163 @@ export async function getOrderStatusCounts(): Promise<{
   }
 
   return { data: counts, error: null }
+}
+
+export interface DashboardStats {
+  dailyRevenue: number
+  revenueChange: number
+  todayOrders: number
+  
+  flow: {
+    newOrders: number
+    preparing: number
+    shipping: number
+    delivered: number
+    confirmed: number
+  }
+  
+  claims: {
+    cancelRequests: number
+    delayedShipping: number
+  }
+  
+  settlement: {
+    today: number
+    expected: number
+  }
+}
+
+export async function getDashboardStats(): Promise<{
+  data: DashboardStats | null
+  error: string | null
+}> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { data: null, error: 'Unauthorized' }
+  }
+
+  const { data: stores } = await supabase
+    .from('stores')
+    .select('id')
+    .eq('user_id', userData.user.id)
+
+  if (!stores || stores.length === 0) {
+    return {
+      data: {
+        dailyRevenue: 0,
+        revenueChange: 0,
+        todayOrders: 0,
+        flow: { newOrders: 0, preparing: 0, shipping: 0, delivered: 0, confirmed: 0 },
+        claims: { cancelRequests: 0, delayedShipping: 0 },
+        settlement: { today: 0, expected: 0 },
+      },
+      error: null,
+    }
+  }
+
+  const storeIds = stores.map((s) => s.id)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const threeDaysAgo = new Date(today)
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+
+  const { data: todayOrdersRaw } = await supabase
+    .from('orders')
+    .select(`id, quantity, status, total_payment_amount, products (price)`)
+    .in('store_id', storeIds)
+    .gte('order_date', today.toISOString())
+
+  const { data: yesterdayOrdersRaw } = await supabase
+    .from('orders')
+    .select(`id, quantity, total_payment_amount, products (price)`)
+    .in('store_id', storeIds)
+    .gte('order_date', yesterday.toISOString())
+    .lt('order_date', today.toISOString())
+
+  const statusCounts = await Promise.all([
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'New'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).in('status', ['Ordered', 'Dispatched']),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Delivering'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Delivered'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Confirmed'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Cancelled'),
+  ])
+
+  const { count: delayedCount } = await supabase
+    .from('orders')
+    .select('*', { count: 'exact', head: true })
+    .in('store_id', storeIds)
+    .eq('status', 'New')
+    .lt('order_date', threeDaysAgo.toISOString())
+
+  const { data: todaySettlement } = await supabase
+    .from('settlements')
+    .select('settlement_amount')
+    .in('store_id', storeIds)
+    .eq('settlement_date', today.toISOString().split('T')[0])
+
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const { data: expectedSettlement } = await supabase
+    .from('settlements')
+    .select('settlement_amount')
+    .in('store_id', storeIds)
+    .eq('status', 'pending')
+
+  interface OrderWithPayment {
+    id: string
+    quantity: number
+    status?: string
+    total_payment_amount: number | null
+    products: { price: number } | null
+  }
+
+  const todayOrders = (todayOrdersRaw || []) as unknown as OrderWithPayment[]
+  const yesterdayOrders = (yesterdayOrdersRaw || []) as unknown as OrderWithPayment[]
+
+  const getRevenue = (orders: OrderWithPayment[]) => orders.reduce((sum, order) => {
+    const amount = order.total_payment_amount || (order.products?.price || 0) * order.quantity
+    return sum + amount
+  }, 0)
+
+  const todayRevenue = getRevenue(todayOrders)
+  const yesterdayRevenue = getRevenue(yesterdayOrders)
+
+  const revenueChange = yesterdayRevenue > 0
+    ? Math.round(((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100)
+    : 0
+
+  const todaySettlementTotal = (todaySettlement || []).reduce((sum, s) => sum + (s.settlement_amount || 0), 0)
+  const expectedSettlementTotal = (expectedSettlement || []).reduce((sum, s) => sum + (s.settlement_amount || 0), 0)
+
+  return {
+    data: {
+      dailyRevenue: todayRevenue,
+      revenueChange,
+      todayOrders: todayOrders.length,
+      flow: {
+        newOrders: statusCounts[0].count || 0,
+        preparing: statusCounts[1].count || 0,
+        shipping: statusCounts[2].count || 0,
+        delivered: statusCounts[3].count || 0,
+        confirmed: statusCounts[4].count || 0,
+      },
+      claims: {
+        cancelRequests: statusCounts[5].count || 0,
+        delayedShipping: delayedCount || 0,
+      },
+      settlement: {
+        today: todaySettlementTotal,
+        expected: expectedSettlementTotal,
+      },
+    },
+    error: null,
+  }
 }
 
 export async function getOrderStats(): Promise<{
@@ -625,4 +800,130 @@ export async function getOrderStats(): Promise<{
     },
     error: null,
   }
+}
+
+export async function exportOrdersToExcel(): Promise<{
+  data: string | null
+  filename: string
+  error: string | null
+}> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { data: null, filename: '', error: 'Unauthorized' }
+  }
+
+  const { data: stores } = await supabase
+    .from('stores')
+    .select('id')
+    .eq('user_id', userData.user.id)
+
+  if (!stores || stores.length === 0) {
+    return { data: null, filename: '', error: '스토어가 없습니다.' }
+  }
+
+  const storeIds = stores.map((s) => s.id)
+
+  const { data: orders, error } = await supabase
+    .from('orders')
+    .select(`
+      platform_order_id,
+      naver_order_id,
+      product_name,
+      product_option,
+      quantity,
+      unit_price,
+      total_payment_amount,
+      customer_name,
+      orderer_tel,
+      receiver_name,
+      receiver_tel,
+      customer_address,
+      zip_code,
+      delivery_memo,
+      status,
+      tracking_number,
+      courier_code,
+      order_date
+    `)
+    .in('store_id', storeIds)
+    .order('order_date', { ascending: false })
+
+  if (error) {
+    return { data: null, filename: '', error: error.message }
+  }
+
+  const headers = [
+    '주문번호',
+    '네이버주문번호',
+    '상품명',
+    '옵션',
+    '수량',
+    '단가',
+    '결제금액',
+    '주문자',
+    '주문자연락처',
+    '수령인',
+    '수령인연락처',
+    '배송지',
+    '우편번호',
+    '배송메모',
+    '상태',
+    '운송장번호',
+    '택배사',
+    '주문일시',
+  ]
+
+  const statusLabels: Record<string, string> = {
+    New: '신규',
+    Ordered: '발주확인',
+    Dispatched: '발송처리',
+    Delivering: '배송중',
+    Delivered: '배송완료',
+    Confirmed: '구매확정',
+    Cancelled: '취소',
+  }
+
+  const rows = orders.map((order) => [
+    order.platform_order_id || '',
+    order.naver_order_id || '',
+    order.product_name || '',
+    order.product_option || '',
+    order.quantity || 0,
+    order.unit_price || 0,
+    order.total_payment_amount || 0,
+    order.customer_name || '',
+    order.orderer_tel || '',
+    order.receiver_name || '',
+    order.receiver_tel || '',
+    order.customer_address || '',
+    order.zip_code || '',
+    order.delivery_memo || '',
+    statusLabels[order.status] || order.status,
+    order.tracking_number || '',
+    order.courier_code || '',
+    order.order_date ? new Date(order.order_date).toLocaleString('ko-KR') : '',
+  ])
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map((row) =>
+      row.map((cell) => {
+        const str = String(cell)
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`
+        }
+        return str
+      }).join(',')
+    ),
+  ].join('\n')
+
+  const BOM = '\uFEFF'
+  const base64 = Buffer.from(BOM + csvContent, 'utf-8').toString('base64')
+
+  const today = new Date().toISOString().split('T')[0]
+  const filename = `주문목록_${today}.csv`
+
+  return { data: base64, filename, error: null }
 }

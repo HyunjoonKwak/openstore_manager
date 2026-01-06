@@ -142,6 +142,10 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> = 
     label: '배송완료',
     className: 'bg-green-500/10 text-green-500 border-green-500/20',
   },
+  Confirmed: {
+    label: '구매확정',
+    className: 'bg-emerald-600/10 text-emerald-600 border-emerald-600/20',
+  },
   Cancelled: {
     label: '취소',
     className: 'bg-destructive/10 text-destructive border-destructive/20',
@@ -428,6 +432,7 @@ export function OrdersTable({
                   />
                 </TableHead>
               )}
+              <TableHead className="text-xs font-semibold uppercase text-center w-12">액션</TableHead>
               {visibleColumns.map((col) => (
                 <TableHead
                   key={col.key}
@@ -449,7 +454,6 @@ export function OrdersTable({
                   </div>
                 </TableHead>
               ))}
-              <TableHead className="text-xs font-semibold uppercase text-center w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -475,11 +479,6 @@ export function OrdersTable({
                       />
                     </TableCell>
                   )}
-                  {visibleColumns.map((col) => (
-                    <TableCell key={col.key}>
-                      {renderCellValue(order, col.key)}
-                    </TableCell>
-                  ))}
                   <TableCell className="text-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -487,7 +486,7 @@ export function OrdersTable({
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="start">
                         <DropdownMenuItem
                           onClick={() => onStatusChange?.(order.id, 'Ordered')}
                           disabled={order.status !== 'New'}
@@ -526,6 +525,11 @@ export function OrdersTable({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
+                  {visibleColumns.map((col) => (
+                    <TableCell key={col.key}>
+                      {renderCellValue(order, col.key)}
+                    </TableCell>
+                  ))}
                 </TableRow>
               )
             })}

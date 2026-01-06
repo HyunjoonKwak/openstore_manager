@@ -20,17 +20,17 @@ export function KPICard({
 }: KPICardProps) {
   return (
     <Card className="group relative overflow-hidden hover:border-primary/50 transition-colors">
-      <CardContent className="p-5">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <p className="text-muted-foreground text-sm font-medium">{title}</p>
-            <h3 className="text-2xl font-bold mt-1 tracking-tight">{value}</h3>
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex justify-between items-start mb-3 sm:mb-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-muted-foreground text-xs sm:text-sm font-medium truncate">{title}</p>
+            <h3 className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2 tracking-tight truncate">{value}</h3>
           </div>
-          <div className={cn('rounded-lg p-2', iconBgColor, iconColor)}>
+          <div className={cn('rounded-lg p-2 sm:p-3 shrink-0 ml-2', iconBgColor, iconColor)}>
             {icon}
           </div>
         </div>
-        {footer && <div className="flex items-center gap-2">{footer}</div>}
+        {footer && <div className="flex items-center gap-2 pt-2 border-t border-border/50">{footer}</div>}
       </CardContent>
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
     </Card>

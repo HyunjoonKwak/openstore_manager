@@ -13,6 +13,7 @@ import {
   BarChart3,
   Sparkles,
   Search,
+  Send,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -27,10 +28,11 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: '대시보드', href: '/dashboard', icon: LayoutDashboard },
   { label: '주문관리', href: '/orders', icon: ShoppingCart },
-  { label: '배송조회', href: '/tracking', icon: Search },
+  { label: '발송처리', href: '/orders/dispatch', icon: Send },
   { label: '공급업체', href: '/suppliers', icon: Truck },
   { label: '재고관리', href: '/inventory', icon: Package },
   { label: '정산관리', href: '/settlements', icon: DollarSign },
+  { label: '배송조회', href: '/tracking', icon: Search },
   { label: '벤치마킹', href: '/benchmarking', icon: BarChart3 },
   { label: 'AI 생성기', href: '/ai-generator', icon: Sparkles },
 ]
@@ -66,7 +68,9 @@ export function Sidebar({ className }: SidebarProps) {
             메인 메뉴
           </p>
           {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href)
+            const isActive = item.href === '/orders' 
+              ? pathname === '/orders' || pathname === '/orders/send'
+              : pathname.startsWith(item.href)
             return (
               <Link
                 key={item.href}

@@ -238,6 +238,7 @@ export async function syncNaverProducts(): Promise<{ success: boolean; syncedCou
         stock_quantity: channelProduct.stockQuantity,
         status: channelProduct.statusType,
         platform_product_id: platformProductId,
+        naver_channel_product_no: channelProduct.channelProductNo,
         image_url: channelProduct.representativeImage?.url || null,
         category: channelProduct.wholeCategoryName || null,
         brand: channelProduct.brandName || null,
