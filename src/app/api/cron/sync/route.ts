@@ -184,6 +184,8 @@ async function syncOrders(
         toDate: toDate.toISOString(),
       })
 
+
+
       if (response.data?.contents) {
         for (const order of response.data.contents) {
           const { data: existingOrder } = await supabase
@@ -329,16 +331,23 @@ async function syncProducts(
   return { count }
 }
 
-function mapNaverOrderStatus(naverStatus: string): 'New' | 'Ordered' | 'Shipped' | 'Cancelled' {
-  const statusMap: Record<string, 'New' | 'Ordered' | 'Shipped' | 'Cancelled'> = {
+function mapNaverOrderStatus(naverStatus: string): 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'CancelRequested' | 'Cancelled' {
+  const statusMap: Record<string, 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'CancelRequested' | 'Cancelled'> = {
     PAYED: 'New',
-    DELIVERED: 'Shipped',
-    DELIVERING: 'Shipped',
-    DISPATCHED: 'Shipped',
+    PAYMENT_WAITING: 'New',
+    DELIVERING: 'Delivering',
+    DELIVERED: 'Delivered',
+    PURCHASE_DECIDED: 'Confirmed',
+    DISPATCHED: 'Dispatched',
+    CANCELED: 'Cancelled',
     CANCELLED: 'Cancelled',
-    CANCEL_REQUESTED: 'Cancelled',
+    CANCELED_BY_NOPAYMENT: 'Cancelled',
     RETURNED: 'Cancelled',
-    RETURN_REQUESTED: 'Cancelled',
+    EXCHANGED: 'Cancelled',
+    CANCEL_REQUEST: 'CancelRequested',
+    CANCEL_REQUESTED: 'CancelRequested',
+    RETURN_REQUEST: 'CancelRequested',
+    RETURN_REQUESTED: 'CancelRequested',
   }
   return statusMap[naverStatus] || 'New'
 }

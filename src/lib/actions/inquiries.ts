@@ -4,9 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { NaverCommerceClient, type NaverInquiry, type NaverQna } from '@/lib/naver/client'
 import type { Json } from '@/types/database.types'
 
-interface StoreApiConfig {
-  clientId?: string
-  clientSecret?: string
+interface NaverApiConfig {
+  naverClientId?: string
+  naverClientSecret?: string
 }
 
 async function getNaverClient() {
@@ -21,21 +21,20 @@ async function getNaverClient() {
     .from('stores')
     .select('api_config')
     .eq('user_id', userData.user.id)
-    .eq('platform', 'Naver')
     .single()
 
   if (!store) {
     return { client: null, error: 'Store not found' }
   }
 
-  const config = store.api_config as unknown as StoreApiConfig
-  if (!config?.clientId || !config?.clientSecret) {
+  const config = (store.api_config || {}) as NaverApiConfig
+  if (!config.naverClientId || !config.naverClientSecret) {
     return { client: null, error: 'API credentials not configured' }
   }
 
   const client = new NaverCommerceClient({
-    clientId: config.clientId,
-    clientSecret: config.clientSecret,
+    clientId: config.naverClientId,
+    clientSecret: config.naverClientSecret,
   })
 
   return { client, error: null }
@@ -88,24 +87,24 @@ export async function getInquiryStats(): Promise<{
       client.getCustomerInquiries({
         startSearchDate: formatDate(thirtyDaysAgo),
         endSearchDate: formatDate(today),
-        size: 1,
+        size: 10,
       }).catch(() => ({ totalElements: 0 })),
       client.getCustomerInquiries({
         startSearchDate: formatDate(thirtyDaysAgo),
         endSearchDate: formatDate(today),
         answered: false,
-        size: 1,
+        size: 10,
       }).catch(() => ({ totalElements: 0 })),
       client.getProductQnas({
         fromDate: formatDateTime(thirtyDaysAgo),
         toDate: formatDateTime(today),
-        size: 1,
+        size: 10,
       }).catch(() => ({ totalElements: 0 })),
       client.getProductQnas({
         fromDate: formatDateTime(thirtyDaysAgo),
         toDate: formatDateTime(today),
         answered: false,
-        size: 1,
+        size: 10,
       }).catch(() => ({ totalElements: 0 })),
     ])
 

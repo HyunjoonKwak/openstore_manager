@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Save, LogOut, User, Key, Bell, Loader2, CheckCircle, RefreshCw, Clock, MessageSquare, ExternalLink, AlertCircle, Phone, Zap, TrendingUp, Truck, Palette, FolderOpen } from 'lucide-react'
+import { Save, LogOut, User, Key, Bell, Loader2, CheckCircle, RefreshCw, Clock, MessageSquare, ExternalLink, AlertCircle, Phone, Zap, TrendingUp, Truck, Palette, FolderOpen, Send } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -37,6 +37,7 @@ import {
   getStoreProfile,
   createOrUpdateStore,
   updateDeliveryCheckSettings,
+  updateNotificationSettings,
 } from '@/lib/actions/settings'
 import { testNaverConnection } from '@/lib/actions/naver-sync'
 import {
@@ -106,6 +107,11 @@ export default function SettingsPage() {
     enabled: true,
   })
 
+  const [discordSettings, setDiscordSettings] = useState({
+    webhookUrl: '',
+    enabled: false,
+  })
+
   const {
     orderDownloadPath,
     trackingUploadPath,
@@ -149,6 +155,9 @@ export default function SettingsPage() {
         })
         if (storeResult.data.deliveryCheckSettings) {
           setDeliveryCheckSettings(storeResult.data.deliveryCheckSettings)
+        }
+        if (storeResult.data.notificationSettings) {
+          setDiscordSettings(storeResult.data.notificationSettings)
         }
 
         const scheduleResult = await getSyncScheduleByStore(storeResult.data.id)
@@ -326,6 +335,45 @@ export default function SettingsPage() {
         : [...prev.times, hour].sort((a, b) => a - b)
       return { ...prev, times: newTimes }
     })
+  }
+
+  const handleSaveDiscordSettings = () => {
+    startTransition(async () => {
+      const result = await updateNotificationSettings({
+        webhookUrl: discordSettings.webhookUrl,
+        enabled: discordSettings.enabled,
+      })
+
+      if (result.success) {
+        toast.success('Discord 알림 설정이 저장되었습니다.')
+      } else {
+        toast.error(result.error || '저장에 실패했습니다.')
+      }
+    })
+  }
+
+  const handleTestDiscordWebhook = async () => {
+    if (!discordSettings.webhookUrl) {
+      toast.error('Discord 웹훅 URL을 입력해주세요.')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/notifications/discord/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: discordSettings.webhookUrl }),
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('테스트 메시지가 전송되었습니다.')
+      } else {
+        toast.error(result.error || '테스트 전송에 실패했습니다.')
+      }
+    } catch {
+      toast.error('테스트 전송 중 오류가 발생했습니다.')
+    }
   }
 
   const formatDateTime = (dateStr: string | null) => {
@@ -1020,6 +1068,84 @@ export default function SettingsPage() {
                   </AlertDescription>
                 </Alert>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <Send className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle>Discord 알림</CardTitle>
+                  <CardDescription>주문 동기화 시 Discord로 알림 발송</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Discord 알림 활성화</p>
+                  <p className="text-sm text-muted-foreground">
+                    신규 주문, 취소 요청 시 Discord로 알림
+                  </p>
+                </div>
+                <Switch
+                  checked={discordSettings.enabled}
+                  onCheckedChange={(checked) =>
+                    setDiscordSettings((prev) => ({ ...prev, enabled: checked }))
+                  }
+                />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="discordWebhook">웹훅 URL</Label>
+                <Input
+                  id="discordWebhook"
+                  type="url"
+                  value={discordSettings.webhookUrl}
+                  onChange={(e) =>
+                    setDiscordSettings((prev) => ({ ...prev, webhookUrl: e.target.value }))
+                  }
+                  placeholder="https://discord.com/api/webhooks/..."
+                  disabled={!discordSettings.enabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Discord 서버 설정 &gt; 연동 &gt; 웹후크에서 URL을 복사하세요.
+                </p>
+              </div>
+
+              {discordSettings.enabled && discordSettings.webhookUrl && (
+                <Alert>
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription className="text-sm">
+                    동기화 시 신규 주문, 취소 요청이 있으면 Discord로 알림이 발송됩니다.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleTestDiscordWebhook}
+                  disabled={isPending || !discordSettings.webhookUrl}
+                >
+                  테스트 발송
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleSaveDiscordSettings}
+                  disabled={isPending}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  설정 저장
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

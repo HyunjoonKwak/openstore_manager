@@ -119,6 +119,8 @@ interface OrdersTableProps {
   onCancel?: (order: OrderTableItem) => void
   onTrackingInput?: (order: OrderTableItem) => void
   onTrackingView?: (order: OrderTableItem) => void
+  onCancelApprove?: (order: OrderTableItem) => void
+  onCancelReject?: (order: OrderTableItem) => void
 }
 
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
@@ -146,8 +148,12 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> = 
     label: '구매확정',
     className: 'bg-emerald-600/10 text-emerald-600 border-emerald-600/20',
   },
+  CancelRequested: {
+    label: '취소요청',
+    className: 'bg-red-500/10 text-red-500 border-red-500/20',
+  },
   Cancelled: {
-    label: '취소',
+    label: '취소완료',
     className: 'bg-destructive/10 text-destructive border-destructive/20',
   },
 }
@@ -202,6 +208,8 @@ export function OrdersTable({
   onCancel,
   onTrackingInput,
   onTrackingView,
+  onCancelApprove,
+  onCancelReject,
 }: OrdersTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -515,13 +523,30 @@ export function OrdersTable({
                           배송조회
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => onCancel?.(order)}
-                          disabled={order.status === 'Cancelled' || order.status === 'Delivered' || order.status === 'Dispatched' || order.status === 'Delivering'}
-                        >
-                          취소
-                        </DropdownMenuItem>
+                        {order.status === 'CancelRequested' ? (
+                          <>
+                            <DropdownMenuItem
+                              className="text-green-600"
+                              onClick={() => onCancelApprove?.(order)}
+                            >
+                              취소 승인
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-orange-600"
+                              onClick={() => onCancelReject?.(order)}
+                            >
+                              취소 거부
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => onCancel?.(order)}
+                            disabled={order.status === 'Cancelled' || order.status === 'Delivered' || order.status === 'Dispatched' || order.status === 'Delivering'}
+                          >
+                            취소
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

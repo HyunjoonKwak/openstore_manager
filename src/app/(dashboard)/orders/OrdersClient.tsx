@@ -11,15 +11,22 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { OrdersTable, type OrderTableItem } from '@/components/dashboard/OrdersTable'
 import { updateOrderStatus, cancelOrder, checkDeliveryStatusBatch, exportOrdersToExcel } from '@/lib/actions/orders'
-import { syncNaverOrders, confirmNaverOrders } from '@/lib/actions/naver-sync'
+import { syncNaverOrders, confirmNaverOrders, approveCancelRequest, rejectCancelRequest } from '@/lib/actions/naver-sync'
 import { getStoreSyncStatus, type SyncStatus } from '@/lib/actions/store-management'
 import { useStore } from '@/contexts/StoreContext'
 import { toast } from 'sonner'
 import type { OrderStatus } from '@/types/database.types'
 import { cn } from '@/lib/utils'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { TrackingNumberDialog } from '@/components/dashboard/TrackingNumberDialog'
 import { TrackingStatusDialog } from '@/components/dashboard/TrackingStatusDialog'
+import { CancelRejectDialog } from '@/components/dashboard/CancelRejectDialog'
 
 interface OrdersClientProps {
   initialOrders: OrderTableItem[]
@@ -42,6 +49,12 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const [trackingInputDialogOpen, setTrackingInputDialogOpen] = useState(false)
   const [trackingViewDialogOpen, setTrackingViewDialogOpen] = useState(false)
   const [trackingTargetOrder, setTrackingTargetOrder] = useState<OrderTableItem | null>(null)
+  const [cancelApproveTarget, setCancelApproveTarget] = useState<OrderTableItem | null>(null)
+  const [cancelRejectDialogOpen, setCancelRejectDialogOpen] = useState(false)
+  const [cancelRejectTarget, setCancelRejectTarget] = useState<OrderTableItem | null>(null)
+  const [isCancelProcessing, setIsCancelProcessing] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
+  const [periodFilter, setPeriodFilter] = useState<'7d' | '1m' | '3m' | '6m' | '1y'>('1m')
 
   const pendingCount = orders.filter((o) => o.status === 'New').length
   const selectedNewOrders = selectedOrderIds.filter((id) => {
@@ -78,7 +91,27 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     return `${diffDays}일 전`
   }
 
+  const periodOptions: { value: '7d' | '1m' | '3m' | '6m' | '1y'; label: string; days: number }[] = [
+    { value: '7d', label: '1주일', days: 7 },
+    { value: '1m', label: '1개월', days: 30 },
+    { value: '3m', label: '3개월', days: 90 },
+    { value: '6m', label: '6개월', days: 180 },
+    { value: '1y', label: '1년', days: 365 },
+  ]
+
+  const getPeriodStartDate = () => {
+    const days = periodOptions.find(p => p.value === periodFilter)?.days || 30
+    const date = new Date()
+    date.setDate(date.getDate() - days)
+    return date
+  }
+
   const filteredOrders = orders.filter((order) => {
+    if (statusFilter !== 'all' && order.status !== statusFilter) return false
+    
+    const orderDate = new Date(order.date)
+    if (orderDate < getPeriodStartDate()) return false
+    
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     return (
@@ -88,6 +121,21 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
       order.customer.name.toLowerCase().includes(query)
     )
   })
+
+  const statusOptions: { value: OrderStatus | 'all'; label: string }[] = [
+    { value: 'all', label: '전체' },
+    { value: 'New', label: '신규' },
+    { value: 'Ordered', label: '발주확인' },
+    { value: 'Dispatched', label: '발송처리' },
+    { value: 'Delivering', label: '배송중' },
+    { value: 'Delivered', label: '배송완료' },
+    { value: 'Confirmed', label: '구매확정' },
+    { value: 'CancelRequested', label: '취소요청' },
+    { value: 'Cancelled', label: '취소완료' },
+  ]
+
+  const currentStatusLabel = statusOptions.find(s => s.value === statusFilter)?.label || '전체'
+  const currentPeriodLabel = periodOptions.find(p => p.value === periodFilter)?.label || '1개월'
 
   const handleNaverSync = async () => {
     setIsSyncing(true)
@@ -236,6 +284,53 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     setCancelTargetOrder(null)
   }
 
+  const handleCancelApprove = async (order: OrderTableItem) => {
+    setCancelApproveTarget(order)
+    setIsCancelProcessing(true)
+    try {
+      const result = await approveCancelRequest(order.id)
+      if (result.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === order.id ? { ...o, status: 'Cancelled' as OrderStatus } : o))
+        )
+        toast.success('취소 요청이 승인되었습니다.')
+        router.refresh()
+      } else {
+        toast.error(result.error || '취소 승인에 실패했습니다.')
+      }
+    } finally {
+      setIsCancelProcessing(false)
+      setCancelApproveTarget(null)
+    }
+  }
+
+  const handleOpenCancelRejectDialog = (order: OrderTableItem) => {
+    setCancelRejectTarget(order)
+    setCancelRejectDialogOpen(true)
+  }
+
+  const handleCancelReject = async (reason: string) => {
+    if (!cancelRejectTarget) return
+
+    setIsCancelProcessing(true)
+    try {
+      const result = await rejectCancelRequest(cancelRejectTarget.id, reason)
+      if (result.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === cancelRejectTarget.id ? { ...o, status: result.previousStatus || 'Ordered' } : o))
+        )
+        toast.success('취소 요청이 거부되었습니다.')
+        router.refresh()
+      } else {
+        toast.error(result.error || '취소 거부에 실패했습니다.')
+      }
+    } finally {
+      setIsCancelProcessing(false)
+      setCancelRejectDialogOpen(false)
+      setCancelRejectTarget(null)
+    }
+  }
+
   return (
     <>
       <Header title="주문 관리" subtitle="Order Management" />
@@ -324,18 +419,44 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
-              상태: 전체
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
-              기간: 7일
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
-              <Filter className="h-3 w-3" />
-              필터
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
+                  상태: {currentStatusLabel}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {statusOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() => setStatusFilter(option.value)}
+                    className={statusFilter === option.value ? 'bg-accent' : ''}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
+                  기간: {currentPeriodLabel}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {periodOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() => setPeriodFilter(option.value)}
+                    className={periodFilter === option.value ? 'bg-accent' : ''}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -351,6 +472,8 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
                 onCancel={handleOpenCancelDialog}
                 onTrackingInput={handleOpenTrackingInputDialog}
                 onTrackingView={handleOpenTrackingViewDialog}
+                onCancelApprove={handleCancelApprove}
+                onCancelReject={handleOpenCancelRejectDialog}
               />
             </div>
           </CardContent>
@@ -428,6 +551,16 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
               orderNumber={trackingTargetOrder.platformOrderId}
             />
           </>
+        )}
+
+        {cancelRejectTarget && (
+          <CancelRejectDialog
+            open={cancelRejectDialogOpen}
+            onOpenChange={setCancelRejectDialogOpen}
+            orderNumber={cancelRejectTarget.platformOrderId}
+            onConfirm={handleCancelReject}
+            isLoading={isCancelProcessing}
+          />
         )}
       </div>
     </>

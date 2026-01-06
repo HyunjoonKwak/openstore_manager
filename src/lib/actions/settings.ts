@@ -23,6 +23,10 @@ export interface StoreProfile {
     times: number[]
     enabled: boolean
   }
+  notificationSettings?: {
+    webhookUrl: string
+    enabled: boolean
+  }
 }
 
 interface StoreRow {
@@ -30,6 +34,8 @@ interface StoreRow {
   store_name: string
   platform: string
   api_config: Json
+  notification_webhook_url?: string | null
+  notification_enabled?: boolean | null
 }
 
 interface ApiConfigJson {
@@ -95,6 +101,10 @@ export async function getStoreProfile(): Promise<{ data: StoreProfile | null; er
       deliveryCheckSettings: {
         times: apiConfig.deliveryCheckTimes || [9, 15, 21],
         enabled: apiConfig.deliveryCheckEnabled ?? true,
+      },
+      notificationSettings: {
+        webhookUrl: typedStore.notification_webhook_url || '',
+        enabled: typedStore.notification_enabled ?? false,
       },
     },
     error: null,
@@ -196,6 +206,47 @@ export async function updateDeliveryCheckSettings(
   const { error } = await supabase
     .from('stores')
     .update({ api_config: updatedConfig })
+    .eq('id', existingStore.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/settings')
+  return { success: true, error: null }
+}
+
+export interface NotificationSettingsInput {
+  webhookUrl: string
+  enabled: boolean
+}
+
+export async function updateNotificationSettings(
+  input: NotificationSettingsInput
+): Promise<{ success: boolean; error: string | null }> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const { data: existingStore } = await supabase
+    .from('stores')
+    .select('id')
+    .eq('user_id', userData.user.id)
+    .single()
+
+  if (!existingStore) {
+    return { success: false, error: '스토어를 먼저 생성해주세요.' }
+  }
+
+  const { error } = await supabase
+    .from('stores')
+    .update({
+      notification_webhook_url: input.webhookUrl || null,
+      notification_enabled: input.enabled,
+    })
     .eq('id', existingStore.id)
 
   if (error) {

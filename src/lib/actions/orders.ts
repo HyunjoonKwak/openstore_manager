@@ -483,6 +483,7 @@ export async function getWeeklyStats(): Promise<{
       .in('store_id', storeIds)
       .gte('order_date', date.toISOString())
       .lt('order_date', nextDate.toISOString())
+      .not('status', 'in', '("Cancelled","CancelRequested")')
 
     interface OrderWithPrice {
       id: string
@@ -528,7 +529,7 @@ export async function getOrderStatusCounts(): Promise<{
 
   const storeIds = stores.map((s) => s.id)
 
-  const statuses: OrderStatus[] = ['New', 'Ordered', 'Dispatched', 'Delivering', 'Delivered', 'Confirmed', 'Cancelled']
+  const statuses: OrderStatus[] = ['New', 'Ordered', 'Dispatched', 'Delivering', 'Delivered', 'Confirmed', 'CancelRequested', 'Cancelled']
   const counts: { status: string; count: number }[] = []
 
   for (const status of statuses) {
@@ -612,6 +613,7 @@ export async function getDashboardStats(): Promise<{
     .select(`id, quantity, status, total_payment_amount, products (price)`)
     .in('store_id', storeIds)
     .gte('order_date', today.toISOString())
+    .not('status', 'in', '("Cancelled","CancelRequested")')
 
   const { data: yesterdayOrdersRaw } = await supabase
     .from('orders')
@@ -619,6 +621,7 @@ export async function getDashboardStats(): Promise<{
     .in('store_id', storeIds)
     .gte('order_date', yesterday.toISOString())
     .lt('order_date', today.toISOString())
+    .not('status', 'in', '("Cancelled","CancelRequested")')
 
   const statusCounts = await Promise.all([
     supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'New'),
@@ -626,7 +629,7 @@ export async function getDashboardStats(): Promise<{
     supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Delivering'),
     supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Delivered'),
     supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Confirmed'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Cancelled'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'CancelRequested'),
   ])
 
   const { count: delayedCount } = await supabase
@@ -753,6 +756,7 @@ export async function getOrderStats(): Promise<{
     `)
     .in('store_id', storeIds)
     .gte('order_date', today.toISOString())
+    .not('status', 'in', '("Cancelled","CancelRequested")')
 
   const { data: yesterdayOrdersRaw } = await supabase
     .from('orders')
@@ -764,6 +768,7 @@ export async function getOrderStats(): Promise<{
     .in('store_id', storeIds)
     .gte('order_date', yesterday.toISOString())
     .lt('order_date', today.toISOString())
+    .not('status', 'in', '("Cancelled","CancelRequested")')
 
   const { count: totalOrders } = await supabase
     .from('orders')

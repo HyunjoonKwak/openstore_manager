@@ -119,6 +119,24 @@ export class NaverCommerceClient {
     )
   }
 
+  async getCancelRequests(params: {
+    fromDate: string
+    toDate?: string
+    pageSize?: number
+  }): Promise<NaverOrdersResponse> {
+    const searchParams = new URLSearchParams()
+    searchParams.append('from', params.fromDate)
+    if (params.toDate) searchParams.append('to', params.toDate)
+    searchParams.append('rangeType', 'CLAIM_REQUESTED_DATETIME')
+    searchParams.append('claimStatuses', 'CANCEL_REQUEST')
+    if (params.pageSize) searchParams.append('pageSize', params.pageSize.toString())
+
+    return this.request<NaverOrdersResponse>(
+      'GET',
+      `/external/v1/pay-order/seller/product-orders?${searchParams.toString()}`
+    )
+  }
+
   async getProducts(params: {
     pageSize?: number
     pageToken?: string
@@ -204,6 +222,29 @@ export class NaverCommerceClient {
       'POST',
       '/external/v1/pay-order/seller/product-orders/confirm',
       { productOrderIds }
+    )
+  }
+
+  async approveCancelRequest(params: {
+    productOrderId: string
+  }): Promise<NaverCancelResponse> {
+    return this.request<NaverCancelResponse>(
+      'POST',
+      `/external/v1/pay-order/seller/product-orders/${params.productOrderId}/claim/cancel/approve`,
+      {}
+    )
+  }
+
+  async rejectCancelRequest(params: {
+    productOrderId: string
+    rejectReason: string
+  }): Promise<NaverCancelResponse> {
+    return this.request<NaverCancelResponse>(
+      'POST',
+      `/external/v1/pay-order/seller/product-orders/${params.productOrderId}/claim/cancel/reject`,
+      {
+        rejectDetailedReason: params.rejectReason,
+      }
     )
   }
 
@@ -806,6 +847,17 @@ export interface NaverUpdateProductRequest {
 export interface NaverConfirmOrderResponse {
   data: {
     successProductOrderInfos: Array<{ productOrderId: string }>
+    failProductOrderInfos: Array<{
+      productOrderId: string
+      code: string
+      message: string
+    }>
+  }
+}
+
+export interface NaverCancelResponse {
+  data: {
+    successProductOrderIds: string[]
     failProductOrderInfos: Array<{
       productOrderId: string
       code: string

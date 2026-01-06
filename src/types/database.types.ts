@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type OrderStatus = 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'Cancelled'
+export type OrderStatus = 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'CancelRequested' | 'Cancelled'
 export type UserRole = 'owner' | 'staff'
 export type ContactMethod = 'SMS' | 'Kakao' | 'Telegram' | 'Discord'
 export type DetailPageStatus = 'Draft' | 'Completed'
@@ -56,6 +56,8 @@ export interface Database {
           platform: Platform
           store_name: string
           api_config: Json
+          notification_webhook_url: string | null
+          notification_enabled: boolean
           created_at: string
         }
         Insert: {
@@ -64,6 +66,8 @@ export interface Database {
           platform: Platform
           store_name: string
           api_config?: Json
+          notification_webhook_url?: string | null
+          notification_enabled?: boolean
           created_at?: string
         }
         Update: {
@@ -72,6 +76,8 @@ export interface Database {
           platform?: Platform
           store_name?: string
           api_config?: Json
+          notification_webhook_url?: string | null
+          notification_enabled?: boolean
           created_at?: string
         }
         Relationships: [

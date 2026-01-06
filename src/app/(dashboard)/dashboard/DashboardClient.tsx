@@ -161,7 +161,7 @@ export function DashboardClient({
             { 
               label: '취소요청', 
               value: stats.claims.cancelRequests, 
-              href: '/orders?status=Cancelled',
+              href: '/orders?status=CancelRequested',
               highlight: stats.claims.cancelRequests > 0 
             },
             { 
