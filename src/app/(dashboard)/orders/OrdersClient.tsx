@@ -350,16 +350,18 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
 
         <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <CardContent className="flex-1 p-0 overflow-hidden">
-            <OrdersTable
-              orders={filteredOrders}
-              showSelection
-              selectedIds={selectedOrderIds}
-              onSelectionChange={setSelectedOrderIds}
-              onStatusChange={handleStatusChange}
-              onCancel={handleOpenCancelDialog}
-              onTrackingInput={handleOpenTrackingInputDialog}
-              onTrackingView={handleOpenTrackingViewDialog}
-            />
+            <div className="overflow-x-auto h-full">
+              <OrdersTable
+                orders={filteredOrders}
+                showSelection
+                selectedIds={selectedOrderIds}
+                onSelectionChange={setSelectedOrderIds}
+                onStatusChange={handleStatusChange}
+                onCancel={handleOpenCancelDialog}
+                onTrackingInput={handleOpenTrackingInputDialog}
+                onTrackingView={handleOpenTrackingViewDialog}
+              />
+            </div>
           </CardContent>
         </Card>
 

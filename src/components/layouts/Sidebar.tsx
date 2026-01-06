@@ -12,6 +12,7 @@ import {
   DollarSign,
   BarChart3,
   Sparkles,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +27,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: '대시보드', href: '/dashboard', icon: LayoutDashboard },
   { label: '주문관리', href: '/orders', icon: ShoppingCart },
+  { label: '배송조회', href: '/tracking', icon: Search },
   { label: '공급업체', href: '/suppliers', icon: Truck },
   { label: '재고관리', href: '/inventory', icon: Package },
   { label: '정산관리', href: '/settlements', icon: DollarSign },

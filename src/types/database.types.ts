@@ -21,6 +21,7 @@ export type AiUsageType = 'benchmarking_structure' | 'benchmarking_style' | 'ben
 export type SyncDirection = 'pull' | 'push'
 export type SyncHistoryStatus = 'started' | 'completed' | 'failed'
 export type StockSyncSource = 'local' | 'naver' | 'manual'
+export type DeliveryTrackingStatus = 'IN_PROGRESS' | 'DELIVERED'
 
 export interface Database {
   public: {
@@ -790,6 +791,79 @@ export interface Database {
           }
         ]
       }
+      delivery_trackings: {
+        Row: {
+          id: string
+          store_id: string
+          carrier_id: string
+          carrier_name: string
+          tracking_number: string
+          status: DeliveryTrackingStatus
+          latest_event_status: string | null
+          latest_event_time: string | null
+          latest_event_description: string | null
+          sender_name: string | null
+          sender_address: string | null
+          recipient_name: string | null
+          recipient_address: string | null
+          product_name: string | null
+          memo: string | null
+          events: Json
+          created_at: string
+          updated_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          carrier_id: string
+          carrier_name: string
+          tracking_number: string
+          status?: DeliveryTrackingStatus
+          latest_event_status?: string | null
+          latest_event_time?: string | null
+          latest_event_description?: string | null
+          sender_name?: string | null
+          sender_address?: string | null
+          recipient_name?: string | null
+          recipient_address?: string | null
+          product_name?: string | null
+          memo?: string | null
+          events?: Json
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          carrier_id?: string
+          carrier_name?: string
+          tracking_number?: string
+          status?: DeliveryTrackingStatus
+          latest_event_status?: string | null
+          latest_event_time?: string | null
+          latest_event_description?: string | null
+          sender_name?: string | null
+          sender_address?: string | null
+          recipient_name?: string | null
+          recipient_address?: string | null
+          product_name?: string | null
+          memo?: string | null
+          events?: Json
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'delivery_trackings_store_id_fkey'
+            columns: ['store_id']
+            referencedRelation: 'stores'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -830,3 +904,4 @@ export type SupplierOrderLog = Tables<'supplier_order_logs'>
 export type AnalysisLog = Tables<'analysis_logs'>
 export type SavedAsset = Tables<'saved_assets'>
 export type AiUsageLog = Tables<'ai_usage_logs'>
+export type DeliveryTracking = Tables<'delivery_trackings'>

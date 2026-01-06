@@ -47,6 +47,50 @@
   )} />
   ```
 
+### Responsive Design (MANDATORY)
+> **⚠️ 모든 페이지/컴포넌트는 반드시 모바일, 태블릿, 데스크탑을 고려하여 디자인해야 합니다.**
+
+#### Breakpoints
+| 크기 | 브레이크포인트 | 용도 |
+|------|---------------|------|
+| 모바일 | < 640px (default) | 기본 스타일 |
+| 태블릿 | sm: 640px, md: 768px | 중간 레이아웃 |
+| 데스크탑 | lg: 1024px, xl: 1280px | 넓은 레이아웃 |
+
+#### Required Patterns
+```typescript
+// ✅ 그리드 레이아웃 - 모바일 우선
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+// ✅ 버튼 그룹 - 모바일에서 wrap
+<div className="flex flex-wrap gap-2">
+
+// ✅ 테이블 - 가로 스크롤 필수
+<div className="overflow-x-auto">
+  <Table>...</Table>
+</div>
+
+// ✅ 하단 패딩 - MobileNav 고려 (h-16)
+<div className="p-4 lg:p-6 pb-20 lg:pb-6">
+
+// ✅ 사이드바/모바일 네비게이션 분기
+<Sidebar className="hidden lg:flex" />
+<MobileNav className="lg:hidden" />
+
+// ❌ 고정 너비 피하기
+<div className="w-[500px]">  // BAD
+
+// ✅ 반응형 너비 사용
+<div className="w-full max-w-md lg:max-w-lg">  // GOOD
+```
+
+#### Checklist (Before PR)
+- [ ] 모바일 (375px)에서 컨텐츠가 잘리거나 overflow 없는지
+- [ ] 테이블에 `overflow-x-auto` 적용했는지
+- [ ] 버튼 그룹에 `flex-wrap` 적용했는지
+- [ ] 하단 MobileNav와 겹치지 않도록 `pb-20 lg:pb-6` 적용했는지
+- [ ] 카드/그리드가 모바일에서 1열 또는 2열로 표시되는지
+
 ### Supabase & Database
 - **Column Naming**: Use **Snake Case** for DB columns (`order_date`, `user_id`, `created_at`)
 - **Variable Naming**: Use **Camel Case** for JS variables transformed from DB (`orderDate`, `userId`, `createdAt`)
@@ -156,7 +200,7 @@
 - [ ] No console.log in production code
 - [ ] Error handling implemented
 - [ ] Loading states added
-- [ ] Mobile responsive tested
+- [ ] **Mobile responsive tested (375px, 768px, 1024px)** ⚠️ MANDATORY
 - [ ] Accessibility considered (ARIA labels, keyboard nav)
 
 ### Testing Strategy

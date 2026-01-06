@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { trackHanjinPackage, getTrackingUrl } from '@/lib/logistics/hanjin'
+import { trackPackage, getSupportedCarriers, getCarrierById } from '@/lib/carriers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,25 +13,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let result
-
-    switch (courierCode) {
-      case 'HANJIN':
-        result = await trackHanjinPackage(trackingNumber)
-        break
-      default:
-        result = {
-          success: true,
-          trackingNumber,
-          status: 'Unknown',
-          statusCode: 'UNKNOWN',
-          currentLocation: '',
-          deliveredAt: null,
-          history: [],
-          trackingUrl: getTrackingUrl(courierCode, trackingNumber),
-        }
-    }
-
+    const result = await trackPackage(courierCode, trackingNumber)
     return NextResponse.json(result)
 
   } catch (error) {
@@ -47,6 +29,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const trackingNumber = searchParams.get('trackingNumber')
   const courierCode = searchParams.get('courierCode') || 'HANJIN'
+  const listCarriers = searchParams.get('carriers')
+
+  if (listCarriers === 'true') {
+    const carriers = getSupportedCarriers()
+    return NextResponse.json({ carriers })
+  }
 
   if (!trackingNumber) {
     return NextResponse.json(
@@ -55,24 +43,14 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  let result
-
-  switch (courierCode) {
-    case 'HANJIN':
-      result = await trackHanjinPackage(trackingNumber)
-      break
-    default:
-      result = {
-        success: true,
-        trackingNumber,
-        status: 'Unknown',
-        statusCode: 'UNKNOWN',
-        currentLocation: '',
-        deliveredAt: null,
-        history: [],
-        trackingUrl: getTrackingUrl(courierCode, trackingNumber),
-      }
+  try {
+    const result = await trackPackage(courierCode, trackingNumber)
+    return NextResponse.json(result)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json(
+      { error: `Tracking failed: ${errorMessage}` },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json(result)
 }

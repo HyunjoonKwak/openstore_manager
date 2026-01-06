@@ -83,7 +83,7 @@ export default async function DashboardPage() {
       <Header title="Command Center" subtitle="Dashboard" />
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <KPICard
             title="일일 매출"
             value={formatCurrency(kpiData.dailyRevenue)}
@@ -164,15 +164,15 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
-        <Card className="flex flex-col h-[calc(100vh-580px)] min-h-[300px]">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-border py-4">
-            <div className="flex items-center gap-3">
-              <CardTitle className="text-lg font-bold">최근 주문</CardTitle>
-              <Badge variant="secondary" className="bg-primary/20 text-primary border border-primary/30">
-                Live Feed
-              </Badge>
-            </div>
-            <div className="flex gap-2">
+          <Card className="flex flex-col h-[calc(100vh-580px)] min-h-[300px]">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border py-4">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-lg font-bold">최근 주문</CardTitle>
+                <Badge variant="secondary" className="bg-primary/20 text-primary border border-primary/30">
+                  Live Feed
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <Button variant="outline" size="sm" className="h-8 gap-2">
                 <span>플랫폼: 전체</span>
                 <ChevronDown className="h-4 w-4" />
@@ -191,7 +191,9 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="flex-1 p-0 overflow-hidden">
-            <OrdersTable orders={orders} />
+            <div className="overflow-x-auto">
+              <OrdersTable orders={orders} />
+            </div>
           </CardContent>
         </Card>
       </div>

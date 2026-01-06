@@ -997,16 +997,17 @@ export function InventoryClient({
                 )}
               </div>
             ) : (
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs font-semibold uppercase w-16">이미지</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase">상품명</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase">카테고리</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-right">가격</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-center">재고</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-center">판매상태</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-center">재고상태</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase w-16 whitespace-nowrap">이미지</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">상품명</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">카테고리</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-right whitespace-nowrap">가격</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-center whitespace-nowrap">재고</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-center whitespace-nowrap">판매상태</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-center whitespace-nowrap">재고상태</TableHead>
                     <TableHead className="text-xs font-semibold uppercase w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1036,12 +1037,12 @@ export function InventoryClient({
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {product.category ? (
                           <span className="line-clamp-1">{product.category.split('>').pop()}</span>
                         ) : '-'}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right whitespace-nowrap">
                         {editingCell?.id === product.id && editingCell?.field === 'price' ? (
                           <div className="flex items-center justify-end gap-1">
                             <Input
@@ -1068,7 +1069,7 @@ export function InventoryClient({
                           </button>
                         )}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center whitespace-nowrap">
                         {editingCell?.id === product.id && editingCell?.field === 'stockQuantity' ? (
                           <div className="flex items-center justify-center gap-1">
                             <Input
@@ -1095,10 +1096,10 @@ export function InventoryClient({
                           </button>
                         )}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center whitespace-nowrap">
                         {getStatusBadge(product.status)}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center whitespace-nowrap">
                         {getStockBadge(product.stockQuantity)}
                       </TableCell>
                       <TableCell>
@@ -1144,6 +1145,7 @@ export function InventoryClient({
                   ))}
                 </TableBody>
               </Table>
+            </div>
             )}
           </CardContent>
         </Card>

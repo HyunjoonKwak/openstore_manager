@@ -567,94 +567,96 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                     </Button>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs font-semibold uppercase">업체명</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">연락처</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">연락방법</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">자동발송</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase text-center">등록 상품</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">등록일</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase w-12"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {suppliers.map((supplier) => (
-                        <TableRow key={supplier.id}>
-                          <TableCell className="font-medium">{supplier.name}</TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {supplier.contactMethod === 'Telegram' || supplier.contactMethod === 'Discord'
-                              ? (supplier.webhookUrl ? 'Webhook' : '-')
-                              : (supplier.contactNumber || '-')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                supplier.contactMethod === 'Kakao'
-                                  ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
-                                  : supplier.contactMethod === 'SMS'
-                                  ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                                  : supplier.contactMethod === 'Telegram'
-                                  ? 'bg-sky-500/10 text-sky-500 border-sky-500/20'
-                                  : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
-                              }
-                            >
-                              {supplier.contactMethod === 'Kakao' ? (
-                                <MessageSquare className="h-3 w-3 mr-1" />
-                              ) : supplier.contactMethod === 'SMS' ? (
-                                <Phone className="h-3 w-3 mr-1" />
-                              ) : (
-                                <MessageSquare className="h-3 w-3 mr-1" />
-                              )}
-                              {supplier.contactMethod}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {supplier.sendScheduleEnabled && supplier.sendScheduleTime ? (
-                              <Badge variant="secondary" className="text-xs">
-                                <Clock className="h-3 w-3 mr-1" />
-                                {supplier.sendScheduleTime}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">{supplier.productCount}개</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {formatDate(supplier.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenSettings(supplier)}>
-                                  <Settings className="h-4 w-4 mr-2" />
-                                  설정
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleOpenDialog(supplier)}>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  수정
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleOpenDeleteDialog('supplier', supplier.id, supplier.name)}
-                                >
-                                  <Trash className="h-4 w-4 mr-2" />
-                                  삭제
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">업체명</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">연락처</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">연락방법</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">자동발송</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase text-center whitespace-nowrap">등록 상품</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">등록일</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase w-12"></TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {suppliers.map((supplier) => (
+                          <TableRow key={supplier.id}>
+                            <TableCell className="font-medium whitespace-nowrap">{supplier.name}</TableCell>
+                            <TableCell className="font-mono text-sm whitespace-nowrap">
+                              {supplier.contactMethod === 'Telegram' || supplier.contactMethod === 'Discord'
+                                ? (supplier.webhookUrl ? 'Webhook' : '-')
+                                : (supplier.contactNumber || '-')}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  supplier.contactMethod === 'Kakao'
+                                    ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
+                                    : supplier.contactMethod === 'SMS'
+                                    ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                    : supplier.contactMethod === 'Telegram'
+                                    ? 'bg-sky-500/10 text-sky-500 border-sky-500/20'
+                                    : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+                                }
+                              >
+                                {supplier.contactMethod === 'Kakao' ? (
+                                  <MessageSquare className="h-3 w-3 mr-1" />
+                                ) : supplier.contactMethod === 'SMS' ? (
+                                  <Phone className="h-3 w-3 mr-1" />
+                                ) : (
+                                  <MessageSquare className="h-3 w-3 mr-1" />
+                                )}
+                                {supplier.contactMethod}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {supplier.sendScheduleEnabled && supplier.sendScheduleTime ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {supplier.sendScheduleTime}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center whitespace-nowrap">{supplier.productCount}개</TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                              {formatDate(supplier.createdAt)}
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleOpenSettings(supplier)}>
+                                    <Settings className="h-4 w-4 mr-2" />
+                                    설정
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleOpenDialog(supplier)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    수정
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleOpenDeleteDialog('supplier', supplier.id, supplier.name)}
+                                  >
+                                    <Trash className="h-4 w-4 mr-2" />
+                                    삭제
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -757,66 +759,68 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
                     </Button>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs font-semibold uppercase">업체명</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">코드</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">기본</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">등록일</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase w-12"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {couriers.map((courier) => (
-                        <TableRow key={courier.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Truck className="h-4 w-4 text-muted-foreground" />
-                              {courier.name}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="font-mono">
-                              {courier.code}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {courier.isDefault ? (
-                              <Badge variant="default">기본</Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {formatDate(courier.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenCourierDialog(courier)}>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  수정
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleOpenDeleteDialog('courier', courier.id, courier.name)}
-                                >
-                                  <Trash className="h-4 w-4 mr-2" />
-                                  삭제
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">업체명</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">코드</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">기본</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase whitespace-nowrap">등록일</TableHead>
+                          <TableHead className="text-xs font-semibold uppercase w-12"></TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {couriers.map((courier) => (
+                          <TableRow key={courier.id}>
+                            <TableCell className="font-medium whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <Truck className="h-4 w-4 text-muted-foreground" />
+                                {courier.name}
+                              </div>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              <Badge variant="outline" className="font-mono">
+                                {courier.code}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {courier.isDefault ? (
+                                <Badge variant="default">기본</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                              {formatDate(courier.createdAt)}
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleOpenCourierDialog(courier)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    수정
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleOpenDeleteDialog('courier', courier.id, courier.name)}
+                                  >
+                                    <Trash className="h-4 w-4 mr-2" />
+                                    삭제
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
