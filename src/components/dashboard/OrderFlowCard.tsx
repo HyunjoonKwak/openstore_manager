@@ -32,7 +32,7 @@ export function OrderFlowCard({
 }: OrderFlowCardProps) {
   return (
     <Card className={cn('', className)}>
-      <CardHeader className="flex flex-row items-center justify-between py-4 px-5 border-b">
+      <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
         <div className="flex items-center gap-2">
           <div className="text-muted-foreground">{icon}</div>
           <CardTitle className="text-base font-semibold">{title}</CardTitle>
@@ -48,14 +48,14 @@ export function OrderFlowCard({
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-5 sm:p-6">
+      <CardContent className="p-3 sm:p-4">
         <div className="flex items-center justify-between">
           {steps.map((step, index) => (
             <div key={step.label} className="flex items-center">
               <Link
                 href={step.href}
                 className={cn(
-                  'flex flex-col items-center gap-1.5 px-3 sm:px-5 py-3 rounded-lg transition-colors hover:bg-muted/50',
+                  'flex flex-col items-center gap-1 px-2 sm:px-4 py-2 rounded-lg transition-colors hover:bg-muted/50',
                   step.highlight && 'bg-primary/5'
                 )}
               >
@@ -67,11 +67,11 @@ export function OrderFlowCard({
                   )}
                 >
                   {step.count}
-                  <span className="text-sm sm:text-base font-normal text-muted-foreground ml-0.5">건</span>
+                  <span className="text-base font-normal text-muted-foreground ml-0.5">건</span>
                 </span>
               </Link>
               {index < steps.length - 1 && (
-                <ChevronRight className="h-5 w-5 text-muted-foreground/50 mx-1 shrink-0" />
+                <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0" />
               )}
             </div>
           ))}
@@ -105,7 +105,7 @@ export function QuickStatCard({
 }: QuickStatCardProps) {
   return (
     <Card className={cn('', className)}>
-      <CardHeader className="flex flex-row items-center justify-between py-4 px-5 border-b">
+      <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
         <div className="flex items-center gap-2">
           <div className="text-muted-foreground">{icon}</div>
           <CardTitle className="text-base font-semibold">{title}</CardTitle>
@@ -121,13 +121,13 @@ export function QuickStatCard({
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-5">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <CardContent className="p-3">
+        <div className="grid grid-cols-2 gap-2">
           {items.map((item) => {
             const content = (
               <div
                 className={cn(
-                  'flex flex-col gap-1.5 p-3 rounded-lg',
+                  'flex flex-col gap-1 p-2 rounded-lg',
                   item.href && 'hover:bg-muted/50 transition-colors cursor-pointer',
                   item.highlight && 'bg-destructive/5'
                 )}
@@ -180,7 +180,7 @@ export function SettlementCard({
 
   return (
     <Card className={cn('', className)}>
-      <CardHeader className="flex flex-row items-center justify-between py-4 px-5 border-b">
+      <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
         <div className="flex items-center gap-2">
           <div className="text-muted-foreground">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -200,18 +200,18 @@ export function SettlementCard({
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-5">
-        <div className="grid grid-cols-2 gap-4">
+      <CardContent className="p-3">
+        <div className="grid grid-cols-2 gap-2">
           <Link
             href="/settlements"
-            className="flex flex-col gap-1.5 p-4 rounded-lg hover:bg-muted/50 transition-colors"
+            className="flex flex-col gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors"
           >
             <span className="text-sm text-muted-foreground">오늘정산</span>
             <span className="text-2xl font-bold text-primary">{formatCurrency(todaySettlement)}</span>
           </Link>
           <Link
             href="/settlements"
-            className="flex flex-col gap-1.5 p-4 rounded-lg hover:bg-muted/50 transition-colors"
+            className="flex flex-col gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors"
           >
             <span className="text-sm text-muted-foreground">정산예정</span>
             <span className="text-2xl font-bold">{formatCurrency(expectedSettlement)}</span>

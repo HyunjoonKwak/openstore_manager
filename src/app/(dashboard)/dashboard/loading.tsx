@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 export default function DashboardLoading() {
   return (
     <>
-      <Header title="Command Center" subtitle="Dashboard" />
+      <Header title="대시보드" subtitle="스토어 현황" />
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

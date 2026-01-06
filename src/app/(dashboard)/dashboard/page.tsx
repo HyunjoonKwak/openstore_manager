@@ -1,20 +1,17 @@
 import { Header } from '@/components/layouts/Header'
 import { getOrders, getDashboardStats, getWeeklyStats } from '@/lib/actions/orders'
 import { getInquiryStats } from '@/lib/actions/inquiries'
+import { getLastSyncTime } from '@/lib/actions/sync-schedules'
 import { DashboardClient } from './DashboardClient'
 import type { OrderTableItem } from '@/components/dashboard/OrdersTable'
 
-function formatTime() {
-  const now = new Date()
-  return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-}
-
 export default async function DashboardPage() {
-  const [ordersResult, statsResult, weeklyStatsResult, inquiryStatsResult] = await Promise.all([
+  const [ordersResult, statsResult, weeklyStatsResult, inquiryStatsResult, lastSyncResult] = await Promise.all([
     getOrders(),
     getDashboardStats(),
     getWeeklyStats(),
     getInquiryStats(),
+    getLastSyncTime(),
   ])
 
   const orders: OrderTableItem[] = (ordersResult.data || []).slice(0, 10).map((order) => ({
@@ -53,7 +50,7 @@ export default async function DashboardPage() {
     unansweredQnas: 0,
   }
 
-  const lastUpdated = formatTime()
+  const lastSyncAt = lastSyncResult.data || null
 
   return (
     <>
@@ -63,7 +60,7 @@ export default async function DashboardPage() {
         stats={stats}
         weeklyStats={revenueChartData}
         inquiryStats={inquiryStats}
-        lastUpdated={lastUpdated}
+        lastSyncAt={lastSyncAt}
       />
     </>
   )

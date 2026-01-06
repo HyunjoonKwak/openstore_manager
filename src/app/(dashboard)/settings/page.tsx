@@ -407,17 +407,42 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="orderDownloadPath">주문 다운로드 폴더</Label>
-                <Input
-                  id="orderDownloadPath"
-                  value={orderDownloadPath}
-                  onChange={(e) => {
-                    setOrderDownloadPath(e.target.value)
-                    if (useSameFolder) {
-                      setTrackingUploadPath(e.target.value)
-                    }
-                  }}
-                  placeholder="예: C:\Downloads\주문 또는 /Users/username/Downloads/orders"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="orderDownloadPath"
+                    value={orderDownloadPath}
+                    onChange={(e) => {
+                      setOrderDownloadPath(e.target.value)
+                      if (useSameFolder) {
+                        setTrackingUploadPath(e.target.value)
+                      }
+                    }}
+                    placeholder="예: C:\Downloads\주문 또는 /Users/username/Downloads/orders"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={async () => {
+                      try {
+                        const dirHandle = await (window as any).showDirectoryPicker()
+                        const path = dirHandle.name
+                        setOrderDownloadPath(path)
+                        if (useSameFolder) {
+                          setTrackingUploadPath(path)
+                        }
+                        toast.success(`폴더 선택: ${path}`)
+                      } catch (e: any) {
+                        if (e.name !== 'AbortError') {
+                          toast.error('폴더 선택이 지원되지 않는 브라우저입니다.')
+                        }
+                      }
+                    }}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   주문 엑셀 파일을 다운로드할 기본 폴더 경로
                 </p>
@@ -426,12 +451,34 @@ export default function SettingsPage() {
               {!useSameFolder && (
                 <div className="space-y-2">
                   <Label htmlFor="trackingUploadPath">운송장 업로드 폴더</Label>
-                  <Input
-                    id="trackingUploadPath"
-                    value={trackingUploadPath}
-                    onChange={(e) => setTrackingUploadPath(e.target.value)}
-                    placeholder="예: C:\Downloads\운송장 또는 /Users/username/Downloads/tracking"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="trackingUploadPath"
+                      value={trackingUploadPath}
+                      onChange={(e) => setTrackingUploadPath(e.target.value)}
+                      placeholder="예: C:\Downloads\운송장 또는 /Users/username/Downloads/tracking"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={async () => {
+                        try {
+                          const dirHandle = await (window as any).showDirectoryPicker()
+                          const path = dirHandle.name
+                          setTrackingUploadPath(path)
+                          toast.success(`폴더 선택: ${path}`)
+                        } catch (e: any) {
+                          if (e.name !== 'AbortError') {
+                            toast.error('폴더 선택이 지원되지 않는 브라우저입니다.')
+                          }
+                        }
+                      }}
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     운송장 엑셀 파일을 업로드할 때 기본으로 열릴 폴더 경로
                   </p>

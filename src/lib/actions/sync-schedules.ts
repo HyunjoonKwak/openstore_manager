@@ -94,6 +94,32 @@ export async function getSyncSchedules(): Promise<{
   }
 }
 
+export async function getLastSyncTime(): Promise<{
+  data: string | null
+  error: string | null
+}> {
+  const supabase = await createClient()
+
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { data: null, error: 'Unauthorized' }
+  }
+
+  const { data: schedule } = await supabase
+    .from('sync_schedules')
+    .select('last_sync_at')
+    .eq('user_id', userData.user.id)
+    .not('last_sync_at', 'is', null)
+    .order('last_sync_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  return {
+    data: schedule?.last_sync_at || null,
+    error: null,
+  }
+}
+
 export async function getSyncScheduleByStore(storeId: string): Promise<{
   data: SyncSchedule | null
   error: string | null

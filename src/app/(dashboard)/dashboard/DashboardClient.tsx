@@ -34,7 +34,7 @@ interface DashboardClientProps {
   stats: DashboardStats
   weeklyStats: { label: string; value: number }[]
   inquiryStats: InquiryStats
-  lastUpdated: string
+  lastSyncAt: string | null
 }
 
 export function DashboardClient({
@@ -42,7 +42,7 @@ export function DashboardClient({
   stats,
   weeklyStats,
   inquiryStats,
-  lastUpdated,
+  lastSyncAt,
 }: DashboardClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -101,11 +101,24 @@ export function DashboardClient({
 
   const isLoading = isSyncing || isCheckingDelivery || isPending
 
+  const formatSyncTime = (isoString: string | null) => {
+    if (!isoString) return '없음'
+    const date = new Date(isoString)
+    const now = new Date()
+    const isToday = date.toDateString() === now.toDateString()
+    const time = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+    return isToday ? time : `${date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} ${time}`
+  }
+
+  const currentTime = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6 space-y-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>마지막 업데이트: {lastUpdated}</span>
+    <div className="flex-1 overflow-y-auto p-3 lg:p-4 pb-20 lg:pb-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span>현재 {currentTime}</span>
+          <span className="text-muted-foreground/50">|</span>
+          <span>마지막 동기화: {formatSyncTime(lastSyncAt)}</span>
         </div>
         <Button
           variant="outline"
@@ -178,14 +191,14 @@ export function DashboardClient({
         />
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-4 px-5 border-b">
+          <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-muted-foreground" />
               <CardTitle className="text-base font-semibold">오늘 매출</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-5">
-            <div className="flex flex-col gap-1.5">
+          <CardContent className="p-3">
+            <div className="flex flex-col gap-1">
               <span className="text-3xl font-bold text-primary">{formatCurrency(stats.dailyRevenue)}</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">주문 {stats.todayOrders}건</span>
@@ -200,19 +213,19 @@ export function DashboardClient({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
+          <CardHeader className="flex flex-row items-center justify-between py-2 px-3 border-b">
             <div className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">주간 매출 추이</CardTitle>
             </div>
             <Badge variant="outline" className="text-xs">최근 7일</Badge>
           </CardHeader>
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <SimpleBarChart
               data={weeklyStats}
-              height={120}
+              height={100}
               barColor="bg-primary"
               formatType="currency"
             />
@@ -220,19 +233,19 @@ export function DashboardClient({
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
+          <CardHeader className="flex flex-row items-center justify-between py-2 px-3 border-b">
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">빠른 작업</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-2 gap-3">
+          <CardContent className="p-3">
+            <div className="grid grid-cols-2 gap-2">
               <a
                 href="/orders/dispatch"
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
               >
-                <Truck className="h-6 w-6 text-primary" />
+                <Truck className="h-5 w-5 text-primary" />
                 <span className="text-sm font-medium">발송처리</span>
                 {stats.flow.newOrders > 0 && (
                   <Badge variant="default" className="text-xs">{stats.flow.newOrders}건 대기</Badge>
@@ -240,9 +253,9 @@ export function DashboardClient({
               </a>
               <a
                 href="/orders/send"
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
               >
-                <ShoppingCart className="h-6 w-6 text-primary" />
+                <ShoppingCart className="h-5 w-5 text-primary" />
                 <span className="text-sm font-medium">발주하기</span>
               </a>
             </div>

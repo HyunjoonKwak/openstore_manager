@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Search, Menu, Store, ChevronDown, Check, Plus } from 'lucide-react'
+import { Bell, Search, Menu, Store, ChevronDown, Check, Plus, Settings } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -114,11 +114,12 @@ export function Header({ title, subtitle }: HeaderProps) {
           <span className="sr-only">알림</span>
         </Button>
 
-        <Avatar className="h-7 w-7 cursor-pointer">
-          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-            SM
-          </AvatarFallback>
-        </Avatar>
+        <Link href="/settings">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Settings className="h-4 w-4" />
+            <span className="sr-only">설정</span>
+          </Button>
+        </Link>
       </div>
     </header>
   )
