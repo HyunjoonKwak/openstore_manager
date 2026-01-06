@@ -1,0 +1,26 @@
+services:
+  store-manager:
+    image: ghcr.io/hyunjoonkwak/openstore_manager:latest
+    container_name: store-manager
+    restart: unless-stopped
+    ports:
+      - "3300:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CRON_SECRET=${CRON_SECRET}
+      - COOLSMS_API_KEY=${COOLSMS_API_KEY}
+      - COOLSMS_API_SECRET=${COOLSMS_API_SECRET}
+      - COOLSMS_SENDER_ID=${COOLSMS_SENDER_ID}
+      - KAKAO_ALIMTALK_API_KEY=${KAKAO_ALIMTALK_API_KEY}
+      - KAKAO_ALIMTALK_SENDER_ID=${KAKAO_ALIMTALK_SENDER_ID}
+      - KAKAO_ALIMTALK_TEMPLATE_ID=${KAKAO_ALIMTALK_TEMPLATE_ID}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
