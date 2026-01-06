@@ -9,8 +9,9 @@
 - **재고 관리**: 상품별 재고 현황, 입/출고 관리, 저재고 알림
 - **공급업체 관리**: 공급업체 정보 관리, 발주 메시지 생성
 - **AI 상세페이지 생성**: OpenAI 기반 상품 설명 자동 생성
-- **벤치마킹 분석**: 경쟁사 상세페이지 구조/디자인/마케팅 분석
+- **벤치마킹 분석**: 경쟁사 상세페이지 비교, 메모/체크리스트/자료함
 - **자동 동기화**: 네이버 스마트스토어 API 연동 (주문/상품 자동 동기화)
+- **배송 추적**: 한진/롯데택배 실시간 배송 상태 조회
 
 ## 기술 스택
 
@@ -20,7 +21,7 @@
 - **Database**: Supabase (PostgreSQL)
 - **Auth**: Supabase Auth
 - **AI**: OpenAI GPT-4o
-- **Deployment**: Vercel
+- **Deployment**: Docker (Synology NAS) / GHCR
 
 ## 시작하기
 
@@ -116,26 +117,41 @@ src/
 
 ## 배포
 
-### Vercel 배포
+### Docker 배포 (Synology NAS)
 
-1. [Vercel](https://vercel.com)에 GitHub 저장소 연결
-2. 환경 변수 설정 (Settings > Environment Variables)
-3. 자동 배포 활성화
+GHCR(GitHub Container Registry)를 사용한 Docker 배포를 지원합니다.
 
-### CRON 설정 (자동 동기화)
+#### 로컬에서 이미지 빌드 및 푸시
 
-Vercel에서 CRON 기능을 사용하려면 `vercel.json`에 설정을 추가하세요:
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron/sync",
-      "schedule": "0 * * * *"
-    }
-  ]
-}
+```bash
+./manage.sh ghcr:login    # GHCR 로그인 (최초 1회)
+./manage.sh ghcr:push     # 멀티플랫폼 이미지 빌드 및 푸시
 ```
+
+#### NAS에서 배포
+
+```bash
+./deploy.sh login         # GHCR 로그인 (최초 1회)
+./deploy.sh update        # 이미지 풀 + 배포
+```
+
+#### 관리 명령어
+
+```bash
+# 로컬 (Mac)
+./manage.sh deploy        # 로컬 Docker 배포
+./manage.sh ghcr:push     # GHCR에 이미지 푸시
+./manage.sh logs          # 로그 확인
+./manage.sh status        # 상태 확인
+
+# NAS
+./deploy.sh update        # 최신 이미지로 업데이트
+./deploy.sh restart       # 재시작
+./deploy.sh logs          # 로그 확인
+./deploy.sh status        # 상태 확인
+```
+
+자세한 배포 가이드는 [DEPLOY.md](DEPLOY.md)를 참고하세요.
 
 ## 스크립트
 
@@ -157,6 +173,7 @@ npm run lint     # ESLint 검사
 - `5_Design_System.md` - 디자인 시스템
 - `6_TASKS.md` - 구현 태스크
 - `7_Coding_Guide.md` - 코딩 가이드
+- `DEPLOY.md` - Docker/NAS 배포 가이드
 
 ## 라이선스
 

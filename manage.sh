@@ -276,13 +276,26 @@ ghcr_build() {
     log_info "GHCR 멀티플랫폼 이미지 빌드 중..."
     log_info "태그: $tag"
     log_info "플랫폼: $platforms"
-    check_env
+
+    # .env.local에서 NEXT_PUBLIC 환경변수 로드
+    if [ -f "$APP_DIR/.env.local" ]; then
+        log_info ".env.local에서 빌드 환경변수 로드 중..."
+        export $(grep "^NEXT_PUBLIC_" "$APP_DIR/.env.local" | xargs)
+    fi
+
+    if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
+        log_error "NEXT_PUBLIC_SUPABASE_URL과 NEXT_PUBLIC_SUPABASE_ANON_KEY가 필요합니다."
+        log_info ".env.local 파일에 Supabase 설정을 확인하세요."
+        exit 1
+    fi
 
     setup_buildx
 
     log_info "이미지 빌드 및 푸시 중..."
     docker buildx build \
         --platform "$platforms" \
+        --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+        --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
         -t "ghcr.io/${username}/openstore_manager:${tag}" \
         --push \
         "$APP_DIR"
