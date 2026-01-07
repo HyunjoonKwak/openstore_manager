@@ -248,6 +248,88 @@ export class NaverCommerceClient {
     )
   }
 
+  async getReturnRequests(params: {
+    fromDate: string
+    toDate?: string
+    pageSize?: number
+  }): Promise<NaverOrdersResponse> {
+    const searchParams = new URLSearchParams()
+    searchParams.append('from', params.fromDate)
+    if (params.toDate) searchParams.append('to', params.toDate)
+    searchParams.append('rangeType', 'CLAIM_REQUESTED_DATETIME')
+    searchParams.append('claimStatuses', 'RETURN_REQUEST')
+    if (params.pageSize) searchParams.append('pageSize', params.pageSize.toString())
+
+    return this.request<NaverOrdersResponse>(
+      'GET',
+      `/external/v1/pay-order/seller/product-orders?${searchParams.toString()}`
+    )
+  }
+
+  async getExchangeRequests(params: {
+    fromDate: string
+    toDate?: string
+    pageSize?: number
+  }): Promise<NaverOrdersResponse> {
+    const searchParams = new URLSearchParams()
+    searchParams.append('from', params.fromDate)
+    if (params.toDate) searchParams.append('to', params.toDate)
+    searchParams.append('rangeType', 'CLAIM_REQUESTED_DATETIME')
+    searchParams.append('claimStatuses', 'EXCHANGE_REQUEST')
+    if (params.pageSize) searchParams.append('pageSize', params.pageSize.toString())
+
+    return this.request<NaverOrdersResponse>(
+      'GET',
+      `/external/v1/pay-order/seller/product-orders?${searchParams.toString()}`
+    )
+  }
+
+  async approveReturnRequest(params: {
+    productOrderId: string
+  }): Promise<NaverClaimResponse> {
+    return this.request<NaverClaimResponse>(
+      'POST',
+      `/external/v1/pay-order/seller/product-orders/${params.productOrderId}/claim/return/approve`,
+      {}
+    )
+  }
+
+  async rejectReturnRequest(params: {
+    productOrderId: string
+    rejectReason: string
+  }): Promise<NaverClaimResponse> {
+    return this.request<NaverClaimResponse>(
+      'POST',
+      `/external/v1/pay-order/seller/product-orders/${params.productOrderId}/claim/return/reject`,
+      {
+        rejectDetailedReason: params.rejectReason,
+      }
+    )
+  }
+
+  async approveExchangeRequest(params: {
+    productOrderId: string
+  }): Promise<NaverClaimResponse> {
+    return this.request<NaverClaimResponse>(
+      'POST',
+      `/external/v1/pay-order/seller/product-orders/${params.productOrderId}/claim/exchange/approve`,
+      {}
+    )
+  }
+
+  async rejectExchangeRequest(params: {
+    productOrderId: string
+    rejectReason: string
+  }): Promise<NaverClaimResponse> {
+    return this.request<NaverClaimResponse>(
+      'POST',
+      `/external/v1/pay-order/seller/product-orders/${params.productOrderId}/claim/exchange/reject`,
+      {
+        rejectDetailedReason: params.rejectReason,
+      }
+    )
+  }
+
   async getSettlements(params: {
     startDate: string
     endDate: string
@@ -856,6 +938,17 @@ export interface NaverConfirmOrderResponse {
 }
 
 export interface NaverCancelResponse {
+  data: {
+    successProductOrderIds: string[]
+    failProductOrderInfos: Array<{
+      productOrderId: string
+      code: string
+      message: string
+    }>
+  }
+}
+
+export interface NaverClaimResponse {
   data: {
     successProductOrderIds: string[]
     failProductOrderInfos: Array<{

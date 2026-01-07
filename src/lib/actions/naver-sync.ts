@@ -121,6 +121,8 @@ export async function syncNaverOrders(params: {
 
     let newOrderCount = 0
     let cancelRequestCount = 0
+    let returnRequestCount = 0
+    let exchangeRequestCount = 0
 
     for (const naverOrder of allOrders) {
       const orderData = mapNaverOrderToDb(naverOrder, store.id)
@@ -141,6 +143,8 @@ export async function syncNaverOrders(params: {
       
       const isNew = !existing
       const isCancelRequestNew = !isNew && existing?.status !== 'CancelRequested' && orderData.status === 'CancelRequested'
+      const isReturnRequestNew = !isNew && existing?.status !== 'ReturnRequested' && orderData.status === 'ReturnRequested'
+      const isExchangeRequestNew = !isNew && existing?.status !== 'ExchangeRequested' && orderData.status === 'ExchangeRequested'
       
       const { error: upsertError } = await supabase
         .from('orders')
@@ -159,6 +163,12 @@ export async function syncNaverOrders(params: {
         }
         if (isCancelRequestNew) {
           cancelRequestCount++
+        }
+        if (isReturnRequestNew) {
+          returnRequestCount++
+        }
+        if (isExchangeRequestNew) {
+          exchangeRequestCount++
         }
       }
     }
@@ -191,7 +201,8 @@ export async function syncNaverOrders(params: {
     revalidatePath('/orders')
     revalidatePath('/dashboard')
 
-    if (newOrderCount > 0 || cancelRequestCount > 0) {
+    const hasAlerts = newOrderCount > 0 || cancelRequestCount > 0 || returnRequestCount > 0 || exchangeRequestCount > 0
+    if (hasAlerts) {
       const { data: notificationSettings } = await supabase
         .from('stores')
         .select('notification_webhook_url, notification_enabled')
@@ -204,6 +215,8 @@ export async function syncNaverOrders(params: {
           summary: {
             newOrders: newOrderCount,
             cancelRequests: cancelRequestCount,
+            returnRequests: returnRequestCount,
+            exchangeRequests: exchangeRequestCount,
             deliveryComplete: 0,
           },
         })
@@ -549,17 +562,26 @@ function resolveNaverStatus(
   if (claimStatus === 'RETURN_REQUEST' || claimStatus === 'RETURN_REQUESTED') {
     return 'RETURN_REQUEST'
   }
+  if (claimStatus === 'EXCHANGE_REQUEST' || claimStatus === 'EXCHANGE_REQUESTED') {
+    return 'EXCHANGE_REQUEST'
+  }
   if (claimStatus === 'CANCEL_DONE' || claimStatus === 'CANCELED') {
     return 'CANCELED'
   }
   if (claimStatus === 'RETURN_DONE' || claimStatus === 'RETURNED') {
     return 'RETURNED'
   }
+  if (claimStatus === 'EXCHANGE_DONE' || claimStatus === 'EXCHANGED') {
+    return 'EXCHANGED'
+  }
   if (claimType === 'CANCEL' && claimStatus) {
     return claimStatus.includes('REQUEST') ? 'CANCEL_REQUEST' : 'CANCELED'
   }
   if (claimType === 'RETURN' && claimStatus) {
     return claimStatus.includes('REQUEST') ? 'RETURN_REQUEST' : 'RETURNED'
+  }
+  if (claimType === 'EXCHANGE' && claimStatus) {
+    return claimStatus.includes('REQUEST') ? 'EXCHANGE_REQUEST' : 'EXCHANGED'
   }
   return productOrderStatus || 'PAYED'
 }
@@ -571,16 +593,19 @@ function mapNaverOrderStatusToDb(naverStatus: string): OrderStatus {
     'DELIVERING': 'Delivering',
     'DELIVERED': 'Delivered',
     'PURCHASE_DECIDED': 'Confirmed',
-    'EXCHANGED': 'Cancelled',
     'CANCELED': 'Cancelled',
-    'RETURNED': 'Cancelled',
     'CANCELED_BY_NOPAYMENT': 'Cancelled',
     'CANCEL_REQUEST': 'CancelRequested',
     'CANCEL_REQUESTED': 'CancelRequested',
-    'RETURN_REQUEST': 'CancelRequested',
-    'RETURN_REQUESTED': 'CancelRequested',
     'CANCEL_DONE': 'Cancelled',
-    'RETURN_DONE': 'Cancelled',
+    'RETURN_REQUEST': 'ReturnRequested',
+    'RETURN_REQUESTED': 'ReturnRequested',
+    'RETURNED': 'Returned',
+    'RETURN_DONE': 'Returned',
+    'EXCHANGE_REQUEST': 'ExchangeRequested',
+    'EXCHANGE_REQUESTED': 'ExchangeRequested',
+    'EXCHANGED': 'Exchanged',
+    'EXCHANGE_DONE': 'Exchanged',
   }
   return statusMap[naverStatus] || 'New'
 }
@@ -823,6 +848,240 @@ export async function rejectCancelRequest(orderId: string, reason: string): Prom
     return { success: true, previousStatus: newStatus, error: null }
   } catch (err) {
     const message = err instanceof Error ? err.message : '취소 거부 중 오류가 발생했습니다.'
+    return { success: false, previousStatus: null, error: message }
+  }
+}
+
+export async function approveReturnRequest(orderId: string): Promise<{
+  success: boolean
+  error: string | null
+}> {
+  const { client, error } = await getNaverClient()
+  if (!client || error) {
+    return { success: false, error }
+  }
+
+  const supabase = await createClient()
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, platform_order_id, naver_product_order_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    return { success: false, error: '주문을 찾을 수 없습니다.' }
+  }
+
+  if (order.status !== 'ReturnRequested') {
+    return { success: false, error: '반품요청 상태의 주문만 승인할 수 있습니다.' }
+  }
+
+  const productOrderId = order.naver_product_order_id || order.platform_order_id
+  if (!productOrderId) {
+    return { success: false, error: '네이버 주문 ID를 찾을 수 없습니다.' }
+  }
+
+  try {
+    const response = await client.approveReturnRequest({
+      productOrderId,
+    })
+
+    if (response.data.failProductOrderInfos?.length > 0) {
+      const failMessage = response.data.failProductOrderInfos
+        .map(f => f.message)
+        .join(', ')
+      return { success: false, error: failMessage }
+    }
+
+    await supabase
+      .from('orders')
+      .update({ status: 'Returned' as OrderStatus })
+      .eq('id', orderId)
+
+    revalidatePath('/orders')
+    revalidatePath('/dashboard')
+    return { success: true, error: null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '반품 승인 중 오류가 발생했습니다.'
+    return { success: false, error: message }
+  }
+}
+
+export async function rejectReturnRequest(orderId: string, reason: string): Promise<{
+  success: boolean
+  previousStatus: OrderStatus | null
+  error: string | null
+}> {
+  const { client, error } = await getNaverClient()
+  if (!client || error) {
+    return { success: false, previousStatus: null, error }
+  }
+
+  const supabase = await createClient()
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, platform_order_id, naver_product_order_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    return { success: false, previousStatus: null, error: '주문을 찾을 수 없습니다.' }
+  }
+
+  if (order.status !== 'ReturnRequested') {
+    return { success: false, previousStatus: null, error: '반품요청 상태의 주문만 거부할 수 있습니다.' }
+  }
+
+  const productOrderId = order.naver_product_order_id || order.platform_order_id
+  if (!productOrderId) {
+    return { success: false, previousStatus: null, error: '네이버 주문 ID를 찾을 수 없습니다.' }
+  }
+
+  try {
+    const response = await client.rejectReturnRequest({
+      productOrderId,
+      rejectReason: reason,
+    })
+
+    if (response.data.failProductOrderInfos?.length > 0) {
+      const failMessage = response.data.failProductOrderInfos
+        .map(f => f.message)
+        .join(', ')
+      return { success: false, previousStatus: null, error: failMessage }
+    }
+
+    // 반품 거부 시 배송완료 상태로 복원
+    const newStatus: OrderStatus = 'Delivered'
+    
+    await supabase
+      .from('orders')
+      .update({ status: newStatus })
+      .eq('id', orderId)
+
+    revalidatePath('/orders')
+    revalidatePath('/dashboard')
+    return { success: true, previousStatus: newStatus, error: null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '반품 거부 중 오류가 발생했습니다.'
+    return { success: false, previousStatus: null, error: message }
+  }
+}
+
+export async function approveExchangeRequest(orderId: string): Promise<{
+  success: boolean
+  error: string | null
+}> {
+  const { client, error } = await getNaverClient()
+  if (!client || error) {
+    return { success: false, error }
+  }
+
+  const supabase = await createClient()
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, platform_order_id, naver_product_order_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    return { success: false, error: '주문을 찾을 수 없습니다.' }
+  }
+
+  if (order.status !== 'ExchangeRequested') {
+    return { success: false, error: '교환요청 상태의 주문만 승인할 수 있습니다.' }
+  }
+
+  const productOrderId = order.naver_product_order_id || order.platform_order_id
+  if (!productOrderId) {
+    return { success: false, error: '네이버 주문 ID를 찾을 수 없습니다.' }
+  }
+
+  try {
+    const response = await client.approveExchangeRequest({
+      productOrderId,
+    })
+
+    if (response.data.failProductOrderInfos?.length > 0) {
+      const failMessage = response.data.failProductOrderInfos
+        .map(f => f.message)
+        .join(', ')
+      return { success: false, error: failMessage }
+    }
+
+    await supabase
+      .from('orders')
+      .update({ status: 'Exchanged' as OrderStatus })
+      .eq('id', orderId)
+
+    revalidatePath('/orders')
+    revalidatePath('/dashboard')
+    return { success: true, error: null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '교환 승인 중 오류가 발생했습니다.'
+    return { success: false, error: message }
+  }
+}
+
+export async function rejectExchangeRequest(orderId: string, reason: string): Promise<{
+  success: boolean
+  previousStatus: OrderStatus | null
+  error: string | null
+}> {
+  const { client, error } = await getNaverClient()
+  if (!client || error) {
+    return { success: false, previousStatus: null, error }
+  }
+
+  const supabase = await createClient()
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, platform_order_id, naver_product_order_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    return { success: false, previousStatus: null, error: '주문을 찾을 수 없습니다.' }
+  }
+
+  if (order.status !== 'ExchangeRequested') {
+    return { success: false, previousStatus: null, error: '교환요청 상태의 주문만 거부할 수 있습니다.' }
+  }
+
+  const productOrderId = order.naver_product_order_id || order.platform_order_id
+  if (!productOrderId) {
+    return { success: false, previousStatus: null, error: '네이버 주문 ID를 찾을 수 없습니다.' }
+  }
+
+  try {
+    const response = await client.rejectExchangeRequest({
+      productOrderId,
+      rejectReason: reason,
+    })
+
+    if (response.data.failProductOrderInfos?.length > 0) {
+      const failMessage = response.data.failProductOrderInfos
+        .map(f => f.message)
+        .join(', ')
+      return { success: false, previousStatus: null, error: failMessage }
+    }
+
+    // 교환 거부 시 배송완료 상태로 복원
+    const newStatus: OrderStatus = 'Delivered'
+    
+    await supabase
+      .from('orders')
+      .update({ status: newStatus })
+      .eq('id', orderId)
+
+    revalidatePath('/orders')
+    revalidatePath('/dashboard')
+    return { success: true, previousStatus: newStatus, error: null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '교환 거부 중 오류가 발생했습니다.'
     return { success: false, previousStatus: null, error: message }
   }
 }

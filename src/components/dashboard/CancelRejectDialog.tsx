@@ -13,12 +13,33 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 
+export type ClaimType = 'cancel' | 'return' | 'exchange'
+
+const claimTypeLabels: Record<ClaimType, { title: string; description: string; placeholder: string }> = {
+  cancel: {
+    title: '취소 거부',
+    description: '취소 요청을 거부합니다.',
+    placeholder: '취소 거부 사유를 입력해주세요...',
+  },
+  return: {
+    title: '반품 거부',
+    description: '반품 요청을 거부합니다.',
+    placeholder: '반품 거부 사유를 입력해주세요...',
+  },
+  exchange: {
+    title: '교환 거부',
+    description: '교환 요청을 거부합니다.',
+    placeholder: '교환 거부 사유를 입력해주세요...',
+  },
+}
+
 interface CancelRejectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   orderNumber: string
   onConfirm: (reason: string) => void
   isLoading?: boolean
+  claimType?: ClaimType
 }
 
 export function CancelRejectDialog({
@@ -27,8 +48,10 @@ export function CancelRejectDialog({
   orderNumber,
   onConfirm,
   isLoading = false,
+  claimType = 'cancel',
 }: CancelRejectDialogProps) {
   const [reason, setReason] = useState('')
+  const labels = claimTypeLabels[claimType]
 
   const handleConfirm = () => {
     if (!reason.trim()) return
@@ -47,9 +70,9 @@ export function CancelRejectDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>취소 거부</DialogTitle>
+          <DialogTitle>{labels.title}</DialogTitle>
           <DialogDescription>
-            주문 #{orderNumber}의 취소 요청을 거부합니다.
+            주문 #{orderNumber}의 {labels.description}
             거부 사유를 입력해주세요.
           </DialogDescription>
         </DialogHeader>
@@ -58,7 +81,7 @@ export function CancelRejectDialog({
             <Label htmlFor="reason">거부 사유 (필수)</Label>
             <Textarea
               id="reason"
-              placeholder="취소 거부 사유를 입력해주세요..."
+              placeholder={labels.placeholder}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}

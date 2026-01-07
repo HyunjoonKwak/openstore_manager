@@ -560,6 +560,8 @@ export interface DashboardStats {
   
   claims: {
     cancelRequests: number
+    returnRequests: number
+    exchangeRequests: number
     delayedShipping: number
   }
   
@@ -592,7 +594,7 @@ export async function getDashboardStats(): Promise<{
         revenueChange: 0,
         todayOrders: 0,
         flow: { newOrders: 0, preparing: 0, shipping: 0, delivered: 0, confirmed: 0 },
-        claims: { cancelRequests: 0, delayedShipping: 0 },
+        claims: { cancelRequests: 0, returnRequests: 0, exchangeRequests: 0, delayedShipping: 0 },
         settlement: { today: 0, expected: 0 },
       },
       error: null,
@@ -630,6 +632,8 @@ export async function getDashboardStats(): Promise<{
     supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Delivered'),
     supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Confirmed'),
     supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'CancelRequested'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'ReturnRequested'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'ExchangeRequested'),
   ])
 
   const { count: delayedCount } = await supabase
@@ -693,6 +697,8 @@ export async function getDashboardStats(): Promise<{
       },
       claims: {
         cancelRequests: statusCounts[5].count || 0,
+        returnRequests: statusCounts[6].count || 0,
+        exchangeRequests: statusCounts[7].count || 0,
         delayedShipping: delayedCount || 0,
       },
       settlement: {

@@ -1,6 +1,6 @@
 import { sendDiscordWebhook } from './discord'
 
-export type AlertType = 'NEW_ORDER' | 'CANCEL_REQUEST' | 'CANCEL_DONE' | 'DELIVERY_COMPLETE' | 'INQUIRY'
+export type AlertType = 'NEW_ORDER' | 'CANCEL_REQUEST' | 'CANCEL_DONE' | 'RETURN_REQUEST' | 'EXCHANGE_REQUEST' | 'DELIVERY_COMPLETE' | 'INQUIRY'
 
 interface AlertConfig {
   emoji: string
@@ -12,6 +12,8 @@ const ALERT_CONFIG: Record<AlertType, AlertConfig> = {
   NEW_ORDER: { emoji: '🛒', title: '신규 주문', color: '#22c55e' },
   CANCEL_REQUEST: { emoji: '⚠️', title: '취소 요청', color: '#f59e0b' },
   CANCEL_DONE: { emoji: '❌', title: '취소 완료', color: '#ef4444' },
+  RETURN_REQUEST: { emoji: '📦↩️', title: '반품 요청', color: '#a855f7' },
+  EXCHANGE_REQUEST: { emoji: '🔄', title: '교환 요청', color: '#f59e0b' },
   DELIVERY_COMPLETE: { emoji: '📦', title: '배송 완료', color: '#3b82f6' },
   INQUIRY: { emoji: '💬', title: '새 문의', color: '#8b5cf6' },
 }
@@ -76,6 +78,8 @@ function formatInquiryAlert(params: InquiryAlertParams): string {
 function formatSyncSummaryAlert(summary: {
   newOrders: number
   cancelRequests: number
+  returnRequests?: number
+  exchangeRequests?: number
   deliveryComplete: number
 }): string | null {
   const parts: string[] = []
@@ -85,6 +89,12 @@ function formatSyncSummaryAlert(summary: {
   }
   if (summary.cancelRequests > 0) {
     parts.push(`⚠️ 취소요청 ${summary.cancelRequests}건`)
+  }
+  if (summary.returnRequests && summary.returnRequests > 0) {
+    parts.push(`📦↩️ 반품요청 ${summary.returnRequests}건`)
+  }
+  if (summary.exchangeRequests && summary.exchangeRequests > 0) {
+    parts.push(`🔄 교환요청 ${summary.exchangeRequests}건`)
   }
   if (summary.deliveryComplete > 0) {
     parts.push(`📦 배송완료 ${summary.deliveryComplete}건`)
@@ -116,6 +126,8 @@ export async function sendSyncSummaryAlert(params: {
   summary: {
     newOrders: number
     cancelRequests: number
+    returnRequests?: number
+    exchangeRequests?: number
     deliveryComplete: number
   }
 }): Promise<{ success: boolean; error?: string }> {

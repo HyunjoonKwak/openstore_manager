@@ -121,6 +121,10 @@ interface OrdersTableProps {
   onTrackingView?: (order: OrderTableItem) => void
   onCancelApprove?: (order: OrderTableItem) => void
   onCancelReject?: (order: OrderTableItem) => void
+  onReturnApprove?: (order: OrderTableItem) => void
+  onReturnReject?: (order: OrderTableItem) => void
+  onExchangeApprove?: (order: OrderTableItem) => void
+  onExchangeReject?: (order: OrderTableItem) => void
 }
 
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
@@ -155,6 +159,22 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> = 
   Cancelled: {
     label: '취소완료',
     className: 'bg-destructive/10 text-destructive border-destructive/20',
+  },
+  ReturnRequested: {
+    label: '반품요청',
+    className: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  },
+  Returned: {
+    label: '반품완료',
+    className: 'bg-purple-700/10 text-purple-700 border-purple-700/20',
+  },
+  ExchangeRequested: {
+    label: '교환요청',
+    className: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+  },
+  Exchanged: {
+    label: '교환완료',
+    className: 'bg-amber-700/10 text-amber-700 border-amber-700/20',
   },
 }
 
@@ -210,6 +230,10 @@ export function OrdersTable({
   onTrackingView,
   onCancelApprove,
   onCancelReject,
+  onReturnApprove,
+  onReturnReject,
+  onExchangeApprove,
+  onExchangeReject,
 }: OrdersTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -536,6 +560,36 @@ export function OrdersTable({
                               onClick={() => onCancelReject?.(order)}
                             >
                               취소 거부
+                            </DropdownMenuItem>
+                          </>
+                        ) : order.status === 'ReturnRequested' ? (
+                          <>
+                            <DropdownMenuItem
+                              className="text-green-600"
+                              onClick={() => onReturnApprove?.(order)}
+                            >
+                              반품 승인
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-orange-600"
+                              onClick={() => onReturnReject?.(order)}
+                            >
+                              반품 거부
+                            </DropdownMenuItem>
+                          </>
+                        ) : order.status === 'ExchangeRequested' ? (
+                          <>
+                            <DropdownMenuItem
+                              className="text-green-600"
+                              onClick={() => onExchangeApprove?.(order)}
+                            >
+                              교환 승인
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-orange-600"
+                              onClick={() => onExchangeReject?.(order)}
+                            >
+                              교환 거부
                             </DropdownMenuItem>
                           </>
                         ) : (

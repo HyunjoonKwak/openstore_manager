@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { OrdersTable, type OrderTableItem } from '@/components/dashboard/OrdersTable'
 import { updateOrderStatus, cancelOrder, checkDeliveryStatusBatch, exportOrdersToExcel } from '@/lib/actions/orders'
-import { syncNaverOrders, confirmNaverOrders, approveCancelRequest, rejectCancelRequest } from '@/lib/actions/naver-sync'
+import { syncNaverOrders, confirmNaverOrders, approveCancelRequest, rejectCancelRequest, approveReturnRequest, rejectReturnRequest, approveExchangeRequest, rejectExchangeRequest } from '@/lib/actions/naver-sync'
 import { getStoreSyncStatus, type SyncStatus } from '@/lib/actions/store-management'
 import { useStore } from '@/contexts/StoreContext'
 import { toast } from 'sonner'
@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { TrackingNumberDialog } from '@/components/dashboard/TrackingNumberDialog'
 import { TrackingStatusDialog } from '@/components/dashboard/TrackingStatusDialog'
-import { CancelRejectDialog } from '@/components/dashboard/CancelRejectDialog'
+import { CancelRejectDialog, type ClaimType } from '@/components/dashboard/CancelRejectDialog'
 
 interface OrdersClientProps {
   initialOrders: OrderTableItem[]
@@ -53,6 +53,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const [cancelRejectDialogOpen, setCancelRejectDialogOpen] = useState(false)
   const [cancelRejectTarget, setCancelRejectTarget] = useState<OrderTableItem | null>(null)
   const [isCancelProcessing, setIsCancelProcessing] = useState(false)
+  const [claimRejectType, setClaimRejectType] = useState<ClaimType>('cancel')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
   const [periodFilter, setPeriodFilter] = useState<'7d' | '1m' | '3m' | '6m' | '1y'>('1m')
 
@@ -132,6 +133,10 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     { value: 'Confirmed', label: '구매확정' },
     { value: 'CancelRequested', label: '취소요청' },
     { value: 'Cancelled', label: '취소완료' },
+    { value: 'ReturnRequested', label: '반품요청' },
+    { value: 'Returned', label: '반품완료' },
+    { value: 'ExchangeRequested', label: '교환요청' },
+    { value: 'Exchanged', label: '교환완료' },
   ]
 
   const currentStatusLabel = statusOptions.find(s => s.value === statusFilter)?.label || '전체'
@@ -306,6 +311,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
 
   const handleOpenCancelRejectDialog = (order: OrderTableItem) => {
     setCancelRejectTarget(order)
+    setClaimRejectType('cancel')
     setCancelRejectDialogOpen(true)
   }
 
@@ -328,6 +334,108 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
       setIsCancelProcessing(false)
       setCancelRejectDialogOpen(false)
       setCancelRejectTarget(null)
+    }
+  }
+
+  const handleReturnApprove = async (order: OrderTableItem) => {
+    setIsCancelProcessing(true)
+    try {
+      const result = await approveReturnRequest(order.id)
+      if (result.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === order.id ? { ...o, status: 'Returned' as OrderStatus } : o))
+        )
+        toast.success('반품 요청이 승인되었습니다.')
+        router.refresh()
+      } else {
+        toast.error(result.error || '반품 승인에 실패했습니다.')
+      }
+    } finally {
+      setIsCancelProcessing(false)
+    }
+  }
+
+  const handleOpenReturnRejectDialog = (order: OrderTableItem) => {
+    setCancelRejectTarget(order)
+    setClaimRejectType('return')
+    setCancelRejectDialogOpen(true)
+  }
+
+  const handleReturnReject = async (reason: string) => {
+    if (!cancelRejectTarget) return
+
+    setIsCancelProcessing(true)
+    try {
+      const result = await rejectReturnRequest(cancelRejectTarget.id, reason)
+      if (result.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === cancelRejectTarget.id ? { ...o, status: result.previousStatus || 'Delivered' } : o))
+        )
+        toast.success('반품 요청이 거부되었습니다.')
+        router.refresh()
+      } else {
+        toast.error(result.error || '반품 거부에 실패했습니다.')
+      }
+    } finally {
+      setIsCancelProcessing(false)
+      setCancelRejectDialogOpen(false)
+      setCancelRejectTarget(null)
+    }
+  }
+
+  const handleExchangeApprove = async (order: OrderTableItem) => {
+    setIsCancelProcessing(true)
+    try {
+      const result = await approveExchangeRequest(order.id)
+      if (result.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === order.id ? { ...o, status: 'Exchanged' as OrderStatus } : o))
+        )
+        toast.success('교환 요청이 승인되었습니다.')
+        router.refresh()
+      } else {
+        toast.error(result.error || '교환 승인에 실패했습니다.')
+      }
+    } finally {
+      setIsCancelProcessing(false)
+    }
+  }
+
+  const handleOpenExchangeRejectDialog = (order: OrderTableItem) => {
+    setCancelRejectTarget(order)
+    setClaimRejectType('exchange')
+    setCancelRejectDialogOpen(true)
+  }
+
+  const handleExchangeReject = async (reason: string) => {
+    if (!cancelRejectTarget) return
+
+    setIsCancelProcessing(true)
+    try {
+      const result = await rejectExchangeRequest(cancelRejectTarget.id, reason)
+      if (result.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === cancelRejectTarget.id ? { ...o, status: result.previousStatus || 'Delivered' } : o))
+        )
+        toast.success('교환 요청이 거부되었습니다.')
+        router.refresh()
+      } else {
+        toast.error(result.error || '교환 거부에 실패했습니다.')
+      }
+    } finally {
+      setIsCancelProcessing(false)
+      setCancelRejectDialogOpen(false)
+      setCancelRejectTarget(null)
+    }
+  }
+
+  const handleClaimReject = async (reason: string) => {
+    if (claimRejectType === 'cancel') {
+      await handleCancelReject(reason)
+    } else if (claimRejectType === 'return') {
+      await handleReturnReject(reason)
+    } else if (claimRejectType === 'exchange') {
+      await handleExchangeReject(reason)
     }
   }
 
@@ -474,6 +582,10 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
                 onTrackingView={handleOpenTrackingViewDialog}
                 onCancelApprove={handleCancelApprove}
                 onCancelReject={handleOpenCancelRejectDialog}
+                onReturnApprove={handleReturnApprove}
+                onReturnReject={handleOpenReturnRejectDialog}
+                onExchangeApprove={handleExchangeApprove}
+                onExchangeReject={handleOpenExchangeRejectDialog}
               />
             </div>
           </CardContent>
@@ -558,8 +670,9 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
             open={cancelRejectDialogOpen}
             onOpenChange={setCancelRejectDialogOpen}
             orderNumber={cancelRejectTarget.platformOrderId}
-            onConfirm={handleCancelReject}
+            onConfirm={handleClaimReject}
             isLoading={isCancelProcessing}
+            claimType={claimRejectType}
           />
         )}
       </div>

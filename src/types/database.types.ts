@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type OrderStatus = 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'CancelRequested' | 'Cancelled'
+export type OrderStatus = 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'CancelRequested' | 'Cancelled' | 'ReturnRequested' | 'Returned' | 'ExchangeRequested' | 'Exchanged'
 export type UserRole = 'owner' | 'staff'
 export type ContactMethod = 'SMS' | 'Kakao' | 'Telegram' | 'Discord'
 export type DetailPageStatus = 'Draft' | 'Completed'

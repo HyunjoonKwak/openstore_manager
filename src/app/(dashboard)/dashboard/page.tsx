@@ -33,7 +33,7 @@ export default async function DashboardPage() {
     revenueChange: 0,
     todayOrders: 0,
     flow: { newOrders: 0, preparing: 0, shipping: 0, delivered: 0, confirmed: 0 },
-    claims: { cancelRequests: 0, delayedShipping: 0 },
+    claims: { cancelRequests: 0, returnRequests: 0, exchangeRequests: 0, delayedShipping: 0 },
     settlement: { today: 0, expected: 0 },
   }
 

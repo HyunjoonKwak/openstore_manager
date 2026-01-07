@@ -18,7 +18,7 @@ interface DashboardStats {
   revenueChange: number
   todayOrders: number
   flow: { newOrders: number; preparing: number; shipping: number; delivered: number; confirmed: number }
-  claims: { cancelRequests: number; delayedShipping: number }
+  claims: { cancelRequests: number; returnRequests: number; exchangeRequests: number; delayedShipping: number }
   settlement: { today: number; expected: number }
 }
 
@@ -163,6 +163,18 @@ export function DashboardClient({
               value: stats.claims.cancelRequests, 
               href: '/orders?status=CancelRequested',
               highlight: stats.claims.cancelRequests > 0 
+            },
+            { 
+              label: '반품요청', 
+              value: stats.claims.returnRequests, 
+              href: '/orders?status=ReturnRequested',
+              highlight: stats.claims.returnRequests > 0 
+            },
+            { 
+              label: '교환요청', 
+              value: stats.claims.exchangeRequests, 
+              href: '/orders?status=ExchangeRequested',
+              highlight: stats.claims.exchangeRequests > 0 
             },
             { 
               label: '발송지연', 
