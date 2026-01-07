@@ -283,7 +283,10 @@ export async function createOrUpdateSyncSchedule(
     .eq('store_id', input.storeId)
     .single()
 
+  let scheduleId: string | null = null
+
   if (existing) {
+    scheduleId = existing.id
     const { error } = await supabase
       .from('sync_schedules')
       .update({
@@ -300,7 +303,7 @@ export async function createOrUpdateSyncSchedule(
       return { success: false, error: error.message }
     }
   } else {
-    const { error } = await supabase.from('sync_schedules').insert({
+    const { data: newSchedule, error } = await supabase.from('sync_schedules').insert({
       user_id: userData.user.id,
       store_id: input.storeId,
       sync_type: input.syncType,
@@ -309,10 +312,23 @@ export async function createOrUpdateSyncSchedule(
       sync_at_minute: input.syncAtMinute ?? 0,
       sync_time: input.syncTime ?? null,
       next_sync_at: nextSyncAt,
-    })
+    }).select('id').single()
 
     if (error) {
       return { success: false, error: error.message }
+    }
+    scheduleId = newSchedule?.id || null
+  }
+
+  if (scheduleId) {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/scheduler`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', scheduleId }),
+      })
+    } catch (e) {
+      console.error('Failed to update scheduler:', e)
     }
   }
 
@@ -333,6 +349,16 @@ export async function toggleSyncSchedule(
 
   if (error) {
     return { success: false, error: error.message }
+  }
+
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/scheduler`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', scheduleId }),
+    })
+  } catch (e) {
+    console.error('Failed to update scheduler:', e)
   }
 
   revalidatePath('/settings')
