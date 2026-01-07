@@ -58,7 +58,7 @@ function formatOrderAlert(params: OrderAlertParams): string {
   return message
 }
 
-function formatInquiryAlert(params: InquiryAlertParams): string {
+function _formatInquiryAlert(params: InquiryAlertParams): string {
   const config = ALERT_CONFIG.INQUIRY
   
   let message = `${config.emoji} **[${config.title}]**\n\n`

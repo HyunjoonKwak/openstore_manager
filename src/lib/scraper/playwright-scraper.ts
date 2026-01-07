@@ -222,7 +222,7 @@ export async function scrapeWithPlaywright(url: string): Promise<ScrapeResult> {
 
     const userDataDir = await getUserDataDir()
     const fs = await import('fs')
-    const useUserProfile = fs.existsSync(userDataDir)
+    const _useUserProfile = fs.existsSync(userDataDir)
 
     browser = await chromium.launch({
       executablePath,

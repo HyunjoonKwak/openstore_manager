@@ -127,7 +127,9 @@ export function SuppliersClient({ initialSuppliers, initialCouriers }: Suppliers
   const [isSendingTest, setIsSendingTest] = useState(false)
 
   useEffect(() => {
-    getCourierCodes().then(setCourierCodes)
+    getCourierCodes()
+      .then(setCourierCodes)
+      .catch(() => setCourierCodes([]))
   }, [])
 
   const resetForm = () => {

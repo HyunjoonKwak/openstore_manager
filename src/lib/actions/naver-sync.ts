@@ -6,6 +6,9 @@ import { NaverCommerceClient, type NaverOrder } from '@/lib/naver/client'
 import type { OrderStatus } from '@/types/database.types'
 import { sendSyncSummaryAlert } from '@/lib/notifications/store-alerts'
 
+const DEBUG = process.env.NODE_ENV === 'development'
+const log = (...args: unknown[]): void => { if (DEBUG) console.log(...args) }
+
 interface NaverApiConfig {
   naverClientId?: string
   naverClientSecret?: string
@@ -43,22 +46,22 @@ async function getNaverClient(): Promise<{ client: NaverCommerceClient | null; e
   return { client, error: null }
 }
 
-export async function syncNaverOrders(params: {
+export async function syncNaverOrders(_params: {
   fromDate?: string
   toDate?: string
 }): Promise<{ success: boolean; syncedCount: number; error: string | null }> {
-  console.log('[syncNaverOrders] Starting sync...')
+  log('[syncNaverOrders] Starting sync...')
   
   const { client, error } = await getNaverClient()
   if (!client || error) {
-    console.log('[syncNaverOrders] Client error:', error)
+    log('[syncNaverOrders] Client error:', error)
     return { success: false, syncedCount: 0, error }
   }
 
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
-    console.log('[syncNaverOrders] No user found')
+    log('[syncNaverOrders] No user found')
     return { success: false, syncedCount: 0, error: '로그인이 필요합니다.' }
   }
 
@@ -69,7 +72,7 @@ export async function syncNaverOrders(params: {
     .single()
 
   if (!store) {
-    console.log('[syncNaverOrders] No store found')
+    log('[syncNaverOrders] No store found')
     return { success: false, syncedCount: 0, error: '스토어를 찾을 수 없습니다.' }
   }
 
@@ -83,7 +86,7 @@ export async function syncNaverOrders(params: {
       const dayEnd = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
       const dayStart = new Date(dayEnd.getTime() - 24 * 60 * 60 * 1000)
 
-      console.log(`[syncNaverOrders] Fetching day ${i + 1}/${daysToSync}: ${dayStart.toISOString()} to ${dayEnd.toISOString()}`)
+      log(`[syncNaverOrders] Fetching day ${i + 1}/${daysToSync}: ${dayStart.toISOString()} to ${dayEnd.toISOString()}`)
 
       try {
         const response = await client.getOrders({
@@ -94,7 +97,7 @@ export async function syncNaverOrders(params: {
         const orders = response.data?.contents || []
         allOrders.push(...orders)
       } catch (dayError) {
-        console.log(`[syncNaverOrders] Day ${i + 1} error:`, dayError)
+        log(`[syncNaverOrders] Day ${i + 1} error:`, dayError)
       }
 
       if (i < daysToSync - 1) {
@@ -102,7 +105,7 @@ export async function syncNaverOrders(params: {
       }
     }
 
-    console.log('[syncNaverOrders] Total orders fetched:', allOrders.length)
+    log('[syncNaverOrders] Total orders fetched:', allOrders.length)
 
     const { data: productsWithSuppliers } = await supabase
       .from('products')
@@ -153,7 +156,7 @@ export async function syncNaverOrders(params: {
         })
 
       if (upsertError) {
-        console.log('[syncNaverOrders] Upsert error:', upsertError)
+        log('[syncNaverOrders] Upsert error:', upsertError)
       } else {
         if (isNew) {
           syncedCount++
@@ -223,7 +226,7 @@ export async function syncNaverOrders(params: {
       }
     }
 
-    console.log('[syncNaverOrders] Sync complete. Count:', syncedCount)
+    log('[syncNaverOrders] Sync complete. Count:', syncedCount)
     return { success: true, syncedCount, error: null }
   } catch (err) {
     console.error('[syncNaverOrders] Error:', err)
@@ -233,18 +236,18 @@ export async function syncNaverOrders(params: {
 }
 
 export async function syncNaverProducts(): Promise<{ success: boolean; syncedCount: number; error: string | null }> {
-  console.log('[syncNaverProducts] Starting sync...')
+  log('[syncNaverProducts] Starting sync...')
   
   const { client, error } = await getNaverClient()
   if (!client || error) {
-    console.log('[syncNaverProducts] Client error:', error)
+    log('[syncNaverProducts] Client error:', error)
     return { success: false, syncedCount: 0, error }
   }
 
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
-    console.log('[syncNaverProducts] No user found')
+    log('[syncNaverProducts] No user found')
     return { success: false, syncedCount: 0, error: '로그인이 필요합니다.' }
   }
 
@@ -255,34 +258,34 @@ export async function syncNaverProducts(): Promise<{ success: boolean; syncedCou
     .single()
 
   if (!store) {
-    console.log('[syncNaverProducts] No store found')
+    log('[syncNaverProducts] No store found')
     return { success: false, syncedCount: 0, error: '스토어를 찾을 수 없습니다.' }
   }
 
   try {
-    console.log('[syncNaverProducts] Fetching all products...')
+    log('[syncNaverProducts] Fetching all products...')
     const response = await client.searchProducts({ 
       pageSize: 100,
       productStatusTypes: ['SALE', 'SUSPENSION', 'WAIT', 'UNADMISSION', 'REJECTION', 'PROHIBITION']
     })
-    console.log('[syncNaverProducts] API Response:', JSON.stringify(response, null, 2))
+    log('[syncNaverProducts] API Response:', JSON.stringify(response, null, 2))
     
     const products = response.contents || []
-    console.log('[syncNaverProducts] Products count:', products.length)
+    log('[syncNaverProducts] Products count:', products.length)
     
     let syncedCount = 0
 
     for (const naverProduct of products) {
       const channelProduct = naverProduct.channelProducts?.[0]
       if (!channelProduct) {
-        console.log('[syncNaverProducts] No channel product for:', naverProduct.originProductNo)
+        log('[syncNaverProducts] No channel product for:', naverProduct.originProductNo)
         continue
       }
 
       const sku = channelProduct.sellerManagementCode || `NAVER-${naverProduct.originProductNo}`
       const platformProductId = String(naverProduct.originProductNo)
       
-      console.log('[syncNaverProducts] Processing:', channelProduct.name, '| Status:', channelProduct.statusType)
+      log('[syncNaverProducts] Processing:', channelProduct.name, '| Status:', channelProduct.statusType)
 
       const productData = {
         name: channelProduct.name,
@@ -328,7 +331,7 @@ export async function syncNaverProducts(): Promise<{ success: boolean; syncedCou
           .eq('id', existingProductId)
 
         if (updateError) {
-          console.log('[syncNaverProducts] Update error:', updateError)
+          log('[syncNaverProducts] Update error:', updateError)
         } else {
           syncedCount++
         }
@@ -342,7 +345,7 @@ export async function syncNaverProducts(): Promise<{ success: boolean; syncedCou
           })
 
         if (insertError) {
-          console.log('[syncNaverProducts] Insert error:', insertError)
+          log('[syncNaverProducts] Insert error:', insertError)
         } else {
           syncedCount++
         }
@@ -352,7 +355,7 @@ export async function syncNaverProducts(): Promise<{ success: boolean; syncedCou
     revalidatePath('/inventory')
     revalidatePath('/dashboard')
 
-    console.log('[syncNaverProducts] Sync complete. Count:', syncedCount)
+    log('[syncNaverProducts] Sync complete. Count:', syncedCount)
     return { success: true, syncedCount, error: null }
   } catch (err) {
     console.error('[syncNaverProducts] Error:', err)

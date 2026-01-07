@@ -74,7 +74,9 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
   const [scheduleEnabledDraft, setScheduleEnabledDraft] = useState(false)
 
   useEffect(() => {
-    checkNotificationConfig().then(setNotificationConfig)
+    checkNotificationConfig()
+      .then(setNotificationConfig)
+      .catch(() => setNotificationConfig(null))
   }, [])
 
   useEffect(() => {

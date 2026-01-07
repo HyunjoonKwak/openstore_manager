@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NaverCommerceClient, type NaverInquiry, type NaverQna } from '@/lib/naver/client'
-import type { Json } from '@/types/database.types'
 
 interface NaverApiConfig {
   naverClientId?: string

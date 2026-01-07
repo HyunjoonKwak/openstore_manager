@@ -59,7 +59,7 @@ export class KdexpScraper extends CarrierScraper {
       })
 
       return this.createSuccessResult(trackingNumber, events)
-    } catch (error) {
+    } catch {
       return this.trackLegacy(trackingNumber)
     }
   }

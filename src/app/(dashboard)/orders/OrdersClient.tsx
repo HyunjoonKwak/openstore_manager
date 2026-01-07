@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Filter, Download, Send, ChevronDown, Search, RefreshCw, Clock, AlertCircle, Truck, CheckCircle, Loader2 } from 'lucide-react'
@@ -63,19 +63,19 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     return order?.status === 'New'
   })
 
-  useEffect(() => {
-    if (currentStore?.id) {
-      loadSyncStatus()
-    }
-  }, [currentStore?.id])
-
-  async function loadSyncStatus() {
+  const loadSyncStatus = useCallback(async () => {
     if (!currentStore?.id) return
     const result = await getStoreSyncStatus(currentStore.id)
     if (result.data) {
       setSyncStatus(result.data)
     }
-  }
+  }, [currentStore?.id])
+
+  useEffect(() => {
+    if (currentStore?.id) {
+      loadSyncStatus()
+    }
+  }, [currentStore?.id, loadSyncStatus])
 
   const formatRelativeTime = (dateStr: string | null) => {
     if (!dateStr) return null

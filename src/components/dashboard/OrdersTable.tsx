@@ -191,7 +191,7 @@ function loadColumns(): ColumnConfig[] {
       })
       return merged
     }
-  } catch { /* ignore */ }
+  } catch { }
   return DEFAULT_COLUMNS
 }
 
@@ -210,7 +210,7 @@ function loadPageSize(): number {
         return size
       }
     }
-  } catch { /* ignore */ }
+  } catch { }
   return 20
 }
 

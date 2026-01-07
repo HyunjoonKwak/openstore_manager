@@ -474,15 +474,20 @@ export default function SettingsPage() {
                     size="icon"
                     onClick={async () => {
                       try {
-                        const dirHandle = await (window as any).showDirectoryPicker()
+                        const windowWithPicker = window as Window & { showDirectoryPicker?: () => Promise<{ name: string }> }
+                        if (!windowWithPicker.showDirectoryPicker) {
+                          toast.error('폴더 선택이 지원되지 않는 브라우저입니다.')
+                          return
+                        }
+                        const dirHandle = await windowWithPicker.showDirectoryPicker()
                         const path = dirHandle.name
                         setOrderDownloadPath(path)
                         if (useSameFolder) {
                           setTrackingUploadPath(path)
                         }
                         toast.success(`폴더 선택: ${path}`)
-                      } catch (e: any) {
-                        if (e.name !== 'AbortError') {
+                      } catch (e: unknown) {
+                        if (e instanceof Error && e.name !== 'AbortError') {
                           toast.error('폴더 선택이 지원되지 않는 브라우저입니다.')
                         }
                       }
@@ -513,12 +518,17 @@ export default function SettingsPage() {
                       size="icon"
                       onClick={async () => {
                         try {
-                          const dirHandle = await (window as any).showDirectoryPicker()
+                          const windowWithPicker = window as Window & { showDirectoryPicker?: () => Promise<{ name: string }> }
+                          if (!windowWithPicker.showDirectoryPicker) {
+                            toast.error('폴더 선택이 지원되지 않는 브라우저입니다.')
+                            return
+                          }
+                          const dirHandle = await windowWithPicker.showDirectoryPicker()
                           const path = dirHandle.name
                           setTrackingUploadPath(path)
                           toast.success(`폴더 선택: ${path}`)
-                        } catch (e: any) {
-                          if (e.name !== 'AbortError') {
+                        } catch (e: unknown) {
+                          if (e instanceof Error && e.name !== 'AbortError') {
                             toast.error('폴더 선택이 지원되지 않는 브라우저입니다.')
                           }
                         }

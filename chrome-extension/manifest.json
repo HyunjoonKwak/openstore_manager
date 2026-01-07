@@ -15,7 +15,9 @@
     "https://brand.naver.com/*",
     "https://shopping.naver.com/*",
     "http://localhost:3000/*",
-    "http://localhost:3001/*"
+    "http://localhost:3001/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "action": {
     "default_popup": "src/popup.html",

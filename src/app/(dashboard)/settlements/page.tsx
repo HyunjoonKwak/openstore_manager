@@ -51,22 +51,34 @@ export default function SettlementsPage() {
   }
 
   useEffect(() => {
-    loadSettlements()
-  }, [])
-
-  async function loadSettlements() {
-    startTransition(async () => {
+    let isMounted = true
+    async function fetchSettlements() {
       const result = await getSettlements({
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
       })
-
-      if (result.data) {
-        setSettlements(result.data)
-      } else if (result.error) {
-        toast.error(result.error)
+      if (isMounted) {
+        if (result.data) {
+          setSettlements(result.data)
+        } else if (result.error) {
+          toast.error(result.error)
+        }
       }
+    }
+    fetchSettlements()
+    return () => { isMounted = false }
+  }, [dateRange.startDate, dateRange.endDate])
+
+  async function loadSettlements() {
+    const result = await getSettlements({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
     })
+    if (result.data) {
+      setSettlements(result.data)
+    } else if (result.error) {
+      toast.error(result.error)
+    }
   }
 
   async function handleSync() {

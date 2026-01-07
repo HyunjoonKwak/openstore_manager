@@ -149,16 +149,27 @@ export default function ProductDetailEditPage({ params }: PageProps) {
   })
 
   useEffect(() => {
-    loadProductDetail()
-    loadSuppliers()
-  }, [productId])
-  
-  async function loadSuppliers() {
-    const result = await getSuppliersSimple()
-    if (result.data) {
-      setSuppliers(result.data)
+    async function fetchData() {
+      setIsSyncing(true)
+      try {
+        const result = await getProductDetailFromNaver(productId)
+        if (result.data) {
+          setProductData(result.data)
+          setOriginalData(JSON.parse(JSON.stringify(result.data)))
+        } else if (result.error) {
+          toast.error(result.error)
+        }
+      } finally {
+        setIsSyncing(false)
+      }
+      
+      const supplierResult = await getSuppliersSimple()
+      if (supplierResult.data) {
+        setSuppliers(supplierResult.data)
+      }
     }
-  }
+    fetchData()
+  }, [productId])
   
   async function handleSupplierChange(supplierId: string | null) {
     setIsSavingSupplier(true)
@@ -188,7 +199,6 @@ export default function ProductDetailEditPage({ params }: PageProps) {
     setIsSyncing(true)
     try {
       const result = await getProductDetailFromNaver(productId)
-
       if (result.data) {
         setProductData(result.data)
         setOriginalData(JSON.parse(JSON.stringify(result.data)))

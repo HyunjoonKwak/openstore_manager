@@ -1,5 +1,7 @@
 'use server'
 
+import crypto from 'crypto'
+
 interface SMSConfig {
   apiKey: string
   apiSecret: string
@@ -29,8 +31,7 @@ function getConfig(): SMSConfig | null {
   return { apiKey, apiSecret, senderId }
 }
 
-function generateSignature(apiKey: string, apiSecret: string, timestamp: string): string {
-  const crypto = require('crypto')
+function generateSignature(_apiKey: string, apiSecret: string, timestamp: string): string {
   const message = timestamp + apiSecret
   return crypto.createHmac('sha256', apiSecret).update(message).digest('hex')
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -242,7 +242,6 @@ interface AnalysisResultClientProps {
 
 export function AnalysisResultClient({ analysis }: AnalysisResultClientProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('pricing')
   const [iframeError, setIframeError] = useState(false)
   const [iframeKey, setIframeKey] = useState(0)
 
@@ -250,14 +249,15 @@ export function AnalysisResultClient({ analysis }: AnalysisResultClientProps) {
   
   const isPriceAnalysis = !!(result.productComposition || result.unitPricing || result.optionAnalysis)
   const isNewStructure = !!(result.pricing || result.productSettings || result.design || result.copywriting)
-  const isExtensionResult = !!result.analysis && !isNewStructure && !isPriceAnalysis
 
-  useEffect(() => {
-    if (isPriceAnalysis) setActiveTab('price-composition')
-    else if (isNewStructure) setActiveTab('pricing')
-    else if (isExtensionResult) setActiveTab('structure')
-    else setActiveTab('structure')
-  }, [isPriceAnalysis, isNewStructure, isExtensionResult])
+  const getInitialTab = () => {
+    if (isPriceAnalysis) return 'price-composition'
+    if (isNewStructure) return 'pricing'
+    return 'structure'
+  }
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab)
+  const isExtensionResult = !!result.analysis && !isNewStructure && !isPriceAnalysis
 
   const handleCopy = async (text: string, field: string) => {
     if (!text) return
@@ -1182,7 +1182,7 @@ export function AnalysisResultClient({ analysis }: AnalysisResultClientProps) {
                 </TabsContent>
 
                 <TabsContent value="assets">
-                   <Card><CardContent className="p-6 text-center text-muted-foreground">에셋 정보는 새 탭 '에셋'을 확인하세요.</CardContent></Card>
+                   <Card><CardContent className="p-6 text-center text-muted-foreground">에셋 정보는 새 탭 &apos;에셋&apos;을 확인하세요.</CardContent></Card>
                 </TabsContent>
               </Tabs>
             )}
