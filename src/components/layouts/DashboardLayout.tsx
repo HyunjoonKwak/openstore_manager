@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <StoreProvider>
-      <div className="flex h-screen w-full overflow-hidden">
+      <div className="flex h-dvh w-full overflow-hidden">
         <Sidebar className="hidden lg:flex" />
 
         <main className="flex flex-1 flex-col h-full overflow-hidden">

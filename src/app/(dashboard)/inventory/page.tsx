@@ -22,6 +22,7 @@ export default async function InventoryPage() {
 
   return (
     <InventoryClient
+      key={products.map((product) => `${product.id}:${product.stockQuantity}:${product.price}`).join('|')}
       initialProducts={products}
       initialStats={stats}
       suppliers={suppliers}

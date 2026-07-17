@@ -1,21 +1,21 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { getStores, type StoreInfo } from '@/lib/actions/store-management'
+import { getCurrentStoreId, getStores, setCurrentStoreId, type StoreInfo } from '@/lib/actions/store-management'
+import { useRouter } from 'next/navigation'
 
 interface StoreContextType {
   stores: StoreInfo[]
   currentStore: StoreInfo | null
   isLoading: boolean
-  switchStore: (storeId: string) => void
+  switchStore: (storeId: string) => Promise<void>
   refreshStores: () => Promise<void>
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined)
 
-const CURRENT_STORE_KEY = 'current_store_id'
-
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const router = useRouter()
   const [stores, setStores] = useState<StoreInfo[]>([])
   const [currentStore, setCurrentStore] = useState<StoreInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -23,18 +23,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const loadStores = useCallback(async () => {
     setIsLoading(true)
     try {
-      const result = await getStores()
+      const [result, savedStoreId] = await Promise.all([getStores(), getCurrentStoreId()])
       if (result.data) {
         setStores(result.data)
-        
-        const savedStoreId = localStorage.getItem(CURRENT_STORE_KEY)
         const savedStore = result.data.find((s: StoreInfo) => s.id === savedStoreId)
         
         if (savedStore) {
           setCurrentStore(savedStore)
         } else if (result.data.length > 0) {
           setCurrentStore(result.data[0])
-          localStorage.setItem(CURRENT_STORE_KEY, result.data[0].id)
         }
       }
     } catch (error) {
@@ -48,14 +45,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     loadStores()
   }, [loadStores])
 
-  const switchStore = useCallback((storeId: string) => {
+  const switchStore = useCallback(async (storeId: string) => {
     const store = stores.find(s => s.id === storeId)
     if (store) {
-      setCurrentStore(store)
-      localStorage.setItem(CURRENT_STORE_KEY, storeId)
-      window.location.reload()
+      const result = await setCurrentStoreId(storeId)
+      if (result.success) {
+        setCurrentStore(store)
+        router.refresh()
+      }
     }
-  }, [stores])
+  }, [router, stores])
 
   const refreshStores = useCallback(async () => {
     await loadStores()

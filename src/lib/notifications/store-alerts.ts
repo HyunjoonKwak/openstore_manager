@@ -29,12 +29,6 @@ interface OrderAlertParams {
   }[]
 }
 
-interface InquiryAlertParams {
-  type: 'INQUIRY'
-  inquiryCount: number
-  qnaCount: number
-}
-
 function formatOrderAlert(params: OrderAlertParams): string {
   const config = ALERT_CONFIG[params.type]
   const orderCount = params.orders.length
@@ -54,23 +48,6 @@ function formatOrderAlert(params: OrderAlertParams): string {
   }
   
   message += `\n\n📍 스토어매니저에서 확인하세요.`
-  
-  return message
-}
-
-function _formatInquiryAlert(params: InquiryAlertParams): string {
-  const config = ALERT_CONFIG.INQUIRY
-  
-  let message = `${config.emoji} **[${config.title}]**\n\n`
-  
-  if (params.inquiryCount > 0) {
-    message += `• 미답변 고객문의: ${params.inquiryCount}건\n`
-  }
-  if (params.qnaCount > 0) {
-    message += `• 미답변 상품문의: ${params.qnaCount}건\n`
-  }
-  
-  message += `\n📍 스토어매니저에서 확인하세요.`
   
   return message
 }

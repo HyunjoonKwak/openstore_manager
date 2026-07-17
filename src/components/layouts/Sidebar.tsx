@@ -92,7 +92,7 @@ export function Sidebar({ className }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                  'flex min-h-11 items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                   isActive
                     ? 'bg-primary/20 text-primary border border-primary/30'
                     : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -121,7 +121,7 @@ export function Sidebar({ className }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                  'flex min-h-11 items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                   isActive
                     ? 'bg-primary/20 text-primary'
                     : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'

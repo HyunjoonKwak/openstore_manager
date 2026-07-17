@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import {
   Plus,
   FolderOpen,
@@ -12,14 +11,11 @@ import {
   MoreVertical,
   LayoutGrid,
   List,
-  StickyNote,
-  CheckSquare,
-  Image as ImageIcon,
   Clock,
   Layers,
 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -40,7 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import {

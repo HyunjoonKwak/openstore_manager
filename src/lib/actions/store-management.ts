@@ -3,16 +3,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Platform, Json } from '@/types/database.types'
+import { cookies } from 'next/headers'
+import { CURRENT_STORE_COOKIE, resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 export interface StoreInfo {
   id: string
   storeName: string
   platform: Platform
   apiConfig: {
-    naverClientId?: string
-    naverClientSecret?: string
-    openaiApiKey?: string
     storeUrl?: string
+    hasNaverClientId: boolean
+    hasNaverClientSecret: boolean
+    hasOpenAiKey: boolean
   }
   createdAt: string
 }
@@ -49,7 +51,7 @@ export async function getStores(): Promise<{ data: StoreInfo[] | null; error: st
 
   const { data: stores, error } = await supabase
     .from('stores')
-    .select('*')
+    .select('id, store_name, platform, api_config, created_at')
     .eq('user_id', userData.user.id)
     .order('created_at', { ascending: true })
 
@@ -67,10 +69,10 @@ export async function getStores(): Promise<{ data: StoreInfo[] | null; error: st
         storeName: store.store_name,
         platform: store.platform as Platform,
         apiConfig: {
-          naverClientId: apiConfig.naverClientId || '',
-          naverClientSecret: apiConfig.naverClientSecret || '',
-          openaiApiKey: apiConfig.openaiApiKey || '',
           storeUrl: apiConfig.storeUrl || '',
+          hasNaverClientId: Boolean(apiConfig.naverClientId),
+          hasNaverClientSecret: Boolean(apiConfig.naverClientSecret),
+          hasOpenAiKey: Boolean(apiConfig.openaiApiKey),
         },
         createdAt: store.created_at,
       }
@@ -87,14 +89,30 @@ export async function getCurrentStoreId(): Promise<string | null> {
     return null
   }
 
-  const { data: store } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-    .limit(1)
-    .single()
+  return resolveCurrentStoreId(supabase, userData.user.id)
+}
 
-  return store?.id || null
+export async function setCurrentStoreId(storeId: string): Promise<{ success: boolean; error: string | null }> {
+  const supabase = await createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) return { success: false, error: 'Unauthorized' }
+
+  const ownedStoreId = await resolveCurrentStoreId(supabase, userData.user.id, storeId)
+  if (ownedStoreId !== storeId) {
+    return { success: false, error: '스토어를 찾을 수 없습니다.' }
+  }
+
+  const cookieStore = await cookies()
+  cookieStore.set(CURRENT_STORE_COOKIE, storeId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365,
+  })
+
+  revalidatePath('/', 'layout')
+  return { success: true, error: null }
 }
 
 interface CreateStoreInput {
@@ -148,10 +166,10 @@ export async function createStore(input: CreateStoreInput): Promise<{ data: Stor
       storeName: typedStore.store_name,
       platform: typedStore.platform as Platform,
         apiConfig: {
-          naverClientId: config.naverClientId || '',
-          naverClientSecret: config.naverClientSecret || '',
-          openaiApiKey: config.openaiApiKey || '',
           storeUrl: config.storeUrl || '',
+          hasNaverClientId: Boolean(config.naverClientId),
+          hasNaverClientSecret: Boolean(config.naverClientSecret),
+          hasOpenAiKey: Boolean(config.openaiApiKey),
         },
         createdAt: typedStore.created_at,
       },
@@ -184,9 +202,9 @@ export async function updateStore(
     const existingConfig = (existingStore?.api_config || {}) as ApiConfigJson
     const newConfig: Record<string, string> = { ...existingConfig }
     
-    if (input.naverClientId !== undefined) newConfig.naverClientId = input.naverClientId
-    if (input.naverClientSecret !== undefined) newConfig.naverClientSecret = input.naverClientSecret
-    if (input.openaiApiKey !== undefined) newConfig.openaiApiKey = input.openaiApiKey
+    if (input.naverClientId) newConfig.naverClientId = input.naverClientId
+    if (input.naverClientSecret) newConfig.naverClientSecret = input.naverClientSecret
+    if (input.openaiApiKey) newConfig.openaiApiKey = input.openaiApiKey
     if (input.storeUrl !== undefined) newConfig.storeUrl = input.storeUrl
     
     updateData.api_config = newConfig

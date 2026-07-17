@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { OrderStatus } from '@/types/database.types'
 import { parseError, formatErrorMessage } from '@/lib/error-messages'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 export interface OrderWithProduct {
   id: string
@@ -106,16 +107,10 @@ export async function getOrders(): Promise<{ data: OrderWithProduct[] | null; er
     return { data: null, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { data: [], error: null }
   }
-
-  const storeIds = stores.map((s) => s.id)
 
   const { data: orders, error } = await supabase
     .from('orders')
@@ -148,7 +143,7 @@ export async function getOrders(): Promise<{ data: OrderWithProduct[] | null; er
         price
       )
     `)
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .order('order_date', { ascending: false })
 
   if (error) {
@@ -300,21 +295,15 @@ export async function checkDeliveryStatusBatch(): Promise<{
     return { success: false, checked: 0, updated: 0, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { success: true, checked: 0, updated: 0, error: null }
   }
-
-  const storeIds = stores.map((s) => s.id)
 
   const { data: orders, error: fetchError } = await supabase
     .from('orders')
     .select('id, tracking_number, courier_code, status')
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .in('status', ['Dispatched', 'Delivering'])
     .not('tracking_number', 'is', null)
     .limit(50)
@@ -453,16 +442,10 @@ export async function getWeeklyStats(): Promise<{
     return { data: null, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { data: [], error: null }
   }
-
-  const storeIds = stores.map((s) => s.id)
   const stats: DailyStats[] = []
 
   for (let i = 6; i >= 0; i--) {
@@ -480,7 +463,7 @@ export async function getWeeklyStats(): Promise<{
         quantity,
         products (price)
       `)
-      .in('store_id', storeIds)
+      .eq('store_id', storeId)
       .gte('order_date', date.toISOString())
       .lt('order_date', nextDate.toISOString())
       .not('status', 'in', '("Cancelled","CancelRequested")')
@@ -518,16 +501,10 @@ export async function getOrderStatusCounts(): Promise<{
     return { data: null, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { data: [], error: null }
   }
-
-  const storeIds = stores.map((s) => s.id)
 
   const statuses: OrderStatus[] = ['New', 'Ordered', 'Dispatched', 'Delivering', 'Delivered', 'Confirmed', 'CancelRequested', 'Cancelled']
   const counts: { status: string; count: number }[] = []
@@ -536,7 +513,7 @@ export async function getOrderStatusCounts(): Promise<{
     const { count } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
-      .in('store_id', storeIds)
+      .eq('store_id', storeId)
       .eq('status', status)
 
     counts.push({ status, count: count || 0 })
@@ -582,12 +559,8 @@ export async function getDashboardStats(): Promise<{
     return { data: null, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return {
       data: {
         dailyRevenue: 0,
@@ -601,8 +574,6 @@ export async function getDashboardStats(): Promise<{
     }
   }
 
-  const storeIds = stores.map((s) => s.id)
-
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const yesterday = new Date(today)
@@ -613,40 +584,40 @@ export async function getDashboardStats(): Promise<{
   const { data: todayOrdersRaw } = await supabase
     .from('orders')
     .select(`id, quantity, status, total_payment_amount, products (price)`)
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .gte('order_date', today.toISOString())
     .not('status', 'in', '("Cancelled","CancelRequested")')
 
   const { data: yesterdayOrdersRaw } = await supabase
     .from('orders')
     .select(`id, quantity, total_payment_amount, products (price)`)
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .gte('order_date', yesterday.toISOString())
     .lt('order_date', today.toISOString())
     .not('status', 'in', '("Cancelled","CancelRequested")')
 
   const statusCounts = await Promise.all([
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'New'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).in('status', ['Ordered', 'Dispatched']),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Delivering'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Delivered'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'Confirmed'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'CancelRequested'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'ReturnRequested'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).in('store_id', storeIds).eq('status', 'ExchangeRequested'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'New'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).in('status', ['Ordered', 'Dispatched']),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Delivering'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Delivered'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Confirmed'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'CancelRequested'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'ReturnRequested'),
+    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'ExchangeRequested'),
   ])
 
   const { count: delayedCount } = await supabase
     .from('orders')
     .select('*', { count: 'exact', head: true })
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .eq('status', 'New')
     .lt('order_date', threeDaysAgo.toISOString())
 
   const { data: todaySettlement } = await supabase
     .from('settlements')
     .select('settlement_amount')
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .eq('settlement_date', today.toISOString().split('T')[0])
 
   const tomorrow = new Date(today)
@@ -654,7 +625,7 @@ export async function getDashboardStats(): Promise<{
   const { data: expectedSettlement } = await supabase
     .from('settlements')
     .select('settlement_amount')
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .eq('status', 'pending')
 
   interface OrderWithPayment {
@@ -727,12 +698,8 @@ export async function getOrderStats(): Promise<{
     return { data: null, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return {
       data: {
         dailyRevenue: 0,
@@ -744,8 +711,6 @@ export async function getOrderStats(): Promise<{
       error: null,
     }
   }
-
-  const storeIds = stores.map((s) => s.id)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -760,7 +725,7 @@ export async function getOrderStats(): Promise<{
       status,
       products (price)
     `)
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .gte('order_date', today.toISOString())
     .not('status', 'in', '("Cancelled","CancelRequested")')
 
@@ -771,7 +736,7 @@ export async function getOrderStats(): Promise<{
       quantity,
       products (price)
     `)
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .gte('order_date', yesterday.toISOString())
     .lt('order_date', today.toISOString())
     .not('status', 'in', '("Cancelled","CancelRequested")')
@@ -779,7 +744,7 @@ export async function getOrderStats(): Promise<{
   const { count: totalOrders } = await supabase
     .from('orders')
     .select('*', { count: 'exact', head: true })
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
 
   const todayOrders = (todayOrdersRaw || []) as unknown as OrderStatsRow[]
   const yesterdayOrders = (yesterdayOrdersRaw || []) as unknown as OrderStatsRow[]
@@ -825,16 +790,10 @@ export async function exportOrdersToExcel(): Promise<{
     return { data: null, filename: '', error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { data: null, filename: '', error: '스토어가 없습니다.' }
   }
-
-  const storeIds = stores.map((s) => s.id)
 
   const { data: orders, error } = await supabase
     .from('orders')
@@ -858,7 +817,7 @@ export async function exportOrdersToExcel(): Promise<{
       courier_code,
       order_date
     `)
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .order('order_date', { ascending: false })
 
   if (error) {

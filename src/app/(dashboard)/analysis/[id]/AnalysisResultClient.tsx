@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element -- 분석 대상의 임의 원격 이미지를 원본 비율로 비교합니다. */
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -14,24 +15,19 @@ import {
   AlertTriangle,
   CheckCircle2,
   ImageIcon,
-  Download,
   Star,
   ShoppingCart,
-  Store,
   RefreshCw,
-  Maximize2,
   DollarSign,
   Settings,
   Type,
   TrendingUp,
-  FileText
 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 import type { AnalysisLog } from '@/lib/actions/analysis'
 

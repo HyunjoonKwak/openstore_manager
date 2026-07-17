@@ -47,6 +47,10 @@ export async function updateSession(request: NextRequest) {
                            request.nextUrl.pathname.startsWith('/suppliers') ||
                            request.nextUrl.pathname.startsWith('/inventory') ||
                            request.nextUrl.pathname.startsWith('/ai-generator') ||
+                           request.nextUrl.pathname.startsWith('/benchmarking') ||
+                           request.nextUrl.pathname.startsWith('/analysis') ||
+                           request.nextUrl.pathname.startsWith('/settlements') ||
+                           request.nextUrl.pathname.startsWith('/tracking') ||
                            request.nextUrl.pathname.startsWith('/settings')
 
   if (!user && isProtectedRoute) {

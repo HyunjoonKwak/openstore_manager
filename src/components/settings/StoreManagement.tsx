@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Store, Plus, Trash2, Edit2, Check, X, Loader2 } from 'lucide-react'
+import { Store, Plus, Trash2, Edit2, Check, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -129,13 +129,13 @@ export function StoreManagement() {
       storeName: store.storeName,
       platform: store.platform,
       storeUrl: store.apiConfig.storeUrl || '',
-      naverClientId: store.apiConfig.naverClientId || '',
-      naverClientSecret: store.apiConfig.naverClientSecret || '',
-      openaiApiKey: store.apiConfig.openaiApiKey || '',
+      naverClientId: '',
+      naverClientSecret: '',
+      openaiApiKey: '',
     })
   }
 
-  const StoreForm = ({ isEdit = false }: { isEdit?: boolean }) => (
+  const renderStoreForm = (isEdit = false) => (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="storeName">스토어 이름 *</Label>
@@ -185,7 +185,7 @@ export function StoreManagement() {
           id="naverClientId"
           value={formData.naverClientId}
           onChange={(e) => setFormData((prev) => ({ ...prev, naverClientId: e.target.value }))}
-          placeholder="애플리케이션 Client ID"
+          placeholder={isEdit && editingStore?.apiConfig.hasNaverClientId ? '저장됨 — 변경할 때만 입력' : '애플리케이션 Client ID'}
         />
       </div>
       <div className="space-y-2">
@@ -195,7 +195,7 @@ export function StoreManagement() {
           type="password"
           value={formData.naverClientSecret}
           onChange={(e) => setFormData((prev) => ({ ...prev, naverClientSecret: e.target.value }))}
-          placeholder={isEdit ? '변경시에만 입력' : '••••••••'}
+          placeholder={isEdit && editingStore?.apiConfig.hasNaverClientSecret ? '저장됨 — 변경할 때만 입력' : '••••••••'}
         />
       </div>
       <div className="space-y-2">
@@ -205,7 +205,7 @@ export function StoreManagement() {
           type="password"
           value={formData.openaiApiKey}
           onChange={(e) => setFormData((prev) => ({ ...prev, openaiApiKey: e.target.value }))}
-          placeholder="sk-••••••••"
+          placeholder={isEdit && editingStore?.apiConfig.hasOpenAiKey ? '저장됨 — 변경할 때만 입력' : 'sk-••••••••'}
         />
       </div>
     </div>
@@ -238,7 +238,7 @@ export function StoreManagement() {
                   새로운 스토어의 정보와 API 키를 입력하세요.
                 </DialogDescription>
               </DialogHeader>
-              <StoreForm />
+              {renderStoreForm()}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   취소
@@ -301,7 +301,7 @@ export function StoreManagement() {
                           스토어 정보를 수정합니다.
                         </DialogDescription>
                       </DialogHeader>
-                      <StoreForm isEdit />
+                      {renderStoreForm(true)}
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingStore(null)}>
                           취소

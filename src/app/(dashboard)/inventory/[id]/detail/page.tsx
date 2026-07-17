@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition, use } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
@@ -22,7 +22,6 @@ import {
   Gift,
   Plus,
   X,
-  Percent,
   Info,
 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
@@ -127,7 +126,6 @@ export default function ProductDetailEditPage({ params }: PageProps) {
   const resolvedParams = use(params)
   const productId = resolvedParams.id
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [activeTab, setActiveTab] = useState('basic')
@@ -746,9 +744,12 @@ export default function ProductDetailEditPage({ params }: PageProps) {
                           <Textarea value={productData.detailContent || ''} onChange={(e) => updateField('detailContent', e.target.value)} placeholder="HTML 상세페이지 내용..." className="min-h-[500px] font-mono text-sm" />
                         </TabsContent>
                         <TabsContent value="preview" className="p-4 m-0">
-                          <div className="border rounded-lg p-4 bg-white min-h-[500px] overflow-auto">
-                            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: productData.detailContent || '' }} />
-                          </div>
+                          <iframe
+                            title="상품 상세 HTML 미리보기"
+                            sandbox=""
+                            srcDoc={productData.detailContent || '<p>미리보기 내용이 없습니다.</p>'}
+                            className="w-full min-h-[500px] rounded-lg border bg-white"
+                          />
                         </TabsContent>
                       </Tabs>
                     </CardContent>

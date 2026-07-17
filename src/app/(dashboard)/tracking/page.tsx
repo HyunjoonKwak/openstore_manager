@@ -16,14 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import { predictCarriers, getAllCarriers } from '@/lib/carriers/types'
-import type { TrackInfo, TrackEvent, TrackEventStatusCode, CarrierInfo } from '@/lib/carriers/types'
+import type { TrackEvent, TrackEventStatusCode, CarrierInfo } from '@/lib/carriers/types'
 import type { DeliveryTracking } from '@/types/database.types'
 
 const CARRIERS = getAllCarriers()

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 interface ApiConfigJson {
   openaiApiKey?: string
@@ -15,8 +16,8 @@ async function getOpenAIKey(): Promise<string | null> {
     const { data: store } = await supabase
       .from('stores')
       .select('api_config')
-      .eq('user_id', userData.user.id)
-      .single()
+      .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+      .maybeSingle()
     
     const apiConfig = (store?.api_config || {}) as ApiConfigJson
     if (apiConfig.openaiApiKey) {
@@ -29,6 +30,12 @@ async function getOpenAIKey(): Promise<string | null> {
 
 export async function POST(request: Request) {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { productName, productDescription, currentTitle, currentFeatures, imageUrl, category } =
       await request.json()
 

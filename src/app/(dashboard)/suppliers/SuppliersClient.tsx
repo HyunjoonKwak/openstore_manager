@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { Plus, MoreHorizontal, Phone, MessageSquare, Edit, Trash, Settings, Truck, Clock, FileText, Variable, Copy, Info, Send, Eye, Loader2 } from 'lucide-react'
+import { Plus, MoreHorizontal, Phone, MessageSquare, Edit, Trash, Settings, Truck, Clock, FileText, Info, Send, Eye, Loader2 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

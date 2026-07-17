@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { trackPackage, getSupportedCarriers, getCarrierById } from '@/lib/carriers'
+import { trackPackage, getSupportedCarriers } from '@/lib/carriers'
+import { createClient } from '@/lib/supabase/server'
+
+async function isAuthenticated(): Promise<boolean> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return Boolean(user)
+}
 
 export async function POST(request: NextRequest) {
   try {
+    if (!await isAuthenticated()) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const { trackingNumber, courierCode = 'HANJIN' } = body
 
@@ -26,6 +36,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (!await isAuthenticated()) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const trackingNumber = searchParams.get('trackingNumber')
   const courierCode = searchParams.get('courierCode') || 'HANJIN'

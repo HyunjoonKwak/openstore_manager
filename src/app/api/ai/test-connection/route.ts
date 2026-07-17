@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 interface ApiConfigJson {
   openaiApiKey?: string
@@ -21,8 +22,8 @@ export async function POST() {
     const { data: store } = await supabase
       .from('stores')
       .select('api_config')
-      .eq('user_id', userData.user.id)
-      .single()
+      .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+      .maybeSingle()
 
     const apiConfig = (store?.api_config || {}) as ApiConfigJson
     const apiKey = apiConfig.openaiApiKey || process.env.OPENAI_API_KEY

@@ -123,9 +123,9 @@
               });
             }
           }
-        } catch (e) {}
+        } catch {}
       }
-    } catch (e) {}
+    } catch {}
 
     const hexPattern = /#[0-9A-Fa-f]{3,6}/g;
     const rgbPattern = /rgb\(\d+,\s*\d+,\s*\d+\)/g;
@@ -142,14 +142,6 @@
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([color, count]) => ({ color, count }));
-  };
-
-  const captureScreenshot = async () => {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: 'captureScreenshot' }, (response) => {
-        resolve(response?.screenshot || null);
-      });
-    });
   };
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

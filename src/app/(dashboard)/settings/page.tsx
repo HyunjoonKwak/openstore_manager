@@ -232,11 +232,6 @@ export default function SettingsPage() {
   }
 
   const handleTestConnection = async () => {
-    if (!apiKeys.naverClientId || !apiKeys.naverClientSecret) {
-      toast.error('네이버 API 키를 먼저 입력해주세요.')
-      return
-    }
-
     setIsTesting(true)
     try {
       const result = await testNaverConnection()
@@ -251,11 +246,6 @@ export default function SettingsPage() {
   }
 
   const handleTestOpenAI = async () => {
-    if (!apiKeys.openaiApiKey) {
-      toast.error('OpenAI API 키를 먼저 입력하고 저장해주세요.')
-      return
-    }
-
     setIsTestingOpenAI(true)
     try {
       const response = await fetch('/api/ai/test-connection', {

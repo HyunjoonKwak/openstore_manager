@@ -7,7 +7,21 @@ import {
   clearAllSchedules,
 } from '@/lib/scheduler'
 
-export async function GET() {
+function isAuthorized(request: Request): boolean {
+  const schedulerSecret = process.env.SCHEDULER_SECRET || process.env.CRON_SECRET
+  return Boolean(
+    schedulerSecret &&
+    request.headers.get('authorization') === `Bearer ${schedulerSecret}`
+  )
+}
+
+function unauthorized() {
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+}
+
+export async function GET(request: Request) {
+  if (!isAuthorized(request)) return unauthorized()
+
   try {
     const activeSchedules = getActiveSchedules()
     return NextResponse.json({
@@ -25,6 +39,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!isAuthorized(request)) return unauthorized()
+
   try {
     const body = await request.json()
     const { action, scheduleId } = body

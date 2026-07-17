@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Plus, MoreHorizontal, Package, AlertTriangle, TrendingDown, CheckCircle, Edit, Trash, Search, RefreshCw, Upload, FileSpreadsheet, ShoppingBag, Ban, FileText, ArrowUpRight, ImageIcon, Check, X, Pencil, Copy, Sparkles, Loader2 } from 'lucide-react'
+import { Plus, MoreHorizontal, Package, AlertTriangle, Edit, Trash, Search, RefreshCw, Upload, FileSpreadsheet, ShoppingBag, Ban, FileText, ArrowUpRight, Check, X, Pencil, Copy, Sparkles, Loader2 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

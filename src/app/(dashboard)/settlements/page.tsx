@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -204,7 +203,7 @@ export default function SettlementsPage() {
                   />
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={loadSettlements} disabled={isPending}>
+              <Button variant="outline" size="sm" onClick={() => startTransition(loadSettlements)} disabled={isPending}>
                 조회
               </Button>
               <Button size="sm" onClick={handleSync} disabled={isSyncing}>

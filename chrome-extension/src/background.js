@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'analyzeProduct') {
-    handleAnalyzeProduct(request.data, sender.tab)
+    handleAnalyzeProduct(request.data)
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
@@ -28,7 +28,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-const handleAnalyzeProduct = async (data, tab) => {
+const handleAnalyzeProduct = async (data) => {
   try {
     const serverUrl = await getServerUrl();
 
@@ -136,7 +136,7 @@ const captureFullPage = async (tabId) => {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-chrome.notifications.onClicked.addListener(async (notificationId) => {
+chrome.notifications.onClicked.addListener(async () => {
   const result = await chrome.storage.local.get(['lastAnalysisUrl']);
   if (result.lastAnalysisUrl) {
     chrome.tabs.create({ url: result.lastAnalysisUrl });

@@ -3,6 +3,7 @@ import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
 import type { Json } from '@/types/database.types'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 interface ApiConfigJson {
   naverClientId?: string
@@ -55,8 +56,8 @@ async function getOpenAIClient(): Promise<OpenAI | null> {
   const { data: store } = await supabase
     .from('stores')
     .select('api_config')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   const apiConfig = (store?.api_config as Json as ApiConfigJson) || {}
   const apiKey = apiConfig.openaiApiKey || process.env.OPENAI_API_KEY

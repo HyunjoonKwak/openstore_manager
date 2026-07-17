@@ -50,6 +50,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 OPENAI_API_KEY=sk-your-key
 CRON_SECRET=your-cron-secret
+SCHEDULER_SECRET=your-optional-scheduler-secret
+SCRAPER_ALLOWED_HOSTS=
 ```
 
 ### Step 4: 컨테이너 실행

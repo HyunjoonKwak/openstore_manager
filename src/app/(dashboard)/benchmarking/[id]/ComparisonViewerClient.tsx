@@ -1,7 +1,7 @@
 'use client'
+/* eslint-disable @next/next/no-img-element -- 벤치마킹 대상의 임의 원격 이미지를 비교합니다. */
 
-import { useState, useTransition, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -10,22 +10,14 @@ import {
   ExternalLink,
   StickyNote,
   CheckSquare,
-  Square,
   Image as ImageIcon,
-  Settings,
   Columns,
-  MoreVertical,
   X,
   Download,
-  GripVertical,
   Pencil,
   Link as LinkIcon,
-  Save,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -33,7 +25,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import {
   Dialog,
   DialogContent,
@@ -46,17 +37,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
@@ -69,7 +51,6 @@ import {
   updateBenchmarkChecklist,
   deleteBenchmarkChecklist,
   addBenchmarkMemo,
-  updateBenchmarkMemo,
   deleteBenchmarkMemo,
   addBenchmarkAsset,
   deleteBenchmarkAsset,
@@ -83,7 +64,6 @@ interface ComparisonViewerClientProps {
 }
 
 export function ComparisonViewerClient({ session: initialSession, products }: ComparisonViewerClientProps) {
-  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [session, setSession] = useState(initialSession)
   const [selectedPageId, setSelectedPageId] = useState<string | null>(
