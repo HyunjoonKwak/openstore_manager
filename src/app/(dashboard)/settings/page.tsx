@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -391,8 +392,56 @@ export default function SettingsPage() {
     <>
       <Header title="설정" subtitle="Settings" />
 
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
-        <div className="max-w-2xl space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
+        <div className="mx-auto max-w-6xl space-y-4">
+          <div className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold">설정 센터</p>
+              <p className="text-sm text-muted-foreground">
+                필요한 영역만 열어보고, 기본 정보와 API 변경사항은 여기서 저장하세요.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button onClick={handleSaveProfile} disabled={isPending}>
+                {isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                기본 정보 · API 저장
+              </Button>
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                로그아웃
+              </Button>
+            </div>
+          </div>
+
+          <Tabs
+            defaultValue="general"
+            className="gap-4 [&_[data-slot=card]]:gap-4 [&_[data-slot=card]]:py-5 [&_[data-slot=card-content]]:px-5 [&_[data-slot=card-header]]:px-5"
+          >
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4">
+              <TabsTrigger value="general" className="py-2.5">
+                <User className="h-4 w-4" />
+                기본 설정
+              </TabsTrigger>
+              <TabsTrigger value="integrations" className="py-2.5">
+                <Key className="h-4 w-4" />
+                서비스 연동
+              </TabsTrigger>
+              <TabsTrigger value="automation" className="py-2.5">
+                <RefreshCw className="h-4 w-4" />
+                자동화
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="py-2.5">
+                <Bell className="h-4 w-4" />
+                알림
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="general" className="mt-0">
+              <div className="grid items-start gap-4 xl:grid-cols-2">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -597,6 +646,12 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+              </div>
+            </TabsContent>
+
+            <TabsContent value="integrations" className="mt-0">
+              <div className="grid items-start gap-4 xl:grid-cols-2">
+
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -762,7 +817,11 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           )}
+              </div>
+            </TabsContent>
 
+            <TabsContent value="automation" className="mt-0">
+              <div className="grid items-start gap-4 xl:grid-cols-2">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -793,7 +852,7 @@ export default function SettingsPage() {
 
               <Separator />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>동기화 대상</Label>
                   <Select
@@ -900,7 +959,7 @@ export default function SettingsPage() {
               {syncSettings.isEnabled && (
                 <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg text-sm">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex-1 grid grid-cols-2 gap-2">
+                  <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
                     <div>
                       <span className="text-muted-foreground">마지막 동기화: </span>
                       <span className="font-medium">{formatDateTime(syncSettings.lastSyncAt)}</span>
@@ -957,7 +1016,7 @@ export default function SettingsPage() {
 
               <div className="space-y-3">
                 <Label>확인 시간 선택 (KST)</Label>
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                   {[6, 9, 12, 15, 18, 21].map((hour) => (
                     <Button
                       key={hour}
@@ -998,7 +1057,11 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+              </div>
+            </TabsContent>
 
+            <TabsContent value="notifications" className="mt-0">
+              <div className="grid items-start gap-4 xl:grid-cols-2">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -1012,7 +1075,7 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -1208,17 +1271,9 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
-
-          <div className="flex gap-4">
-            <Button onClick={handleSaveProfile} disabled={isPending} className="flex-1">
-              <Save className="h-4 w-4 mr-2" />
-              {isPending ? '저장 중...' : '변경사항 저장'}
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              로그아웃
-            </Button>
-          </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 

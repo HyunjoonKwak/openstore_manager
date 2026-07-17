@@ -6,6 +6,10 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'SmartStore Manager',
   description: '스마트스토어 통합 관리 시스템',
+  icons: {
+    icon: '/store-manager-icon.png',
+    apple: '/store-manager-icon.png',
+  },
 }
 
 export default function RootLayout({
