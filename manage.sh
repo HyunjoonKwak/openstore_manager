@@ -260,7 +260,7 @@ setup_buildx() {
     BUILDER_NAME="multiarch-builder"
 
     if ! docker buildx inspect "$BUILDER_NAME" &>/dev/null; then
-        log_info "멀티플랫폼 빌더 생성 중..."
+        log_info "Docker Buildx 빌더 생성 중..."
         docker buildx create --name "$BUILDER_NAME" --driver docker-container --bootstrap
     fi
 
@@ -271,11 +271,11 @@ setup_buildx() {
 ghcr_build() {
     local tag="${1:-$IMAGE_TAG}"
     local username=$(echo "$GHCR_USERNAME" | tr '[:upper:]' '[:lower:]')
-    local platforms="linux/amd64,linux/arm64"
+    local platform="${TARGET_PLATFORM:-linux/amd64}"
 
-    log_info "GHCR 멀티플랫폼 이미지 빌드 중..."
+    log_info "GHCR NAS 전용 이미지 빌드 중..."
     log_info "태그: $tag"
-    log_info "플랫폼: $platforms"
+    log_info "플랫폼: $platform"
 
     # .env.local에서 NEXT_PUBLIC 환경변수 로드
     if [ -f "$APP_DIR/.env.local" ]; then
@@ -293,7 +293,7 @@ ghcr_build() {
 
     log_info "이미지 빌드 및 푸시 중..."
     docker buildx build \
-        --platform "$platforms" \
+        --platform "$platform" \
         --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
         --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
         -t "ghcr.io/${username}/openstore_manager:${tag}" \
@@ -350,11 +350,12 @@ show_help() {
     echo ""
     echo -e "${BLUE}=== GHCR 배포 (로컬 → NAS) ===${NC}"
     echo "  ghcr:login            - GHCR에 로그인"
-    echo "  ghcr:push [tag]       - 멀티플랫폼 이미지 빌드 및 GHCR에 푸시"
+    echo "  ghcr:push [tag]       - NAS 전용 이미지 빌드 및 GHCR에 푸시"
     echo ""
     echo -e "${YELLOW}환경 변수:${NC}"
     echo "  GHCR_USERNAME  - GitHub Username (기본: hyunjoonkwak)"
     echo "  IMAGE_TAG      - 이미지 태그 (기본: latest)"
+    echo "  TARGET_PLATFORM - NAS 플랫폼 (기본: linux/amd64)"
     echo ""
     echo -e "${YELLOW}예시 (로컬 개발):${NC}"
     echo "  $0 deploy               # 처음 배포"

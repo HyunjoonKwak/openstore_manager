@@ -127,7 +127,7 @@ GHCR(GitHub Container Registry)를 사용한 Docker 배포를 지원합니다.
 
 ```bash
 ./manage.sh ghcr:login    # GHCR 로그인 (최초 1회)
-./manage.sh ghcr:push     # 멀티플랫폼 이미지 빌드 및 푸시
+./manage.sh ghcr:push     # Synology NAS용 linux/amd64 이미지 빌드 및 푸시
 ```
 
 #### NAS에서 배포
