@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Package, MapPin, Clock, CheckCircle2, Truck, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Package, MapPin, CheckCircle2, Truck, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -54,7 +54,7 @@ export function TrackingStatusDialog({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchTrackingStatus = async () => {
+  const fetchTrackingStatus = useCallback(async () => {
     if (!trackingNumber) return
     
     setIsLoading(true)
@@ -77,13 +77,13 @@ export function TrackingStatusDialog({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [courierCode, trackingNumber])
 
   useEffect(() => {
     if (open && trackingNumber) {
       fetchTrackingStatus()
     }
-  }, [open, trackingNumber])
+  }, [fetchTrackingStatus, open, trackingNumber])
 
   const handleOpenExternal = () => {
     const urlFn = TRACKING_URLS[courierCode.toUpperCase()]

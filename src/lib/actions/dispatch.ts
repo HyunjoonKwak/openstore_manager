@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { NaverCommerceClient, NAVER_DELIVERY_COMPANIES } from '@/lib/naver/client'
 import type { OrderStatus } from '@/types/database.types'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 interface NaverApiConfig {
   naverClientId?: string
@@ -48,8 +49,8 @@ async function getNaverClient(): Promise<{ client: NaverCommerceClient | null; e
   const { data: store } = await supabase
     .from('stores')
     .select('api_config')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     return { client: null, error: '스토어 설정을 먼저 완료해주세요.' }
@@ -80,22 +81,16 @@ export async function getOrdersForDispatch(): Promise<{
     return { data: null, error: '로그인이 필요합니다.' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { data: [], error: null }
   }
-
-  const storeIds = stores.map(s => s.id)
 
   // 발주확인 완료(Ordered) 상태이고 운송장이 없는 주문 + 운송장 있지만 발송처리 안된 주문
   const { data: orders, error } = await supabase
     .from('orders')
     .select('*')
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .in('status', ['Ordered', 'New'])
     .order('order_date', { ascending: false })
 
@@ -348,21 +343,15 @@ export async function downloadOrdersExcel(): Promise<{
     return { data: null, filename: '', error: '로그인이 필요합니다.' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { data: null, filename: '', error: '스토어가 없습니다.' }
   }
-
-  const storeIds = stores.map(s => s.id)
 
   const { data: orders, error } = await supabase
     .from('orders')
     .select('*')
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .in('status', ['Ordered', 'New'])
     .is('tracking_number', null)
     .order('order_date', { ascending: false })
@@ -480,8 +469,8 @@ export async function createTestOrders(count: number = 3): Promise<{
   const { data: store } = await supabase
     .from('stores')
     .select('id')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     return { success: false, createdCount: 0, error: '스토어를 먼저 등록해주세요.' }
@@ -550,21 +539,15 @@ export async function deleteTestOrders(): Promise<{
     return { success: false, deletedCount: 0, error: '로그인이 필요합니다.' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { success: false, deletedCount: 0, error: '스토어가 없습니다.' }
   }
-
-  const storeIds = stores.map(s => s.id)
 
   const { data: testOrders } = await supabase
     .from('orders')
     .select('id')
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .like('platform_order_id', 'TEST-%')
 
   if (!testOrders || testOrders.length === 0) {

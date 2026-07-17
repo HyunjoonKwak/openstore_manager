@@ -1,7 +1,7 @@
 'use client'
 
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { Moon, Sun, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,13 +12,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 
-export function ThemeToggle() {
-  const [mounted, setMounted] = useState(false)
-  const { theme, setTheme } = useTheme()
+const subscribeToHydration = () => () => undefined
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+function useIsMounted() {
+  return useSyncExternalStore(subscribeToHydration, () => true, () => false)
+}
+
+export function ThemeToggle() {
+  const mounted = useIsMounted()
+  const { theme, setTheme } = useTheme()
 
   if (!mounted) {
     return (
@@ -68,12 +70,8 @@ interface ThemeSelectorProps {
 }
 
 export function ThemeSelector({ className }: ThemeSelectorProps) {
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsMounted()
   const { theme, setTheme } = useTheme()
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   if (!mounted) {
     return null

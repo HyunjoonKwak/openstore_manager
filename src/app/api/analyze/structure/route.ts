@@ -3,6 +3,7 @@ import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
 import type { Json } from '@/types/database.types'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 interface StructureSection {
   type: 'intro' | 'point' | 'proof' | 'offer' | 'cta' | 'other'
@@ -36,8 +37,8 @@ async function getOpenAIClient(): Promise<OpenAI | null> {
   const { data: store } = await supabase
     .from('stores')
     .select('api_config')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   const apiConfig = (store?.api_config as Json as ApiConfigJson) || {}
   const apiKey = apiConfig.openaiApiKey || process.env.OPENAI_API_KEY
@@ -94,7 +95,10 @@ export async function POST(request: NextRequest) {
     if (url && !content) {
       const validateResponse = await fetch(new URL('/api/analyze/validate', request.url), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: request.headers.get('cookie') || '',
+        },
         body: JSON.stringify({ url, scrape: true }),
       })
 

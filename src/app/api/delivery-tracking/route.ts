@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { trackPackage, getCarrierById } from '@/lib/carriers'
 import type { DeliveryTrackingStatus, Json } from '@/types/database.types'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,13 +13,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
+    const storeId = await resolveCurrentStoreId(supabase, user.id)
 
-    if (!store) {
+    if (!storeId) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     }
 
@@ -28,7 +25,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('delivery_trackings')
       .select('*')
-      .eq('store_id', store.id)
+      .eq('store_id', storeId)
       .order('created_at', { ascending: false })
 
     if (status === 'IN_PROGRESS') {
@@ -59,13 +56,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
+    const storeId = await resolveCurrentStoreId(supabase, user.id)
 
-    if (!store) {
+    if (!storeId) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     }
 
@@ -91,7 +84,7 @@ export async function POST(request: NextRequest) {
     const status: DeliveryTrackingStatus = isDelivered ? 'DELIVERED' : 'IN_PROGRESS'
 
     const trackingData = {
-      store_id: store.id,
+      store_id: storeId,
       carrier_id: carrierId as string,
       carrier_name: carrier?.displayName || result.carrier.name,
       tracking_number: trackingNumber as string,
@@ -145,10 +138,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 })
     }
 
+    const storeId = await resolveCurrentStoreId(supabase, user.id)
+    if (!storeId) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const { error } = await supabase
       .from('delivery_trackings')
       .delete()
       .eq('id', id)
+      .eq('store_id', storeId)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })

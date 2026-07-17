@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NaverCommerceClient, type NaverInquiry, type NaverQna } from '@/lib/naver/client'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 interface NaverApiConfig {
   naverClientId?: string
@@ -19,8 +20,8 @@ async function getNaverClient() {
   const { data: store } = await supabase
     .from('stores')
     .select('api_config')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     return { client: null, error: 'Store not found' }

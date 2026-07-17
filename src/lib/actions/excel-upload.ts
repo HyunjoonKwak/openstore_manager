@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
 import type { OrderStatus } from '@/types/database.types'
@@ -34,8 +35,8 @@ export async function uploadProductsFromExcel(
   const { data: store } = await supabase
     .from('stores')
     .select('id')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     return { success: false, importedCount: 0, error: '스토어 설정을 먼저 완료해주세요.' }
@@ -106,8 +107,8 @@ export async function uploadOrdersFromExcel(
   const { data: store } = await supabase
     .from('stores')
     .select('id')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     return { success: false, importedCount: 0, error: '스토어 설정을 먼저 완료해주세요.' }

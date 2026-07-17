@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings2, Package, Truck, GripVertical } from 'lucide-react'
 import {
   Table,
@@ -242,12 +242,16 @@ export function OrdersTable({
   const [dragOverColumn, setDragOverColumn] = useState<OrderColumnKey | null>(null)
   
   useEffect(() => {
-    setColumns(loadColumns())
-    setPageSize(loadPageSize())
+    const frame = requestAnimationFrame(() => {
+      setColumns(loadColumns())
+      setPageSize(loadPageSize())
+    })
+    return () => cancelAnimationFrame(frame)
   }, [])
 
   useEffect(() => {
-    setCurrentPage(1)
+    const frame = requestAnimationFrame(() => setCurrentPage(1))
+    return () => cancelAnimationFrame(frame)
   }, [orders.length, pageSize])
 
   const toggleColumn = (key: OrderColumnKey) => {
@@ -313,6 +317,18 @@ export function OrdersTable({
   const handleDragEnd = () => {
     setDraggedColumn(null)
     setDragOverColumn(null)
+  }
+
+  const moveColumn = (columnKey: OrderColumnKey, direction: -1 | 1) => {
+    const currentIndex = columns.findIndex((column) => column.key === columnKey)
+    const nextIndex = currentIndex + direction
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= columns.length) return
+
+    const nextColumns = [...columns]
+    const [column] = nextColumns.splice(currentIndex, 1)
+    nextColumns.splice(nextIndex, 0, column)
+    setColumns(nextColumns)
+    saveColumns(nextColumns)
   }
 
   const visibleColumns = columns.filter(c => c.visible)
@@ -461,6 +477,7 @@ export function OrdersTable({
                   <Checkbox
                     checked={selectedIds.length === orders.length && orders.length > 0}
                     onCheckedChange={handleSelectAll}
+                    aria-label="현재 필터의 주문 전체 선택"
                   />
                 </TableHead>
               )}
@@ -474,6 +491,13 @@ export function OrdersTable({
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, col.key)}
                   onDragEnd={handleDragEnd}
+                  tabIndex={0}
+                  aria-label={`${col.label} 컬럼. Alt와 좌우 방향키로 순서 변경`}
+                  onKeyDown={(event) => {
+                    if (!event.altKey) return
+                    if (event.key === 'ArrowLeft') moveColumn(col.key, -1)
+                    if (event.key === 'ArrowRight') moveColumn(col.key, 1)
+                  }}
                   className={cn(
                     'text-xs font-semibold uppercase whitespace-nowrap cursor-grab active:cursor-grabbing select-none',
                     draggedColumn === col.key && 'opacity-50',
@@ -508,13 +532,14 @@ export function OrdersTable({
                         onCheckedChange={(checked) =>
                           handleSelectOne(order.id, checked as boolean)
                         }
+                        aria-label={`주문 ${order.platformOrderId} 선택`}
                       />
                     </TableCell>
                   )}
                   <TableCell className="text-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`주문 ${order.platformOrderId} 작업 열기`}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -623,7 +648,8 @@ export function OrdersTable({
             <select
               value={pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className="h-7 px-2 text-xs border rounded bg-background"
+            aria-label="페이지당 주문 수"
+            className="h-10 px-2 text-xs border rounded bg-background"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>{size}개</option>
@@ -638,20 +664,22 @@ export function OrdersTable({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-10 w-10"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage(1)}
           >
             <ChevronsLeft className="h-3.5 w-3.5" />
+            <span className="sr-only">첫 페이지</span>
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-10 w-10"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => p - 1)}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
+            <span className="sr-only">이전 페이지</span>
           </Button>
           <div className="flex items-center gap-1 px-2">
             <input
@@ -663,27 +691,30 @@ export function OrdersTable({
                 const val = parseInt(e.target.value, 10)
                 if (val >= 1 && val <= totalPages) setCurrentPage(val)
               }}
-              className="w-12 h-7 text-center text-xs border rounded bg-background"
+              aria-label="현재 페이지"
+              className="w-12 h-10 text-center text-xs border rounded bg-background"
             />
             <span className="text-xs text-muted-foreground">/ {totalPages}</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-10 w-10"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((p) => p + 1)}
           >
             <ChevronRight className="h-3.5 w-3.5" />
+            <span className="sr-only">다음 페이지</span>
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-10 w-10"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage(totalPages)}
           >
             <ChevronsRight className="h-3.5 w-3.5" />
+            <span className="sr-only">마지막 페이지</span>
           </Button>
         </div>
       </div>

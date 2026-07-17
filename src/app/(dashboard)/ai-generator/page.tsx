@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element -- 사용자가 입력한 임의 원격 이미지 URL을 미리보기합니다. */
 
 import { useState, useEffect, useTransition } from 'react'
 import {

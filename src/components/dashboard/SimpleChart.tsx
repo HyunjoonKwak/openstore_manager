@@ -81,18 +81,18 @@ export function StatusDonut({ data, size = 100 }: StatusDonutProps) {
   const total = useMemo(() => data.reduce((sum, d) => sum + d.value, 0), [data])
 
   const segments = useMemo(() => {
-    let currentAngle = 0
-    return data.map((item) => {
+    return data.map((item, index) => {
+      const currentAngle = data
+        .slice(0, index)
+        .reduce((angle, previous) => angle + (total > 0 ? previous.value / total : 0) * 360, 0)
       const percentage = total > 0 ? item.value / total : 0
       const angle = percentage * 360
-      const segment = {
+      return {
         ...item,
         startAngle: currentAngle,
         endAngle: currentAngle + angle,
         percentage,
       }
-      currentAngle += angle
-      return segment
     })
   }, [data, total])
 

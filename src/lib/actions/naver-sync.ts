@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { NaverCommerceClient, type NaverOrder } from '@/lib/naver/client'
 import type { OrderStatus } from '@/types/database.types'
 import { sendSyncSummaryAlert } from '@/lib/notifications/store-alerts'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 const DEBUG = process.env.NODE_ENV === 'development'
 const log = (...args: unknown[]): void => { if (DEBUG) console.log(...args) }
@@ -25,8 +26,8 @@ async function getNaverClient(): Promise<{ client: NaverCommerceClient | null; e
   const { data: store } = await supabase
     .from('stores')
     .select('api_config')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     return { client: null, error: '스토어 설정을 먼저 완료해주세요.' }
@@ -50,6 +51,7 @@ export async function syncNaverOrders(_params: {
   fromDate?: string
   toDate?: string
 }): Promise<{ success: boolean; syncedCount: number; error: string | null }> {
+  void _params
   log('[syncNaverOrders] Starting sync...')
   
   const { client, error } = await getNaverClient()
@@ -68,8 +70,8 @@ export async function syncNaverOrders(_params: {
   const { data: store } = await supabase
     .from('stores')
     .select('id')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     log('[syncNaverOrders] No store found')
@@ -254,8 +256,8 @@ export async function syncNaverProducts(): Promise<{ success: boolean; syncedCou
   const { data: store } = await supabase
     .from('stores')
     .select('id')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     log('[syncNaverProducts] No store found')
@@ -1803,8 +1805,8 @@ export async function syncSettlements(params: {
   const { data: store } = await supabase
     .from('stores')
     .select('id')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     return { success: false, syncedCount: 0, error: '스토어를 찾을 수 없습니다.' }
@@ -1879,8 +1881,8 @@ export async function getSettlements(params: {
   const { data: store } = await supabase
     .from('stores')
     .select('id')
-    .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!store) {
     return { data: [], error: null }

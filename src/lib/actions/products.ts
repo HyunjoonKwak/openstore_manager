@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { parseError, formatErrorMessage } from '@/lib/error-messages'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 export interface ProductWithSupplier {
   id: string
@@ -46,16 +47,10 @@ export async function getProducts(): Promise<{ data: ProductWithSupplier[] | nul
     return { data: null, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return { data: [], error: null }
   }
-
-  const storeIds = stores.map((s) => s.id)
 
   const { data: products, error } = await supabase
     .from('products')
@@ -75,7 +70,7 @@ export async function getProducts(): Promise<{ data: ProductWithSupplier[] | nul
       created_at,
       suppliers (name)
     `)
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -120,24 +115,18 @@ export async function getProductStats(): Promise<{
     return { data: null, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-
-  if (!stores || stores.length === 0) {
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
     return {
       data: { totalProducts: 0, lowStock: 0, outOfStock: 0, healthy: 0 },
       error: null,
     }
   }
 
-  const storeIds = stores.map((s) => s.id)
-
   const { data: products } = await supabase
     .from('products')
     .select('stock_quantity')
-    .in('store_id', storeIds)
+    .eq('store_id', storeId)
 
   if (!products) {
     return {

@@ -2,8 +2,8 @@
 
 import { useState, useTransition, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Filter, Download, Send, ChevronDown, Search, RefreshCw, Clock, AlertCircle, Truck, CheckCircle, Loader2 } from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Download, Send, ChevronDown, Search, RefreshCw, Clock, AlertCircle, Truck, CheckCircle, Loader2 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -34,11 +34,13 @@ interface OrdersClientProps {
 
 export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { currentStore } = useStore()
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isPending, startTransition] = useTransition()
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+  const [, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
   const [isCheckingDelivery, setIsCheckingDelivery] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
@@ -49,13 +51,12 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   const [trackingInputDialogOpen, setTrackingInputDialogOpen] = useState(false)
   const [trackingViewDialogOpen, setTrackingViewDialogOpen] = useState(false)
   const [trackingTargetOrder, setTrackingTargetOrder] = useState<OrderTableItem | null>(null)
-  const [cancelApproveTarget, setCancelApproveTarget] = useState<OrderTableItem | null>(null)
   const [cancelRejectDialogOpen, setCancelRejectDialogOpen] = useState(false)
   const [cancelRejectTarget, setCancelRejectTarget] = useState<OrderTableItem | null>(null)
   const [isCancelProcessing, setIsCancelProcessing] = useState(false)
   const [claimRejectType, setClaimRejectType] = useState<ClaimType>('cancel')
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
-  const [periodFilter, setPeriodFilter] = useState<'7d' | '1m' | '3m' | '6m' | '1y'>('1m')
+  const statusFilter = searchParams.get('status') || 'all'
+  const periodFilter = (searchParams.get('period') || '1m') as '7d' | '1m' | '3m' | '6m' | '1y'
 
   const pendingCount = orders.filter((o) => o.status === 'New').length
   const selectedNewOrders = selectedOrderIds.filter((id) => {
@@ -108,10 +109,16 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   }
 
   const filteredOrders = orders.filter((order) => {
-    if (statusFilter !== 'all' && order.status !== statusFilter) return false
+    const selectedStatuses = statusFilter === 'all' ? [] : statusFilter.split(',')
+    if (selectedStatuses.length > 0 && !selectedStatuses.includes(order.status)) return false
     
     const orderDate = new Date(order.date)
     if (orderDate < getPeriodStartDate()) return false
+    if (searchParams.get('delayed') === 'true') {
+      const delayedThreshold = new Date()
+      delayedThreshold.setDate(delayedThreshold.getDate() - 3)
+      if (order.status !== 'New' || orderDate >= delayedThreshold) return false
+    }
     
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
@@ -123,8 +130,10 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
     )
   })
 
-  const statusOptions: { value: OrderStatus | 'all'; label: string }[] = [
+  const statusOptions: { value: string; label: string }[] = [
     { value: 'all', label: '전체' },
+    { value: 'Ordered,Dispatched', label: '배송준비' },
+    { value: 'CancelRequested,ReturnRequested,ExchangeRequested', label: '클레임 요청' },
     { value: 'New', label: '신규' },
     { value: 'Ordered', label: '발주확인' },
     { value: 'Dispatched', label: '발송처리' },
@@ -141,6 +150,19 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
 
   const currentStatusLabel = statusOptions.find(s => s.value === statusFilter)?.label || '전체'
   const currentPeriodLabel = periodOptions.find(p => p.value === periodFilter)?.label || '1개월'
+
+  const updateQueryFilter = (key: 'status' | 'period', value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value === 'all' || (key === 'period' && value === '1m')) {
+      params.delete(key)
+    } else {
+      params.set(key, value)
+    }
+    if (key === 'status') params.delete('delayed')
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    setSelectedOrderIds([])
+  }
 
   const handleNaverSync = async () => {
     setIsSyncing(true)
@@ -290,7 +312,6 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
   }
 
   const handleCancelApprove = async (order: OrderTableItem) => {
-    setCancelApproveTarget(order)
     setIsCancelProcessing(true)
     try {
       const result = await approveCancelRequest(order.id)
@@ -305,7 +326,6 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
       }
     } finally {
       setIsCancelProcessing(false)
-      setCancelApproveTarget(null)
     }
   }
 
@@ -538,7 +558,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
                 {statusOptions.map((option) => (
                   <DropdownMenuItem
                     key={option.value}
-                    onClick={() => setStatusFilter(option.value)}
+                    onClick={() => updateQueryFilter('status', option.value)}
                     className={statusFilter === option.value ? 'bg-accent' : ''}
                   >
                     {option.label}
@@ -557,7 +577,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
                 {periodOptions.map((option) => (
                   <DropdownMenuItem
                     key={option.value}
-                    onClick={() => setPeriodFilter(option.value)}
+                    onClick={() => updateQueryFilter('period', option.value)}
                     className={periodFilter === option.value ? 'bg-accent' : ''}
                   >
                     {option.label}

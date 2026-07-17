@@ -26,5 +26,9 @@ export default async function OrdersPage() {
     courierCode: order.courierCode ?? undefined,
   }))
 
-  return <OrdersClient initialOrders={ordersToDisplay} />
+  const dataVersion = ordersToDisplay
+    .map((order) => `${order.id}:${order.status}:${order.trackingNumber || ''}`)
+    .join('|')
+
+  return <OrdersClient key={dataVersion} initialOrders={ordersToDisplay} />
 }

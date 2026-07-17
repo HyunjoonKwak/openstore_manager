@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { SyncType as SyncTypeDB } from '@/types/database.types'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 export type SyncType = SyncTypeDB
 
@@ -109,6 +110,7 @@ export async function getLastSyncTime(): Promise<{
     .from('sync_schedules')
     .select('last_sync_at')
     .eq('user_id', userData.user.id)
+    .eq('store_id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
     .not('last_sync_at', 'is', null)
     .order('last_sync_at', { ascending: false })
     .limit(1)
@@ -322,9 +324,16 @@ export async function createOrUpdateSyncSchedule(
 
   if (scheduleId) {
     try {
+      const schedulerSecret = process.env.SCHEDULER_SECRET || process.env.CRON_SECRET
+      if (!schedulerSecret) {
+        throw new Error('SCHEDULER_SECRET 또는 CRON_SECRET이 설정되지 않았습니다.')
+      }
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/scheduler`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${schedulerSecret}`,
+        },
         body: JSON.stringify({ action: 'update', scheduleId }),
       })
     } catch (e) {
@@ -352,9 +361,16 @@ export async function toggleSyncSchedule(
   }
 
   try {
+    const schedulerSecret = process.env.SCHEDULER_SECRET || process.env.CRON_SECRET
+    if (!schedulerSecret) {
+      throw new Error('SCHEDULER_SECRET 또는 CRON_SECRET이 설정되지 않았습니다.')
+    }
     await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/scheduler`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${schedulerSecret}`,
+      },
       body: JSON.stringify({ action: 'update', scheduleId }),
     })
   } catch (e) {

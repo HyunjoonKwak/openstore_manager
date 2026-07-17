@@ -19,7 +19,7 @@ export function useDefaultFolder() {
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const frame = requestAnimationFrame(() => {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         try {
@@ -29,7 +29,8 @@ export function useDefaultFolder() {
         }
       }
       setIsLoaded(true)
-    }
+    })
+    return () => cancelAnimationFrame(frame)
   }, [])
 
   const updateSettings = useCallback((newSettings: Partial<FolderSettings>) => {

@@ -191,20 +191,6 @@ export async function scrapeWithCheerio(url: string): Promise<ScrapeResult> {
   }
 }
 
-async function getUserDataDir(): Promise<string> {
-  const os = await import('os')
-  const path = await import('path')
-  const platform = os.platform()
-  
-  if (platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome')
-  } else if (platform === 'win32') {
-    return path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'User Data')
-  } else {
-    return path.join(os.homedir(), '.config', 'google-chrome')
-  }
-}
-
 export async function scrapeWithPlaywright(url: string): Promise<ScrapeResult> {
   const cleanedUrl = cleanUrl(url)
   let browser: Browser | null = null
@@ -219,10 +205,6 @@ export async function scrapeWithPlaywright(url: string): Promise<ScrapeResult> {
         error: 'Chrome browser not found. Please install Chrome.',
       }
     }
-
-    const userDataDir = await getUserDataDir()
-    const fs = await import('fs')
-    const _useUserProfile = fs.existsSync(userDataDir)
 
     browser = await chromium.launch({
       executablePath,
@@ -445,10 +427,41 @@ export async function scrapeWithPlaywright(url: string): Promise<ScrapeResult> {
 }
 
 export function validateUrl(url: string): { isValid: boolean; platform: string | null; error?: string } {
+  let parsedUrl: URL
   try {
-    new URL(url)
+    parsedUrl = new URL(url)
   } catch {
     return { isValid: false, platform: null, error: 'Invalid URL format' }
+  }
+
+  if (parsedUrl.protocol !== 'https:') {
+    return { isValid: false, platform: null, error: 'HTTPS URL만 사용할 수 있습니다.' }
+  }
+
+  const defaultHosts = [
+    'smartstore.naver.com',
+    'm.smartstore.naver.com',
+    'brand.naver.com',
+    'shopping.naver.com',
+    'www.coupang.com',
+    'coupang.com',
+    'www.gmarket.co.kr',
+    'gmarket.co.kr',
+    'www.11st.co.kr',
+    '11st.co.kr',
+  ]
+  const configuredHosts = (process.env.SCRAPER_ALLOWED_HOSTS || '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+  const allowedHosts = new Set([...defaultHosts, ...configuredHosts])
+
+  if (!allowedHosts.has(parsedUrl.hostname.toLowerCase())) {
+    return {
+      isValid: false,
+      platform: null,
+      error: '허용되지 않은 쇼핑몰 도메인입니다.',
+    }
   }
 
   for (const pattern of NAVER_SMARTSTORE_PATTERNS) {
@@ -457,7 +470,7 @@ export function validateUrl(url: string): { isValid: boolean; platform: string |
     }
   }
 
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith('https://')) {
     return { isValid: true, platform: 'unknown' }
   }
 

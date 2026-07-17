@@ -12,6 +12,7 @@ import { SimpleBarChart } from '@/components/dashboard/SimpleChart'
 import { syncNaverOrders } from '@/lib/actions/naver-sync'
 import { checkDeliveryStatusBatch } from '@/lib/actions/orders'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
 interface DashboardStats {
   dailyRevenue: number
@@ -47,7 +48,6 @@ export function DashboardClient({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isSyncing, setIsSyncing] = useState(false)
-  const [isCheckingDelivery, setIsCheckingDelivery] = useState(false)
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ko-KR', {
@@ -92,14 +92,14 @@ export function DashboardClient({
       startTransition(() => {
         router.refresh()
       })
-    } catch (error) {
+    } catch {
       toast.error('동기화 중 오류가 발생했습니다.')
     } finally {
       setIsSyncing(false)
     }
   }
 
-  const isLoading = isSyncing || isCheckingDelivery || isPending
+  const isLoading = isSyncing || isPending
 
   const formatSyncTime = (isoString: string | null) => {
     if (!isoString) return '없음'
@@ -253,7 +253,7 @@ export function DashboardClient({
           </CardHeader>
           <CardContent className="p-3">
             <div className="grid grid-cols-2 gap-2">
-              <a
+              <Link
                 href="/orders/dispatch"
                 className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
               >
@@ -262,14 +262,14 @@ export function DashboardClient({
                 {stats.flow.newOrders > 0 && (
                   <Badge variant="default" className="text-xs">{stats.flow.newOrders}건 대기</Badge>
                 )}
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/orders/send"
                 className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
               >
                 <ShoppingCart className="h-5 w-5 text-primary" />
                 <span className="text-sm font-medium">발주하기</span>
-              </a>
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -283,9 +283,9 @@ export function DashboardClient({
               Live
             </Badge>
           </div>
-          <a href="/orders" className="text-xs text-primary hover:underline">
+          <Link href="/orders" className="text-xs text-primary hover:underline">
             전체보기
-          </a>
+          </Link>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">

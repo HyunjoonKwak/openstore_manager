@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Platform, Json } from '@/types/database.types'
+import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 
 export interface UserProfile {
   id: string
@@ -75,7 +76,7 @@ export async function getStoreProfile(): Promise<{ data: StoreProfile | null; er
   const { data: store, error } = await supabase
     .from('stores')
     .select('*')
-    .eq('user_id', userData.user.id)
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
     .single()
 
   if (error) {
@@ -94,9 +95,9 @@ export async function getStoreProfile(): Promise<{ data: StoreProfile | null; er
       storeName: typedStore.store_name,
       platform: typedStore.platform as Platform,
       apiConfig: {
-        naverClientId: apiConfig.naverClientId || '',
-        naverClientSecret: apiConfig.naverClientSecret || '',
-        openaiApiKey: apiConfig.openaiApiKey || '',
+        naverClientId: '',
+        naverClientSecret: '',
+        openaiApiKey: '',
       },
       deliveryCheckSettings: {
         times: apiConfig.deliveryCheckTimes || [9, 15, 21],
@@ -129,13 +130,16 @@ export async function createOrUpdateStore(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const currentStoreId = await resolveCurrentStoreId(supabase, userData.user.id)
   const { data: existingStore } = await supabase
     .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-    .single()
+    .select('id, api_config')
+    .eq('id', currentStoreId || '')
+    .maybeSingle()
 
-  const apiConfig: Record<string, string> = {}
+  const apiConfig: Record<string, string> = {
+    ...((existingStore?.api_config || {}) as Record<string, string>),
+  }
   if (input.naverClientId) apiConfig.naverClientId = input.naverClientId
   if (input.naverClientSecret) apiConfig.naverClientSecret = input.naverClientSecret
   if (input.openaiApiKey) apiConfig.openaiApiKey = input.openaiApiKey
@@ -190,7 +194,8 @@ export async function updateDeliveryCheckSettings(
     .from('stores')
     .select('id, api_config')
     .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!existingStore) {
     return { success: false, error: '스토어를 먼저 생성해주세요.' }
@@ -235,7 +240,8 @@ export async function updateNotificationSettings(
     .from('stores')
     .select('id')
     .eq('user_id', userData.user.id)
-    .single()
+    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
+    .maybeSingle()
 
   if (!existingStore) {
     return { success: false, error: '스토어를 먼저 생성해주세요.' }

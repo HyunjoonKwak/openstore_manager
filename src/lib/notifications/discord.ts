@@ -13,14 +13,18 @@ interface SendDiscordParams {
 export async function sendDiscordWebhook(params: SendDiscordParams): Promise<SendDiscordResult> {
   const { webhookUrl, message } = params
 
-  if (!webhookUrl || !webhookUrl.startsWith('https://')) {
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(webhookUrl)
+  } catch {
     return {
       success: false,
-      error: '유효한 웹훅 URL이 아닙니다. https://로 시작하는 URL을 입력하세요.',
+      error: '유효한 웹훅 URL이 아닙니다.',
     }
   }
 
-  if (!webhookUrl.includes('discord.com/api/webhooks/')) {
+  const isDiscordHost = parsedUrl.hostname === 'discord.com' || parsedUrl.hostname === 'discordapp.com'
+  if (parsedUrl.protocol !== 'https:' || !isDiscordHost || !parsedUrl.pathname.startsWith('/api/webhooks/')) {
     return {
       success: false,
       error: '유효한 Discord 웹훅 URL이 아닙니다.',

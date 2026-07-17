@@ -27,7 +27,7 @@
 
 ### 요구사항
 
-- Node.js 18.17 이상
+- Node.js 20.9 이상
 - npm, yarn, pnpm 중 하나
 - Supabase 프로젝트
 
@@ -61,7 +61,9 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase Anonymous Key |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase Service Role Key (CRON용) |
 | `OPENAI_API_KEY` | ❌ | OpenAI API Key (AI 기능 사용시) |
-| `CRON_SECRET` | ❌ | 자동 동기화 보안 키 |
+| `CRON_SECRET` | ✅ | 자동 동기화 및 배송 점검 API 인증 키 |
+| `SCHEDULER_SECRET` | ❌ | 스케줄러 관리 API 전용 인증 키 (미설정 시 `CRON_SECRET` 사용) |
+| `SCRAPER_ALLOWED_HOSTS` | ❌ | 추가로 허용할 HTTPS 상품 호스트 목록 (쉼표 구분) |
 | `COOLSMS_API_KEY` | ❌ | CoolSMS API Key (SMS 알림용) |
 | `COOLSMS_API_SECRET` | ❌ | CoolSMS API Secret |
 | `COOLSMS_SENDER_ID` | ❌ | 발신번호 |
@@ -160,6 +162,7 @@ npm run dev      # 개발 서버 실행
 npm run build    # 프로덕션 빌드
 npm run start    # 프로덕션 서버 실행
 npm run lint     # ESLint 검사
+npm test         # 보안 정책 단위 테스트
 ```
 
 ## 문서
