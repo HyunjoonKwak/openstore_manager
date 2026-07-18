@@ -483,7 +483,7 @@ export function ComparisonViewerClient({ session: initialSession, products }: Co
           <div className="h-4 w-px bg-border" />
           <h2 className="min-w-0 flex-1 truncate text-base font-semibold">{session.title}</h2>
           <Button size="sm" className="gap-2" asChild>
-            <Link href={`/ai-generator?sessionId=${session.id}${session.my_product_id ? `&productId=${session.my_product_id}` : ''}`}>
+            <Link href={`/benchmarking?view=ai&sessionId=${session.id}${session.my_product_id ? `&productId=${session.my_product_id}` : ''}`}>
               <Sparkles className="h-4 w-4" />
               AI 판매페이지 만들기
             </Link>

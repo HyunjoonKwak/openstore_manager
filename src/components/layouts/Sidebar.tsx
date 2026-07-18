@@ -38,7 +38,7 @@ const navItems: NavItem[] = [
     label: '판매페이지 스튜디오',
     href: '/benchmarking',
     icon: WandSparkles,
-    activeHrefs: ['/benchmarking', '/ai-generator'],
+    activeHrefs: ['/benchmarking'],
   },
 ]
 

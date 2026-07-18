@@ -12,7 +12,6 @@ import {
   LayoutGrid,
   List,
   Clock,
-  ArrowRight,
   Sparkles,
   PackageSearch,
 } from 'lucide-react'
@@ -56,15 +55,31 @@ import {
 import type { ProductForBenchmark } from '@/lib/actions/benchmark'
 import type { BenchmarkSession } from '@/types/database.types'
 import { StudioWorkflow } from '@/components/product-studio/StudioWorkflow'
+import { AIGeneratorStudio } from '@/components/product-studio/AIGeneratorStudio'
 
 interface BenchmarkingClientProps {
   initialSessions: BenchmarkSession[]
   products: ProductForBenchmark[]
+  initialView?: 'research' | 'ai'
+  initialSessionId?: string
+  initialProductId?: string
 }
 
-export function BenchmarkingClient({ initialSessions, products }: BenchmarkingClientProps) {
+export function BenchmarkingClient({
+  initialSessions,
+  products,
+  initialView = 'research',
+  initialSessionId = '',
+  initialProductId = '',
+}: BenchmarkingClientProps) {
   const router = useRouter()
   const [sessions, setSessions] = useState(initialSessions)
+  const [studioView, setStudioView] = useState<'research' | 'ai'>(initialView)
+  const [hasOpenedAI, setHasOpenedAI] = useState(initialView === 'ai')
+  const [studioContext, setStudioContext] = useState({
+    sessionId: initialSessionId,
+    productId: initialProductId,
+  })
   const [isPending, startTransition] = useTransition()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
@@ -83,6 +98,24 @@ export function BenchmarkingClient({ initialSessions, products }: BenchmarkingCl
   const filteredSessions = sessions.filter((s) =>
     activeTab === 'active' ? s.status === 'active' : s.status === 'archived'
   )
+
+  const openResearch = () => {
+    setStudioView('research')
+    router.replace('/benchmarking', { scroll: false })
+  }
+
+  const openAIStudio = (session?: BenchmarkSession) => {
+    const context = session
+      ? { sessionId: session.id, productId: session.my_product_id || '' }
+      : studioContext
+    setStudioContext(context)
+    setHasOpenedAI(true)
+    setStudioView('ai')
+    const params = new URLSearchParams({ view: 'ai' })
+    if (context.sessionId) params.set('sessionId', context.sessionId)
+    if (context.productId) params.set('productId', context.productId)
+    router.replace(`/benchmarking?${params.toString()}`, { scroll: false })
+  }
 
   const handleCreate = () => {
     if (!newSession.title.trim()) {
@@ -195,29 +228,44 @@ export function BenchmarkingClient({ initialSessions, products }: BenchmarkingCl
                   통합 판매페이지 워크플로
                 </Badge>
                 <h2 className="text-xl font-bold tracking-tight lg:text-2xl">
-                  조사한 근거가 AI 초안으로 바로 이어집니다
+                  {studioView === 'research'
+                    ? '시장 조사부터 AI 제작까지 이 화면에서 끝내세요'
+                    : '조사한 근거로 판매페이지를 바로 제작하세요'}
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                  시장 상품과 경쟁 페이지를 모으고, 가져올 설득 원리를 정리한 뒤 내 상품의 판매페이지를 새로 만드세요.
+                  화면을 이동하지 않고 프로젝트를 고른 뒤 조사 근거를 연결하고, 초안을 편집해 저장할 수 있습니다.
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  새 프로젝트
+                <Button
+                  variant={studioView === 'research' ? 'default' : 'outline'}
+                  className="gap-2"
+                  onClick={openResearch}
+                >
+                  <PackageSearch className="h-4 w-4" />
+                  프로젝트 · 조사
                 </Button>
-                <Button variant="outline" className="gap-2 bg-background/70" asChild>
-                  <a href="/ai-generator">
-                    AI 제작 열기 <ArrowRight className="h-4 w-4" />
-                  </a>
+                <Button
+                  variant={studioView === 'ai' ? 'default' : 'outline'}
+                  className="gap-2 bg-background/70"
+                  onClick={() => openAIStudio()}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  AI 제작 · 저장
                 </Button>
+                {studioView === 'research' && (
+                  <Button variant="outline" onClick={() => setCreateDialogOpen(true)} className="gap-2 bg-background/70">
+                    <Plus className="h-4 w-4" />새 프로젝트
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <StudioWorkflow activeStep={1} className="mb-6" />
+        <StudioWorkflow activeStep={studioView === 'ai' ? 3 : 1} className="mb-6" />
 
+        <div className={studioView === 'research' ? 'block' : 'hidden'}>
         <Card>
           <CardHeader className="border-b border-border py-3">
             <div className="flex items-center justify-between">
@@ -345,6 +393,18 @@ export function BenchmarkingClient({ initialSessions, products }: BenchmarkingCl
                           {session.my_product_id ? '상품 연결됨' : '상품 미연결'}
                         </span>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 w-full gap-2"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openAIStudio(session)
+                        }}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        이 프로젝트로 AI 제작
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -383,6 +443,15 @@ export function BenchmarkingClient({ initialSessions, products }: BenchmarkingCl
                             <Archive className="h-4 w-4 mr-2" />
                             {session.status === 'active' ? '보관하기' : '활성화'}
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openAIStudio(session)
+                            }}
+                          >
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            AI 제작
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
@@ -404,6 +473,16 @@ export function BenchmarkingClient({ initialSessions, products }: BenchmarkingCl
             )}
           </CardContent>
         </Card>
+        </div>
+        {hasOpenedAI && (
+          <div className={studioView === 'ai' ? 'block' : 'hidden'}>
+          <AIGeneratorStudio
+            key={`${studioContext.sessionId}:${studioContext.productId}`}
+            initialSessionId={studioContext.sessionId}
+            initialProductId={studioContext.productId}
+          />
+          </div>
+        )}
       </div>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

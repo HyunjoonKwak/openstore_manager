@@ -408,7 +408,7 @@ export default function ProductDetailEditPage({ params }: PageProps) {
                       {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                       새로고침
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/ai-generator?productId=${productId}`)}>
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/benchmarking?view=ai&productId=${productId}`)}>
                       <Sparkles className="h-4 w-4 mr-2" />
                       AI 생성
                     </Button>

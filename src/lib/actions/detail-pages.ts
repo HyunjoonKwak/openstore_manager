@@ -155,7 +155,7 @@ export async function saveDetailPage(
 
   const typedData = data as unknown as DetailPageRow
 
-  revalidatePath('/ai-generator')
+  revalidatePath('/benchmarking')
   if (input.benchmarkSessionId) {
     revalidatePath(`/benchmarking/${input.benchmarkSessionId}`)
   }
@@ -187,7 +187,7 @@ export async function deleteDetailPage(
     return { success: false, error: error.message }
   }
 
-  revalidatePath('/ai-generator')
+  revalidatePath('/benchmarking')
   return { success: true, error: null }
 }
 
