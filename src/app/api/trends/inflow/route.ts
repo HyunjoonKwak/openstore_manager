@@ -34,6 +34,9 @@ export async function POST(request: Request) {
   if (!client) return NextResponse.json({ message: error }, { status: 503 })
 
   try {
+    // Warm the shared token cache before issuing date-range requests in parallel.
+    // Otherwise every request can race to create its own access token.
+    await client.getAccessToken()
     const now = new Date()
     const jobs = Array.from({ length: days }, (_, index) => {
       const to = new Date(now.getTime() - index * 86_400_000)
