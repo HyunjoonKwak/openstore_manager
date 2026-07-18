@@ -14,6 +14,8 @@ export interface StoreInfo {
     storeUrl?: string
     hasNaverClientId: boolean
     hasNaverClientSecret: boolean
+    hasNaverApiHubClientId: boolean
+    hasNaverApiHubClientSecret: boolean
     hasOpenAiKey: boolean
   }
   createdAt: string
@@ -37,6 +39,8 @@ interface StoreRow {
 interface ApiConfigJson {
   naverClientId?: string
   naverClientSecret?: string
+  naverApiHubClientId?: string
+  naverApiHubClientSecret?: string
   openaiApiKey?: string
   storeUrl?: string
 }
@@ -72,6 +76,8 @@ export async function getStores(): Promise<{ data: StoreInfo[] | null; error: st
           storeUrl: apiConfig.storeUrl || '',
           hasNaverClientId: Boolean(apiConfig.naverClientId),
           hasNaverClientSecret: Boolean(apiConfig.naverClientSecret),
+          hasNaverApiHubClientId: Boolean(apiConfig.naverApiHubClientId),
+          hasNaverApiHubClientSecret: Boolean(apiConfig.naverApiHubClientSecret),
           hasOpenAiKey: Boolean(apiConfig.openaiApiKey),
         },
         createdAt: store.created_at,
@@ -120,6 +126,8 @@ interface CreateStoreInput {
   platform: Platform
   naverClientId?: string
   naverClientSecret?: string
+  naverApiHubClientId?: string
+  naverApiHubClientSecret?: string
   openaiApiKey?: string
   storeUrl?: string
 }
@@ -135,6 +143,8 @@ export async function createStore(input: CreateStoreInput): Promise<{ data: Stor
   const apiConfig: Record<string, string> = {}
   if (input.naverClientId) apiConfig.naverClientId = input.naverClientId
   if (input.naverClientSecret) apiConfig.naverClientSecret = input.naverClientSecret
+  if (input.naverApiHubClientId) apiConfig.naverApiHubClientId = input.naverApiHubClientId
+  if (input.naverApiHubClientSecret) apiConfig.naverApiHubClientSecret = input.naverApiHubClientSecret
   if (input.openaiApiKey) apiConfig.openaiApiKey = input.openaiApiKey
   if (input.storeUrl) apiConfig.storeUrl = input.storeUrl
 
@@ -169,6 +179,8 @@ export async function createStore(input: CreateStoreInput): Promise<{ data: Stor
           storeUrl: config.storeUrl || '',
           hasNaverClientId: Boolean(config.naverClientId),
           hasNaverClientSecret: Boolean(config.naverClientSecret),
+          hasNaverApiHubClientId: Boolean(config.naverApiHubClientId),
+          hasNaverApiHubClientSecret: Boolean(config.naverApiHubClientSecret),
           hasOpenAiKey: Boolean(config.openaiApiKey),
         },
         createdAt: typedStore.created_at,
@@ -192,7 +204,7 @@ export async function updateStore(
   if (input.storeName) updateData.store_name = input.storeName
   if (input.platform) updateData.platform = input.platform
 
-  if (input.naverClientId || input.naverClientSecret || input.openaiApiKey || input.storeUrl !== undefined) {
+  if (input.naverClientId || input.naverClientSecret || input.naverApiHubClientId || input.naverApiHubClientSecret || input.openaiApiKey || input.storeUrl !== undefined) {
     const { data: existingStore } = await supabase
       .from('stores')
       .select('api_config')
@@ -204,6 +216,8 @@ export async function updateStore(
     
     if (input.naverClientId) newConfig.naverClientId = input.naverClientId
     if (input.naverClientSecret) newConfig.naverClientSecret = input.naverClientSecret
+    if (input.naverApiHubClientId) newConfig.naverApiHubClientId = input.naverApiHubClientId
+    if (input.naverApiHubClientSecret) newConfig.naverApiHubClientSecret = input.naverApiHubClientSecret
     if (input.openaiApiKey) newConfig.openaiApiKey = input.openaiApiKey
     if (input.storeUrl !== undefined) newConfig.storeUrl = input.storeUrl
     

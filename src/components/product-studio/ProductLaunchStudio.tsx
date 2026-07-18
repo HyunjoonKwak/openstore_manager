@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { TrendMarketingPanel } from '@/components/product-studio/TrendMarketingPanel'
 
 interface MarketProduct {
   rank: number
@@ -542,6 +543,8 @@ export function ProductLaunchStudio() {
       </Card>
 
       {stage === 1 && (
+        <>
+        <TrendMarketingPanel keyword={keyword} categoryId={categoryId} onUseKeyword={setKeyword} />
         <div className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
           <Card>
             <CardHeader className="border-b"><CardTitle className="flex items-center gap-2"><PackageSearch className="h-5 w-5 text-emerald-600" />조사 조건</CardTitle></CardHeader>
@@ -618,6 +621,7 @@ export function ProductLaunchStudio() {
             {products.length > 0 && <Button className="w-full" onClick={() => setStage(2)}>TOP 10 후보 확인 <ArrowRight className="ml-2 h-4 w-4" /></Button>}
           </div>
         </div>
+        </>
       )}
 
       {stage === 2 && (

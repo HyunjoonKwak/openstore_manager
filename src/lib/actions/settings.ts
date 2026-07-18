@@ -18,6 +18,8 @@ export interface StoreProfile {
   apiConfig: {
     naverClientId?: string
     naverClientSecret?: string
+    naverApiHubClientId?: string
+    naverApiHubClientSecret?: string
     openaiApiKey?: string
   }
   deliveryCheckSettings?: {
@@ -42,6 +44,8 @@ interface StoreRow {
 interface ApiConfigJson {
   naverClientId?: string
   naverClientSecret?: string
+  naverApiHubClientId?: string
+  naverApiHubClientSecret?: string
   openaiApiKey?: string
   deliveryCheckTimes?: number[] // 배송확인 시간 (KST 시간, 예: [9, 15, 21])
   deliveryCheckEnabled?: boolean
@@ -97,6 +101,8 @@ export async function getStoreProfile(): Promise<{ data: StoreProfile | null; er
       apiConfig: {
         naverClientId: '',
         naverClientSecret: '',
+        naverApiHubClientId: '',
+        naverApiHubClientSecret: '',
         openaiApiKey: '',
       },
       deliveryCheckSettings: {
@@ -117,6 +123,8 @@ interface CreateOrUpdateStoreInput {
   platform: Platform
   naverClientId?: string
   naverClientSecret?: string
+  naverApiHubClientId?: string
+  naverApiHubClientSecret?: string
   openaiApiKey?: string
 }
 
@@ -142,6 +150,8 @@ export async function createOrUpdateStore(
   }
   if (input.naverClientId) apiConfig.naverClientId = input.naverClientId
   if (input.naverClientSecret) apiConfig.naverClientSecret = input.naverClientSecret
+  if (input.naverApiHubClientId) apiConfig.naverApiHubClientId = input.naverApiHubClientId
+  if (input.naverApiHubClientSecret) apiConfig.naverApiHubClientSecret = input.naverApiHubClientSecret
   if (input.openaiApiKey) apiConfig.openaiApiKey = input.openaiApiKey
 
   if (existingStore) {

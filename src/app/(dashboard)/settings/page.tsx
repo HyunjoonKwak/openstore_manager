@@ -81,6 +81,8 @@ export default function SettingsPage() {
   const [apiKeys, setApiKeys] = useState({
     naverClientId: '',
     naverClientSecret: '',
+    naverApiHubClientId: '',
+    naverApiHubClientSecret: '',
     openaiApiKey: '',
   })
 
@@ -152,6 +154,8 @@ export default function SettingsPage() {
         setApiKeys({
           naverClientId: storeResult.data.apiConfig.naverClientId || '',
           naverClientSecret: storeResult.data.apiConfig.naverClientSecret || '',
+          naverApiHubClientId: storeResult.data.apiConfig.naverApiHubClientId || '',
+          naverApiHubClientSecret: storeResult.data.apiConfig.naverApiHubClientSecret || '',
           openaiApiKey: storeResult.data.apiConfig.openaiApiKey || '',
         })
         if (storeResult.data.deliveryCheckSettings) {
@@ -221,6 +225,8 @@ export default function SettingsPage() {
         platform: profile.platform,
         naverClientId: apiKeys.naverClientId || undefined,
         naverClientSecret: apiKeys.naverClientSecret || undefined,
+        naverApiHubClientId: apiKeys.naverApiHubClientId || undefined,
+        naverApiHubClientSecret: apiKeys.naverApiHubClientSecret || undefined,
         openaiApiKey: apiKeys.openaiApiKey || undefined,
       })
 
@@ -711,6 +717,36 @@ export default function SettingsPage() {
                 </div>
               </div>
               
+              <Separator />
+
+              <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+                <div>
+                  <h4 className="font-medium">NAVER API HUB</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    검색어 트렌드와 쇼핑 인사이트 전용 키입니다. 커머스 API 키와 별도로 발급됩니다.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="naverApiHubClientId">Client ID</Label>
+                  <Input
+                    id="naverApiHubClientId"
+                    value={apiKeys.naverApiHubClientId}
+                    onChange={(e) => setApiKeys((prev) => ({ ...prev, naverApiHubClientId: e.target.value }))}
+                    placeholder="NAVER Cloud Application Client ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="naverApiHubClientSecret">Client Secret</Label>
+                  <Input
+                    id="naverApiHubClientSecret"
+                    type="password"
+                    value={apiKeys.naverApiHubClientSecret}
+                    onChange={(e) => setApiKeys((prev) => ({ ...prev, naverApiHubClientSecret: e.target.value }))}
+                    placeholder="••••••••••••••••"
+                  />
+                </div>
+              </div>
+
               <Separator />
               
               <div className="space-y-4 p-4 border rounded-lg bg-muted/30">

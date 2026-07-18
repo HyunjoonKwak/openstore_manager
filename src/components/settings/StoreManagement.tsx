@@ -36,6 +36,8 @@ interface StoreFormData {
   storeUrl: string
   naverClientId: string
   naverClientSecret: string
+  naverApiHubClientId: string
+  naverApiHubClientSecret: string
   openaiApiKey: string
 }
 
@@ -45,6 +47,8 @@ const defaultFormData: StoreFormData = {
   storeUrl: '',
   naverClientId: '',
   naverClientSecret: '',
+  naverApiHubClientId: '',
+  naverApiHubClientSecret: '',
   openaiApiKey: '',
 }
 
@@ -69,6 +73,8 @@ export function StoreManagement() {
         storeUrl: formData.storeUrl || undefined,
         naverClientId: formData.naverClientId || undefined,
         naverClientSecret: formData.naverClientSecret || undefined,
+        naverApiHubClientId: formData.naverApiHubClientId || undefined,
+        naverApiHubClientSecret: formData.naverApiHubClientSecret || undefined,
         openaiApiKey: formData.openaiApiKey || undefined,
       })
 
@@ -96,6 +102,8 @@ export function StoreManagement() {
         storeUrl: formData.storeUrl,
         naverClientId: formData.naverClientId,
         naverClientSecret: formData.naverClientSecret,
+        naverApiHubClientId: formData.naverApiHubClientId,
+        naverApiHubClientSecret: formData.naverApiHubClientSecret,
         openaiApiKey: formData.openaiApiKey,
       })
 
@@ -131,6 +139,8 @@ export function StoreManagement() {
       storeUrl: store.apiConfig.storeUrl || '',
       naverClientId: '',
       naverClientSecret: '',
+      naverApiHubClientId: '',
+      naverApiHubClientSecret: '',
       openaiApiKey: '',
     })
   }
@@ -198,6 +208,27 @@ export function StoreManagement() {
           placeholder={isEdit && editingStore?.apiConfig.hasNaverClientSecret ? '저장됨 — 변경할 때만 입력' : '••••••••'}
         />
       </div>
+      <Separator />
+      <div className="space-y-2">
+        <Label htmlFor="naverApiHubClientId">NAVER API HUB Client ID</Label>
+        <Input
+          id="naverApiHubClientId"
+          value={formData.naverApiHubClientId}
+          onChange={(e) => setFormData((prev) => ({ ...prev, naverApiHubClientId: e.target.value }))}
+          placeholder={isEdit && editingStore?.apiConfig.hasNaverApiHubClientId ? '저장됨 — 변경할 때만 입력' : '트렌드 Application Client ID'}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="naverApiHubClientSecret">NAVER API HUB Client Secret</Label>
+        <Input
+          id="naverApiHubClientSecret"
+          type="password"
+          value={formData.naverApiHubClientSecret}
+          onChange={(e) => setFormData((prev) => ({ ...prev, naverApiHubClientSecret: e.target.value }))}
+          placeholder={isEdit && editingStore?.apiConfig.hasNaverApiHubClientSecret ? '저장됨 — 변경할 때만 입력' : '••••••••'}
+        />
+        <p className="text-xs text-muted-foreground">검색어 트렌드와 쇼핑 인사이트에 사용됩니다.</p>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="openaiApiKey">OpenAI API 키 (선택)</Label>
         <Input
@@ -231,7 +262,7 @@ export function StoreManagement() {
                 스토어 추가
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>새 스토어 추가</DialogTitle>
                 <DialogDescription>
@@ -294,7 +325,7 @@ export function StoreManagement() {
                         <Edit2 className="h-4 w-4" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="max-h-[85vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>스토어 수정</DialogTitle>
                         <DialogDescription>
