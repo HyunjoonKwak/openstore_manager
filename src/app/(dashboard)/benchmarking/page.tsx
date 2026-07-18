@@ -20,7 +20,7 @@ export default async function BenchmarkingPage({ searchParams }: BenchmarkingPag
     <BenchmarkingClient
       initialSessions={sessionsResult.data || []}
       products={productsResult.data || []}
-      initialView={view === 'ai' ? 'ai' : 'research'}
+      initialView={view === 'ai' ? 'ai' : view === 'research' ? 'research' : 'launch'}
       initialSessionId={sessionId || ''}
       initialProductId={productId || ''}
     />

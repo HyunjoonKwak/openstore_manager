@@ -14,6 +14,7 @@ import {
   Clock,
   Sparkles,
   PackageSearch,
+  Rocket,
 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -56,11 +57,14 @@ import type { ProductForBenchmark } from '@/lib/actions/benchmark'
 import type { BenchmarkSession } from '@/types/database.types'
 import { StudioWorkflow } from '@/components/product-studio/StudioWorkflow'
 import { AIGeneratorStudio } from '@/components/product-studio/AIGeneratorStudio'
+import { ProductLaunchStudio } from '@/components/product-studio/ProductLaunchStudio'
+
+type StudioView = 'launch' | 'research' | 'ai'
 
 interface BenchmarkingClientProps {
   initialSessions: BenchmarkSession[]
   products: ProductForBenchmark[]
-  initialView?: 'research' | 'ai'
+  initialView?: StudioView
   initialSessionId?: string
   initialProductId?: string
 }
@@ -68,13 +72,13 @@ interface BenchmarkingClientProps {
 export function BenchmarkingClient({
   initialSessions,
   products,
-  initialView = 'research',
+  initialView = 'launch',
   initialSessionId = '',
   initialProductId = '',
 }: BenchmarkingClientProps) {
   const router = useRouter()
   const [sessions, setSessions] = useState(initialSessions)
-  const [studioView, setStudioView] = useState<'research' | 'ai'>(initialView)
+  const [studioView, setStudioView] = useState<StudioView>(initialView)
   const [hasOpenedAI, setHasOpenedAI] = useState(initialView === 'ai')
   const [studioContext, setStudioContext] = useState({
     sessionId: initialSessionId,
@@ -99,9 +103,14 @@ export function BenchmarkingClient({
     activeTab === 'active' ? s.status === 'active' : s.status === 'archived'
   )
 
+  const openLaunchStudio = () => {
+    setStudioView('launch')
+    router.replace('/benchmarking', { scroll: false })
+  }
+
   const openResearch = () => {
     setStudioView('research')
-    router.replace('/benchmarking', { scroll: false })
+    router.replace('/benchmarking?view=research', { scroll: false })
   }
 
   const openAIStudio = (session?: BenchmarkSession) => {
@@ -228,22 +237,33 @@ export function BenchmarkingClient({
                   통합 판매페이지 워크플로
                 </Badge>
                 <h2 className="text-xl font-bold tracking-tight lg:text-2xl">
-                  {studioView === 'research'
-                    ? '시장 조사부터 AI 제작까지 이 화면에서 끝내세요'
-                    : '조사한 근거로 판매페이지를 바로 제작하세요'}
+                  {studioView === 'launch'
+                    ? '유행 상품을 찾고, 분석하고, 스마트스토어에 출시하세요'
+                    : studioView === 'research'
+                      ? '판매 중인 상품의 경쟁 페이지를 비교하세요'
+                      : '기존 상품과 저장된 판매페이지 초안을 관리하세요'}
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                  화면을 이동하지 않고 프로젝트를 고른 뒤 조사 근거를 연결하고, 초안을 편집해 저장할 수 있습니다.
+                  상품군과 검색어는 매번 바꿀 수 있습니다. 가격 분포와 공개 판매 신호를 비교하고,
+                  선택한 근거로 내 제품 사진을 사용한 상세페이지를 제작합니다.
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
+                <Button
+                  variant={studioView === 'launch' ? 'default' : 'outline'}
+                  className="gap-2"
+                  onClick={openLaunchStudio}
+                >
+                  <Rocket className="h-4 w-4" />
+                  신상품 출시
+                </Button>
                 <Button
                   variant={studioView === 'research' ? 'default' : 'outline'}
                   className="gap-2"
                   onClick={openResearch}
                 >
                   <PackageSearch className="h-4 w-4" />
-                  프로젝트 · 조사
+                  기존 상품 개선
                 </Button>
                 <Button
                   variant={studioView === 'ai' ? 'default' : 'outline'}
@@ -251,7 +271,7 @@ export function BenchmarkingClient({
                   onClick={() => openAIStudio()}
                 >
                   <Sparkles className="h-4 w-4" />
-                  AI 제작 · 저장
+                  기존 초안 관리
                 </Button>
                 {studioView === 'research' && (
                   <Button variant="outline" onClick={() => setCreateDialogOpen(true)} className="gap-2 bg-background/70">
@@ -263,7 +283,11 @@ export function BenchmarkingClient({
           </CardContent>
         </Card>
 
-        <StudioWorkflow activeStep={studioView === 'ai' ? 3 : 1} className="mb-6" />
+        {studioView === 'launch' ? (
+          <ProductLaunchStudio />
+        ) : (
+          <StudioWorkflow activeStep={studioView === 'ai' ? 3 : 1} className="mb-6" />
+        )}
 
         <div className={studioView === 'research' ? 'block' : 'hidden'}>
         <Card>
