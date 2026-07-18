@@ -247,7 +247,7 @@ export function BenchmarkingClient({
                 </Button>
                 <Button
                   variant={studioView === 'ai' ? 'default' : 'outline'}
-                  className="gap-2 bg-background/70"
+                  className="gap-2"
                   onClick={() => openAIStudio()}
                 >
                   <Sparkles className="h-4 w-4" />

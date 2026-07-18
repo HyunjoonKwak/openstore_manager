@@ -214,7 +214,9 @@ export function AIGeneratorStudio({
     const result = await getBenchmarkSession(sessionId)
     setIsContextLoading(false)
     if (!result.data) {
-      toast.error(result.error || '프로젝트를 불러오지 못했습니다.')
+      setSelectedSessionId('none')
+      setSessionContext(null)
+      toast.error('프로젝트가 없거나 접근할 수 없습니다.')
       return
     }
     setSessionContext(result.data)
