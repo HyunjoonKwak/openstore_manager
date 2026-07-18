@@ -36,7 +36,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { keywords, category, tone, options } = await request.json()
+    const {
+      keywords,
+      category,
+      tone,
+      audience,
+      proof,
+      product,
+      benchmarkContext,
+      options = {},
+    } = await request.json()
+
+    if (typeof keywords !== 'string' || keywords.trim().length < 2) {
+      return NextResponse.json({ error: '상품명 또는 키워드를 입력해주세요.' }, { status: 400 })
+    }
 
     const apiKey = await getOpenAIKey()
     if (!apiKey) {
@@ -48,22 +61,53 @@ export async function POST(request: Request) {
 
     const openai = new OpenAI({ apiKey })
 
-    const systemPrompt = `You are an expert e-commerce product copywriter for Korean online stores (Naver SmartStore, Coupang, etc.).
-Generate compelling product content in Korean.
+    const safeBenchmarkContext = typeof benchmarkContext === 'string'
+      ? benchmarkContext.slice(0, 8_000)
+      : ''
+    const safeProof = typeof proof === 'string' ? proof.slice(0, 2_000) : ''
+
+    const systemPrompt = `You are a senior Korean e-commerce strategist and product-page copywriter.
+Create an original, mobile-first sales page for Naver SmartStore or similar marketplaces.
+
+Hard rules:
+- Use competitor research only as structural inspiration. Never copy source wording, names, or images.
+- Never invent certifications, test results, awards, reviews, quantities, performance figures, or guarantees.
+- If proof is absent, write a transparent request to verify product specifications instead of fabricating proof.
+- Turn features into customer benefits and concrete usage scenes.
+- Keep headings short and scannable in Korean.
 
 Category: ${category}
 Tone: ${tone}
-${options.seo ? 'Include SEO optimization for Korean search engines.' : ''}
-${options.html ? 'Include basic HTML formatting.' : 'Plain text only.'}
+${options.seo ? 'Apply the supplied search keywords naturally to the title and opening copy.' : 'Do not force SEO keywords.'}
 
 Output JSON format:
 {
-  "title": "Product title (max 200 chars, include main keywords)",
-  "features": ["5 key features as bullet points"],
-  "description": "Compelling product description (200-300 chars)"
+  "title": "search-friendly product title, max 100 Korean characters",
+  "heroKicker": "short opening promise",
+  "targetAudience": "one sentence describing the customer and usage situation",
+  "problemTitle": "customer problem section heading",
+  "problemBody": "2-3 sentences that empathize without exaggeration",
+  "features": ["exactly 3-5 concrete benefit statements"],
+  "comparisonTitle": "selection criteria heading",
+  "comparisonBody": "how to compare this category fairly, using only supplied facts",
+  "proofTitle": "trust section heading",
+  "proofBody": "only supplied evidence, or a clear verification notice",
+  "faq": [{"question":"purchase concern", "answer":"honest answer"}],
+  "ctaText": "final low-pressure call to action",
+  "description": "marketplace summary description, 200-300 Korean characters"
 }`
 
-    const userPrompt = `Generate product content for: ${keywords}`
+    const userPrompt = `Create the sales page from the following brief.
+
+Product / keywords: ${keywords.trim()}
+Registered product facts: ${product ? JSON.stringify(product) : 'Not linked'}
+Target audience: ${typeof audience === 'string' && audience.trim() ? audience.trim() : 'Infer conservatively from the product category'}
+Verified evidence supplied by seller: ${safeProof || 'None supplied'}
+
+Benchmark research brief:
+${safeBenchmarkContext || 'No benchmark project linked'}
+
+Return JSON only.`
 
     const model = 'gpt-4o'
     const completion = await openai.chat.completions.create({
@@ -105,7 +149,12 @@ Output JSON format:
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
-        metadata: { keywords, category, tone },
+        metadata: {
+          keywords,
+          category,
+          tone,
+          hasBenchmarkContext: Boolean(safeBenchmarkContext),
+        },
       })
     }
 

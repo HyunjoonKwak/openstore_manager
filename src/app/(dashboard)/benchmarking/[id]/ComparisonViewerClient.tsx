@@ -16,6 +16,10 @@ import {
   Download,
   Pencil,
   Link as LinkIcon,
+  Search,
+  Sparkles,
+  Loader2,
+  ShoppingBag,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -57,6 +61,19 @@ import {
 } from '@/lib/actions/benchmark'
 import type { BenchmarkSessionWithDetails, ProductForBenchmark } from '@/lib/actions/benchmark'
 import type { BenchmarkPage, BenchmarkChecklist, BenchmarkMemo, BenchmarkAsset } from '@/types/database.types'
+import { StudioWorkflow } from '@/components/product-studio/StudioWorkflow'
+
+interface MarketProduct {
+  product_id: string
+  title: string
+  price: number
+  mall_name: string
+  url: string
+  image_url?: string
+  brand?: string
+  review_count?: number
+  purchase_count?: number
+}
 
 interface ComparisonViewerClientProps {
   session: BenchmarkSessionWithDetails
@@ -69,7 +86,7 @@ export function ComparisonViewerClient({ session: initialSession, products }: Co
   const [selectedPageId, setSelectedPageId] = useState<string | null>(
     session.pages[0]?.id || null
   )
-  const [activePanel, setActivePanel] = useState<'checklist' | 'pages' | 'memos' | 'assets'>('checklist')
+  const [activePanel, setActivePanel] = useState<'research' | 'checklist' | 'pages' | 'memos' | 'assets'>('research')
 
   const [addPageDialogOpen, setAddPageDialogOpen] = useState(false)
   const [newPageUrl, setNewPageUrl] = useState('')
@@ -95,9 +112,69 @@ export function ComparisonViewerClient({ session: initialSession, products }: Co
   const [myPageZoom, setMyPageZoom] = useState(100)
   const [comparePageZoom, setComparePageZoom] = useState(100)
 
+  const [marketQuery, setMarketQuery] = useState(session.title.replace(/판매페이지|개선|프로젝트/g, '').trim())
+  const [marketProducts, setMarketProducts] = useState<MarketProduct[]>([])
+  const [isMarketLoading, setIsMarketLoading] = useState(false)
+  const [marketMessage, setMarketMessage] = useState('상품명을 검색해 노출 상위 상품을 비교 자료로 추가하세요.')
+
   const selectedPage = session.pages.find((p) => p.id === selectedPageId)
 
   const zoomOptions = [50, 75, 100]
+
+  const handleMarketSearch = async () => {
+    if (marketQuery.trim().length < 2) {
+      toast.error('검색어를 두 글자 이상 입력해주세요.')
+      return
+    }
+
+    setIsMarketLoading(true)
+    setMarketMessage('네이버 쇼핑 공개 노출 결과를 불러오는 중입니다.')
+    try {
+      const response = await fetch(`/api/market-research?q=${encodeURIComponent(marketQuery.trim())}&limit=20`)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || '시장 검색에 실패했습니다.')
+
+      const items = Array.isArray(data.items) ? data.items : []
+      setMarketProducts(items)
+      setMarketMessage(
+        items.length > 0
+          ? `${items.length}개 상품을 찾았습니다. 노출 순위는 실제 판매량 순위가 아닙니다.`
+          : '검색 결과가 없습니다. 더 넓은 상품명으로 다시 검색해보세요.'
+      )
+    } catch (error) {
+      setMarketProducts([])
+      setMarketMessage(error instanceof Error ? error.message : '시장 검색에 실패했습니다.')
+    } finally {
+      setIsMarketLoading(false)
+    }
+  }
+
+  const handleAddMarketProduct = (product: MarketProduct) => {
+    if (!product.url || product.url === '#') {
+      toast.error('상세페이지 주소가 없는 상품입니다.')
+      return
+    }
+    if (session.pages.some((page) => page.url === product.url)) {
+      toast.info('이미 비교 페이지에 추가된 상품입니다.')
+      return
+    }
+
+    startTransition(async () => {
+      const result = await addBenchmarkPage(session.id, {
+        url: product.url.split('?')[0],
+        title: product.title.replace(/<[^>]+>/g, ''),
+        platform: detectPlatform(product.url),
+      })
+
+      if (result.data) {
+        setSession((current) => ({ ...current, pages: [...current.pages, result.data!] }))
+        setSelectedPageId(result.data.id)
+        toast.success('비교 페이지에 추가했습니다.')
+      } else {
+        toast.error(result.error || '페이지 추가에 실패했습니다.')
+      }
+    })
+  }
 
   const handleAddPage = () => {
     if (!newPageUrl.trim()) {
@@ -397,15 +474,22 @@ export function ComparisonViewerClient({ session: initialSession, products }: Co
 
   return (
     <>
-      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:px-6">
-        <Link href="/benchmarking" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          <span className="text-sm">뒤로</span>
-        </Link>
-        <div className="h-4 w-px bg-border" />
-        <div>
-          <h2 className="text-base font-semibold">{session.title}</h2>
+      <div className="shrink-0 border-b border-border bg-card px-4 py-3 lg:px-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/benchmarking" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            <span className="text-sm">프로젝트</span>
+          </Link>
+          <div className="h-4 w-px bg-border" />
+          <h2 className="min-w-0 flex-1 truncate text-base font-semibold">{session.title}</h2>
+          <Button size="sm" className="gap-2" asChild>
+            <Link href={`/ai-generator?sessionId=${session.id}${session.my_product_id ? `&productId=${session.my_product_id}` : ''}`}>
+              <Sparkles className="h-4 w-4" />
+              AI 판매페이지 만들기
+            </Link>
+          </Button>
         </div>
+        <StudioWorkflow activeStep={session.checklists.length > 0 || session.memos.length > 0 ? 2 : 1} compact className="mt-3" />
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
@@ -596,7 +680,11 @@ export function ComparisonViewerClient({ session: initialSession, products }: Co
 
         <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-border flex flex-col bg-background shrink-0">
           <Tabs value={activePanel} onValueChange={(v) => setActivePanel(v as typeof activePanel)} className="flex-1 flex flex-col">
-            <TabsList className="w-full rounded-none border-b h-10 grid grid-cols-4">
+            <TabsList className="w-full rounded-none border-b h-10 grid grid-cols-5">
+              <TabsTrigger value="research" className="gap-1 text-xs px-1">
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">시장</span>
+              </TabsTrigger>
               <TabsTrigger value="checklist" className="gap-1 text-xs px-1">
                 <CheckSquare className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">체크</span>
@@ -632,6 +720,81 @@ export function ComparisonViewerClient({ session: initialSession, products }: Co
                 </Badge>
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="research" className="flex-1 m-0 overflow-hidden flex flex-col">
+              <div className="space-y-2 border-b p-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={marketQuery}
+                    onChange={(event) => setMarketQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') void handleMarketSearch()
+                    }}
+                    placeholder="예: 휴대용 선풍기"
+                    className="h-8 text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => void handleMarketSearch()}
+                    disabled={isMarketLoading}
+                  >
+                    {isMarketLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">{marketMessage}</p>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="space-y-2 p-2">
+                  {marketProducts.length === 0 ? (
+                    <div className="py-10 text-center text-muted-foreground">
+                      <ShoppingBag className="mx-auto mb-2 h-9 w-9 opacity-30" />
+                      <p className="text-sm">검색 결과가 여기에 표시됩니다</p>
+                      <p className="mt-1 text-xs">상위 상품을 골라 비교 페이지로 추가하세요</p>
+                    </div>
+                  ) : (
+                    marketProducts.map((product, index) => {
+                      const cleanTitle = product.title.replace(/<[^>]+>/g, '')
+                      const isAdded = session.pages.some((page) => page.url === product.url || page.url === product.url?.split('?')[0])
+                      return (
+                        <div key={`${product.product_id}-${index}`} className="rounded-lg border bg-card p-2.5">
+                          <div className="flex gap-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
+                              {index + 1}
+                            </div>
+                            {product.image_url && (
+                              <img src={product.image_url} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-2 text-xs font-medium leading-relaxed">{cleanTitle}</p>
+                              <p className="mt-1 text-[11px] text-muted-foreground">
+                                {product.mall_name} · {Number(product.price || 0).toLocaleString('ko-KR')}원
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-2 flex items-center justify-end gap-1">
+                            {product.url && product.url !== '#' && (
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => window.open(product.url, '_blank')}>
+                                <ExternalLink className="mr-1 h-3 w-3" /> 보기
+                              </Button>
+                            )}
+                            <Button
+                              variant={isAdded ? 'secondary' : 'outline'}
+                              size="sm"
+                              className="h-7 text-xs"
+                              disabled={isAdded || isPending}
+                              onClick={() => handleAddMarketProduct(product)}
+                            >
+                              {isAdded ? '추가됨' : '비교에 추가'}
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
             <TabsContent value="checklist" className="flex-1 m-0 overflow-hidden flex flex-col">
               <div className="p-3 border-b">

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { productName, productDescription, currentTitle, currentFeatures, imageUrl, category } =
+    const { productName, productDescription, currentTitle, currentFeatures, imageUrl, category, benchmarkContext } =
       await request.json()
 
     const apiKey = await getOpenAIKey()
@@ -91,6 +91,7 @@ Current Title: ${currentTitle || productName}
 Current Features: ${currentFeatures?.join(', ') || 'Not provided'}
 Product Description: ${productDescription || 'Not provided'}
 ${imageUrl ? `Product Image URL: ${imageUrl}` : ''}
+${typeof benchmarkContext === 'string' && benchmarkContext.trim() ? `Benchmark research and improvement notes:\n${benchmarkContext.slice(0, 8000)}` : ''}
 
 Please provide a comprehensive analysis with specific improvement suggestions.`
 

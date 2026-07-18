@@ -1,8 +1,16 @@
-import { getBenchmarkSessions } from '@/lib/actions/benchmark'
+import { getBenchmarkSessions, getProductsForBenchmark } from '@/lib/actions/benchmark'
 import { BenchmarkingClient } from './BenchmarkingClient'
 
 export default async function BenchmarkingPage() {
-  const { data: sessions } = await getBenchmarkSessions()
+  const [sessionsResult, productsResult] = await Promise.all([
+    getBenchmarkSessions(),
+    getProductsForBenchmark(),
+  ])
 
-  return <BenchmarkingClient initialSessions={sessions || []} />
+  return (
+    <BenchmarkingClient
+      initialSessions={sessionsResult.data || []}
+      products={productsResult.data || []}
+    />
+  )
 }

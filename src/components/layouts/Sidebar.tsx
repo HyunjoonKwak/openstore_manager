@@ -9,8 +9,7 @@ import {
   Settings,
   Truck,
   Wallet,
-  BarChart3,
-  Sparkles,
+  WandSparkles,
   Search,
   Send,
   Store,
@@ -24,6 +23,7 @@ interface NavItem {
   href: string
   icon: React.ElementType
   badge?: number
+  activeHrefs?: string[]
 }
 
 const navItems: NavItem[] = [
@@ -34,8 +34,12 @@ const navItems: NavItem[] = [
   { label: '정산관리', href: '/settlements', icon: Wallet },
   { label: '공급업체', href: '/suppliers', icon: Truck },
   { label: '배송조회', href: '/tracking', icon: Search },
-  { label: '벤치마킹', href: '/benchmarking', icon: BarChart3 },
-  { label: 'AI 생성기', href: '/ai-generator', icon: Sparkles },
+  {
+    label: '판매페이지 스튜디오',
+    href: '/benchmarking',
+    icon: WandSparkles,
+    activeHrefs: ['/benchmarking', '/ai-generator'],
+  },
 ]
 
 const bottomNavItems: NavItem[] = [
@@ -84,7 +88,9 @@ export function Sidebar({ className }: SidebarProps) {
             메인 메뉴
           </p>
           {navItems.map((item) => {
-            const isActive = item.href === '/orders' 
+            const isActive = item.activeHrefs
+              ? item.activeHrefs.some((href) => pathname.startsWith(href))
+              : item.href === '/orders'
               ? pathname === '/orders' || pathname === '/orders/send'
               : pathname.startsWith(item.href)
             return (

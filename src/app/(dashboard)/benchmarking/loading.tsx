@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 export default function BenchmarkingLoading() {
   return (
     <>
-      <Header title="벤치마킹 분석" subtitle="Benchmarking" />
+      <Header title="판매페이지 스튜디오" subtitle="RESEARCH → CREATE" />
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
         <Card className="mb-6">
