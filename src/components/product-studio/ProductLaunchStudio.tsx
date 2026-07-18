@@ -168,6 +168,7 @@ export function ProductLaunchStudio() {
   const [category, setCategory] = useState('')
   const [limit, setLimit] = useState('40')
   const [products, setProducts] = useState<MarketProduct[]>([])
+  const [showAllCandidates, setShowAllCandidates] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [patterns, setPatterns] = useState<Record<string, PatternId[]>>({})
   const [isSearching, setIsSearching] = useState(false)
@@ -324,6 +325,7 @@ export function ProductLaunchStudio() {
         purchase_count: Number(item.purchase_count || 0) || undefined,
       })).filter((item: MarketProduct) => item.price > 0)
       setProducts(normalized)
+      setShowAllCandidates(false)
       const autoTop = [...normalized].sort((a, b) => popularityScore(b) - popularityScore(a)).slice(0, 10)
       setSelectedIds(autoTop.map((item) => item.product_id))
       setSalePrice(String(Math.round(percentile(normalized.map((item) => item.price), 0.5) / 100) * 100))
@@ -351,6 +353,7 @@ export function ProductLaunchStudio() {
     }).filter((item): item is MarketProduct => item !== null)
     if (!parsed.length) return toast.error('가져올 수 있는 상품 행이 없습니다.')
     setProducts(parsed)
+    setShowAllCandidates(false)
     setSelectedIds(parsed.slice(0, 10).map((item) => item.product_id))
     setSalePrice(String(Math.round(percentile(parsed.map((item) => item.price), 0.5) / 100) * 100))
     setMessage(`${parsed.length}개 직접 입력 상품을 가져왔습니다.`)
@@ -622,7 +625,7 @@ export function ProductLaunchStudio() {
           <CardHeader className="flex-row items-start justify-between border-b"><div><CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-emerald-600" />예상 인기 TOP 10 선정</CardTitle><p className="mt-2 text-sm text-muted-foreground">정확한 판매량이 아니라 공개 구매수, 리뷰수, 검색 노출순위를 조합한 추정 결과입니다. 직접 후보를 바꿀 수 있습니다.</p></div><Badge>{selectedIds.length}/10 선택</Badge></CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
-              {rankedProducts.map((product, index) => {
+              {(showAllCandidates ? rankedProducts : rankedProducts.slice(0, 15)).map((product, index) => {
                 const selected = selectedIds.includes(product.product_id)
                 return <div key={product.product_id} className={`grid gap-3 p-4 lg:grid-cols-[36px_56px_minmax(0,1fr)_150px_110px_90px] lg:items-center ${selected ? 'bg-emerald-500/5' : ''}`}>
                   <Checkbox checked={selected} onCheckedChange={() => toggleProduct(product.product_id)} aria-label={`${product.title} 선택`} />
@@ -634,6 +637,15 @@ export function ProductLaunchStudio() {
                 </div>
               })}
             </div>
+            {rankedProducts.length > 15 && (
+              <div className="border-t bg-muted/20 p-3 text-center">
+                <Button variant="ghost" size="sm" onClick={() => setShowAllCandidates((current) => !current)}>
+                  {showAllCandidates
+                    ? '상위 15개만 보기'
+                    : `후보 ${rankedProducts.length - 15}개 더 보기`}
+                </Button>
+              </div>
+            )}
             <div className="flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-between"><Button variant="outline" onClick={() => setStage(1)}><ArrowLeft className="mr-2 h-4 w-4" />조건 수정</Button><Button onClick={() => setStage(3)} disabled={!selectedProducts.length}>선택한 {selectedProducts.length}개 장점 분석 <ArrowRight className="ml-2 h-4 w-4" /></Button></div>
           </CardContent>
         </Card>

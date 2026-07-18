@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getCurrentNaverClient } from '@/lib/naver/current-client'
+import { formatCommerceError, getCurrentNaverClient } from '@/lib/naver/current-client'
 
 const COMMERCE_BASE = 'https://api.commerce.naver.com/external'
 
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
     })
   } catch (publishError) {
     return NextResponse.json(
-      { message: publishError instanceof Error ? publishError.message : '상품을 게시하지 못했습니다.' },
+      { message: formatCommerceError(publishError, '상품을 게시하지 못했습니다.') },
       { status: 502 }
     )
   }

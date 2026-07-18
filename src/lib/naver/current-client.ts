@@ -10,6 +10,17 @@ interface NaverApiConfig {
   naverSellerId?: string
 }
 
+export function formatCommerceError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : ''
+  if (message.includes('auth.eapp-application.status.invalid') || message.includes('어플리케이션 상태')) {
+    return '네이버 커머스 API 앱이 현재 사용 가능한 상태가 아닙니다. 커머스 API 센터에서 앱 상태를 확인해주세요.'
+  }
+  if (message.includes('Failed to get access token')) {
+    return '네이버 커머스 API 인증에 실패했습니다. 설정에서 Client ID와 Client Secret을 확인해주세요.'
+  }
+  return message || fallback
+}
+
 export async function getCurrentNaverClient(): Promise<{
   client: NaverCommerceClient | null
   configured: boolean

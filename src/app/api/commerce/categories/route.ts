@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentNaverClient } from '@/lib/naver/current-client'
+import { formatCommerceError, getCurrentNaverClient } from '@/lib/naver/current-client'
 
 const COMMERCE_BASE = 'https://api.commerce.naver.com/external'
 
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ items }, { headers: { 'Cache-Control': 'private, max-age=600' } })
   } catch (categoryError) {
     return NextResponse.json(
-      { message: categoryError instanceof Error ? categoryError.message : '카테고리 요청에 실패했습니다.' },
+      { message: formatCommerceError(categoryError, '카테고리 요청에 실패했습니다.') },
       { status: 502 }
     )
   }
