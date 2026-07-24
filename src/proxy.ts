@@ -40,11 +40,12 @@ function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
     `script-src ${scriptSrc.join(' ')}`,
-    // Tailwind and Next.js emit inline style attributes/tags.
-    "style-src 'self' 'unsafe-inline'",
+    // Tailwind and Next.js emit inline style attributes/tags; Pretendard
+    // webfont CSS is served from jsdelivr (see src/app/layout.tsx).
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
     // Scraped product images come from arbitrary https hosts.
     "img-src 'self' https: data: blob:",
-    "font-src 'self' data:",
+    "font-src 'self' data: https://cdn.jsdelivr.net",
     `connect-src ${connectSrc.join(' ')}`,
     // External competitor page previews are embedded in iframes.
     'frame-src https:',
@@ -66,6 +67,9 @@ export async function proxy(request: NextRequest) {
   // framework inline scripts. Cookie handling is untouched: Supabase mutates
   // request.cookies on this same request object.
   request.headers.set('content-security-policy', csp)
+  // Expose the nonce to server components (e.g. layout passes it to
+  // next-themes so its theme-init inline script survives the CSP).
+  request.headers.set('x-nonce', nonce)
 
   const response = await updateSession(request)
 

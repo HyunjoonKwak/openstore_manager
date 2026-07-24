@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import './globals.css'
@@ -17,11 +18,13 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined
+
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
@@ -33,7 +36,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased">
-        <ThemeProvider>
+        <ThemeProvider nonce={nonce}>
           {children}
           <Toaster />
         </ThemeProvider>
