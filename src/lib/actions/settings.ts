@@ -15,6 +15,11 @@ export interface StoreProfile {
   id: string
   storeName: string
   platform: Platform
+  apiConfigStatus: {
+    naverCommerce: boolean
+    naverApiHub: boolean
+    openai: boolean
+  }
   apiConfig: {
     naverClientId?: string
     naverClientSecret?: string
@@ -98,6 +103,11 @@ export async function getStoreProfile(): Promise<{ data: StoreProfile | null; er
       id: typedStore.id,
       storeName: typedStore.store_name,
       platform: typedStore.platform as Platform,
+      apiConfigStatus: {
+        naverCommerce: Boolean(apiConfig.naverClientId && apiConfig.naverClientSecret),
+        naverApiHub: Boolean(apiConfig.naverApiHubClientId && apiConfig.naverApiHubClientSecret),
+        openai: Boolean(apiConfig.openaiApiKey || process.env.OPENAI_API_KEY),
+      },
       apiConfig: {
         naverClientId: '',
         naverClientSecret: '',
