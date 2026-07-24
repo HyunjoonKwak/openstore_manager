@@ -282,11 +282,12 @@ async function syncProducts(
 
         const platformProductId = String(channelProduct.channelProductNo)
 
-        // Naver omits stockQuantity for some products; for OUTOFSTOCK items
-        // force 0 so the local stock never stays stale at a positive value.
+        // OUTOFSTOCK means the product is not sellable regardless of the
+        // product-level stockQuantity Naver reports (option-stock products
+        // keep a stale product-level figure), so always record 0 locally.
         const resolvedStock =
           channelProduct.statusType === 'OUTOFSTOCK'
-            ? channelProduct.stockQuantity ?? 0
+            ? 0
             : channelProduct.stockQuantity
 
         const { data: existingByPlatformId } = await supabase
