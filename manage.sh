@@ -280,7 +280,18 @@ ghcr_build() {
     # .env.local에서 NEXT_PUBLIC 환경변수 로드
     if [ -f "$APP_DIR/.env.local" ]; then
         log_info ".env.local에서 빌드 환경변수 로드 중..."
-        set -a; source <(grep "^NEXT_PUBLIC_" "$APP_DIR/.env.local"); set +a
+        # while-read loop: safe for values with spaces, works on bash 3.2
+        # (macOS default), where `source <(...)` fails silently
+        while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+                NEXT_PUBLIC_*=*)
+                    key="${line%%=*}"
+                    value="${line#*=}"
+                    value="${value%\"}"; value="${value#\"}"
+                    export "$key=$value"
+                    ;;
+            esac
+        done < "$APP_DIR/.env.local"
     fi
 
     if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
