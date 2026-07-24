@@ -52,10 +52,39 @@ import { getAiUsageSummary, type UsageSummary } from '@/lib/actions/ai-usage'
 import { useDefaultFolder } from '@/hooks/useDefaultFolder'
 import type { Platform } from '@/types/database.types'
 
+type ApiConnectionState = 'idle' | 'success' | 'error'
+
+function ApiStatusBadge({ configured, state }: { configured: boolean; state: ApiConnectionState }) {
+  if (state === 'success') {
+    return (
+      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
+        <CheckCircle className="mr-1 h-3.5 w-3.5" /> 연결 정상
+      </Badge>
+    )
+  }
+  if (state === 'error') {
+    return (
+      <Badge variant="destructive">
+        <AlertCircle className="mr-1 h-3.5 w-3.5" /> 확인 필요
+      </Badge>
+    )
+  }
+  return configured ? (
+    <Badge variant="secondary">
+      <CheckCircle className="mr-1 h-3.5 w-3.5" /> 설정됨
+    </Badge>
+  ) : (
+    <Badge variant="outline">
+      <AlertCircle className="mr-1 h-3.5 w-3.5" /> 미설정
+    </Badge>
+  )
+}
+
 export default function SettingsPage() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isTesting, setIsTesting] = useState(false)
+  const [isTestingApiHub, setIsTestingApiHub] = useState(false)
   const [isTestingOpenAI, setIsTestingOpenAI] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false)
@@ -84,6 +113,28 @@ export default function SettingsPage() {
     naverApiHubClientId: '',
     naverApiHubClientSecret: '',
     openaiApiKey: '',
+  })
+
+  const [apiConfigured, setApiConfigured] = useState({
+    naverCommerce: false,
+    naverApiHub: false,
+    openai: false,
+  })
+
+  const [editingApi, setEditingApi] = useState({
+    naverCommerce: false,
+    naverApiHub: false,
+    openai: false,
+  })
+
+  const [apiConnectionState, setApiConnectionState] = useState<{
+    naverCommerce: ApiConnectionState
+    naverApiHub: ApiConnectionState
+    openai: ApiConnectionState
+  }>({
+    naverCommerce: 'idle',
+    naverApiHub: 'idle',
+    openai: 'idle',
   })
 
   const [notifications, setNotifications] = useState({
@@ -158,6 +209,7 @@ export default function SettingsPage() {
           naverApiHubClientSecret: storeResult.data.apiConfig.naverApiHubClientSecret || '',
           openaiApiKey: storeResult.data.apiConfig.openaiApiKey || '',
         })
+        setApiConfigured(storeResult.data.apiConfigStatus)
         if (storeResult.data.deliveryCheckSettings) {
           setDeliveryCheckSettings(storeResult.data.deliveryCheckSettings)
         }
@@ -219,6 +271,13 @@ export default function SettingsPage() {
       return
     }
 
+    const hasPartialCommerceKey = Boolean(apiKeys.naverClientId) !== Boolean(apiKeys.naverClientSecret)
+    const hasPartialApiHubKey = Boolean(apiKeys.naverApiHubClientId) !== Boolean(apiKeys.naverApiHubClientSecret)
+    if (hasPartialCommerceKey || hasPartialApiHubKey) {
+      toast.error('Client ID와 Client Secret을 모두 입력해주세요.')
+      return
+    }
+
     startTransition(async () => {
       const result = await createOrUpdateStore({
         storeName: profile.storeName,
@@ -231,6 +290,20 @@ export default function SettingsPage() {
       })
 
       if (result.success) {
+        setApiConfigured((prev) => ({
+          naverCommerce: prev.naverCommerce || Boolean(apiKeys.naverClientId && apiKeys.naverClientSecret),
+          naverApiHub: prev.naverApiHub || Boolean(apiKeys.naverApiHubClientId && apiKeys.naverApiHubClientSecret),
+          openai: prev.openai || Boolean(apiKeys.openaiApiKey),
+        }))
+        setApiKeys({
+          naverClientId: '',
+          naverClientSecret: '',
+          naverApiHubClientId: '',
+          naverApiHubClientSecret: '',
+          openaiApiKey: '',
+        })
+        setEditingApi({ naverCommerce: false, naverApiHub: false, openai: false })
+        setApiConnectionState({ naverCommerce: 'idle', naverApiHub: 'idle', openai: 'idle' })
         toast.success('설정이 저장되었습니다.')
       } else {
         toast.error(result.error || '저장에 실패했습니다.')
@@ -243,12 +316,41 @@ export default function SettingsPage() {
     try {
       const result = await testNaverConnection()
       if (result.success) {
+        setApiConnectionState((prev) => ({ ...prev, naverCommerce: 'success' }))
         toast.success('네이버 API 연결 성공!')
       } else {
+        setApiConnectionState((prev) => ({ ...prev, naverCommerce: 'error' }))
         toast.error(result.error || '연결 테스트 실패')
       }
+    } catch {
+      setApiConnectionState((prev) => ({ ...prev, naverCommerce: 'error' }))
+      toast.error('연결 테스트 중 오류가 발생했습니다.')
     } finally {
       setIsTesting(false)
+    }
+  }
+
+  const handleTestApiHub = async () => {
+    setIsTestingApiHub(true)
+    try {
+      const response = await fetch('/api/trends/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords: ['스마트스토어', '온라인쇼핑'], days: 14 }),
+      })
+      const result = await response.json()
+      if (response.ok) {
+        setApiConnectionState((prev) => ({ ...prev, naverApiHub: 'success' }))
+        toast.success('NAVER API HUB 연결 성공!')
+      } else {
+        setApiConnectionState((prev) => ({ ...prev, naverApiHub: 'error' }))
+        toast.error(result.message || '연결 테스트 실패')
+      }
+    } catch {
+      setApiConnectionState((prev) => ({ ...prev, naverApiHub: 'error' }))
+      toast.error('연결 테스트 중 오류가 발생했습니다.')
+    } finally {
+      setIsTestingApiHub(false)
     }
   }
 
@@ -261,13 +363,16 @@ export default function SettingsPage() {
       const result = await response.json()
       
       if (result.success) {
+        setApiConnectionState((prev) => ({ ...prev, openai: 'success' }))
         toast.success(result.message, {
           description: `사용 가능 모델: ${result.details.modelsAvailable}개 (GPT-4: ${result.details.gpt4Available ? 'O' : 'X'})`,
         })
       } else {
+        setApiConnectionState((prev) => ({ ...prev, openai: 'error' }))
         toast.error(result.error || '연결 테스트 실패')
       }
     } catch {
+      setApiConnectionState((prev) => ({ ...prev, openai: 'error' }))
       toast.error('연결 테스트 중 오류가 발생했습니다.')
     } finally {
       setIsTestingOpenAI(false)
@@ -671,116 +776,152 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">네이버 커머스 API</h4>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTestConnection}
-                    disabled={isTesting || !apiKeys.naverClientId || !apiKeys.naverClientSecret}
-                  >
-                    {isTesting ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4 mr-2" />
+              <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-medium">네이버 커머스 API</h4>
+                      <ApiStatusBadge configured={apiConfigured.naverCommerce} state={apiConnectionState.naverCommerce} />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">상품·주문·정산 관리와 스마트스토어 게시에 사용됩니다.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {apiConfigured.naverCommerce && !editingApi.naverCommerce && (
+                      <Button variant="outline" size="sm" onClick={handleTestConnection} disabled={isTesting}>
+                        {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                        연결 테스트
+                      </Button>
                     )}
-                    연결 테스트
-                  </Button>
+                    {apiConfigured.naverCommerce && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingApi((prev) => ({ ...prev, naverCommerce: !prev.naverCommerce }))
+                          setApiKeys((prev) => ({ ...prev, naverClientId: '', naverClientSecret: '' }))
+                        }}
+                      >
+                        {editingApi.naverCommerce ? '입력 취소' : '새 키로 교체'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  네이버 커머스 센터에서 발급받은 API 키를 입력하세요.
-                </p>
-                <div className="space-y-2">
-                  <Label htmlFor="naverClientId">Client ID</Label>
-                  <Input
-                    id="naverClientId"
-                    type="text"
-                    value={apiKeys.naverClientId}
-                    onChange={(e) =>
-                      setApiKeys((prev) => ({ ...prev, naverClientId: e.target.value }))
-                    }
-                    placeholder="애플리케이션 Client ID"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="naverClientSecret">Client Secret</Label>
-                  <Input
-                    id="naverClientSecret"
-                    type="password"
-                    value={apiKeys.naverClientSecret}
-                    onChange={(e) =>
-                      setApiKeys((prev) => ({ ...prev, naverClientSecret: e.target.value }))
-                    }
-                    placeholder="••••••••••••••••"
-                  />
-                </div>
+                {apiConfigured.naverCommerce && !editingApi.naverCommerce ? (
+                  <div className="flex gap-3 rounded-lg border border-emerald-200/70 bg-emerald-50/70 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <p><span className="font-medium">자격증명이 안전하게 저장되어 있습니다.</span><br /><span className="text-xs text-muted-foreground">보안을 위해 저장된 값은 다시 표시하지 않습니다.</span></p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="naverClientId">Client ID</Label>
+                      <Input id="naverClientId" value={apiKeys.naverClientId} onChange={(e) => setApiKeys((prev) => ({ ...prev, naverClientId: e.target.value }))} placeholder="애플리케이션 Client ID" autoComplete="off" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="naverClientSecret">Client Secret</Label>
+                      <Input id="naverClientSecret" type="password" value={apiKeys.naverClientSecret} onChange={(e) => setApiKeys((prev) => ({ ...prev, naverClientSecret: e.target.value }))} placeholder="새 Client Secret" autoComplete="new-password" />
+                    </div>
+                    <p className="text-xs text-muted-foreground sm:col-span-2">입력 후 상단의 ‘기본 정보 · API 저장’을 눌러 적용하세요.</p>
+                  </div>
+                )}
               </div>
               
               <Separator />
 
-              <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-                <div>
-                  <h4 className="font-medium">NAVER API HUB</h4>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    검색어 트렌드와 쇼핑 인사이트 전용 키입니다. 커머스 API 키와 별도로 발급됩니다.
-                  </p>
+              <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-medium">NAVER API HUB</h4>
+                      <ApiStatusBadge configured={apiConfigured.naverApiHub} state={apiConnectionState.naverApiHub} />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">검색어 트렌드와 쇼핑 인사이트 전용 키입니다.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {apiConfigured.naverApiHub && !editingApi.naverApiHub && (
+                      <Button variant="outline" size="sm" onClick={handleTestApiHub} disabled={isTestingApiHub}>
+                        {isTestingApiHub ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                        연결 테스트
+                      </Button>
+                    )}
+                    {apiConfigured.naverApiHub && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingApi((prev) => ({ ...prev, naverApiHub: !prev.naverApiHub }))
+                          setApiKeys((prev) => ({ ...prev, naverApiHubClientId: '', naverApiHubClientSecret: '' }))
+                        }}
+                      >
+                        {editingApi.naverApiHub ? '입력 취소' : '새 키로 교체'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="naverApiHubClientId">Client ID</Label>
-                  <Input
-                    id="naverApiHubClientId"
-                    value={apiKeys.naverApiHubClientId}
-                    onChange={(e) => setApiKeys((prev) => ({ ...prev, naverApiHubClientId: e.target.value }))}
-                    placeholder="NAVER Cloud Application Client ID"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="naverApiHubClientSecret">Client Secret</Label>
-                  <Input
-                    id="naverApiHubClientSecret"
-                    type="password"
-                    value={apiKeys.naverApiHubClientSecret}
-                    onChange={(e) => setApiKeys((prev) => ({ ...prev, naverApiHubClientSecret: e.target.value }))}
-                    placeholder="••••••••••••••••"
-                  />
-                </div>
+                {apiConfigured.naverApiHub && !editingApi.naverApiHub ? (
+                  <div className="flex gap-3 rounded-lg border border-emerald-200/70 bg-emerald-50/70 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <p><span className="font-medium">트렌드 API 자격증명이 저장되어 있습니다.</span><br /><span className="text-xs text-muted-foreground">저장된 값은 보안상 다시 표시하지 않습니다.</span></p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="naverApiHubClientId">Client ID</Label>
+                      <Input id="naverApiHubClientId" value={apiKeys.naverApiHubClientId} onChange={(e) => setApiKeys((prev) => ({ ...prev, naverApiHubClientId: e.target.value }))} placeholder="NAVER Cloud Application Client ID" autoComplete="off" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="naverApiHubClientSecret">Client Secret</Label>
+                      <Input id="naverApiHubClientSecret" type="password" value={apiKeys.naverApiHubClientSecret} onChange={(e) => setApiKeys((prev) => ({ ...prev, naverApiHubClientSecret: e.target.value }))} placeholder="새 Client Secret" autoComplete="new-password" />
+                    </div>
+                    <p className="text-xs text-muted-foreground sm:col-span-2">커머스 API와 별도 발급된 값을 입력하세요.</p>
+                  </div>
+                )}
               </div>
 
               <Separator />
               
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">OpenAI API</h4>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTestOpenAI}
-                    disabled={isTestingOpenAI || !apiKeys.openaiApiKey}
-                  >
-                    {isTestingOpenAI ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4 mr-2" />
+              <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-medium">OpenAI API</h4>
+                      <ApiStatusBadge configured={apiConfigured.openai} state={apiConnectionState.openai} />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">경쟁 상품 분석과 AI 상세페이지 생성에 사용됩니다.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {apiConfigured.openai && !editingApi.openai && (
+                      <Button variant="outline" size="sm" onClick={handleTestOpenAI} disabled={isTestingOpenAI}>
+                        {isTestingOpenAI ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                        연결 테스트
+                      </Button>
                     )}
-                    연결 테스트
-                  </Button>
+                    {apiConfigured.openai && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingApi((prev) => ({ ...prev, openai: !prev.openai }))
+                          setApiKeys((prev) => ({ ...prev, openaiApiKey: '' }))
+                        }}
+                      >
+                        {editingApi.openai ? '입력 취소' : '새 키로 교체'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  AI 상세페이지 생성 기능에 사용됩니다.
-                </p>
-                <div className="space-y-2">
-                  <Label htmlFor="openaiKey">API 키</Label>
-                  <Input
-                    id="openaiKey"
-                    type="password"
-                    value={apiKeys.openaiApiKey}
-                    onChange={(e) =>
-                      setApiKeys((prev) => ({ ...prev, openaiApiKey: e.target.value }))
-                    }
-                    placeholder="sk-••••••••••••••••"
-                  />
-                </div>
+                {apiConfigured.openai && !editingApi.openai ? (
+                  <div className="flex gap-3 rounded-lg border border-emerald-200/70 bg-emerald-50/70 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <p><span className="font-medium">AI API 키가 안전하게 저장되어 있습니다.</span><br /><span className="text-xs text-muted-foreground">필요할 때만 새 키로 교체할 수 있습니다.</span></p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="openaiKey">API 키</Label>
+                    <Input id="openaiKey" type="password" value={apiKeys.openaiApiKey} onChange={(e) => setApiKeys((prev) => ({ ...prev, openaiApiKey: e.target.value }))} placeholder="sk-••••••••••••••••" autoComplete="new-password" />
+                    <p className="text-xs text-muted-foreground">입력 후 상단 저장 버튼을 눌러 적용하세요.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
