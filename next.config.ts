@@ -2,6 +2,18 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Keep browser-automation packages external so their runtime assets
+  // (e.g. playwright-core/browsers.json) are traced into the standalone
+  // output instead of being bundled without them
+  serverExternalPackages: [
+    'playwright-core',
+    'puppeteer-core',
+    'puppeteer-extra',
+    'puppeteer-extra-plugin-stealth',
+  ],
+  outputFileTracingIncludes: {
+    '/api/analyze/**': ['./node_modules/playwright-core/browsers.json'],
+  },
   images: {
     remotePatterns: [
       {
