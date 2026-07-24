@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
 import type { Json } from '@/types/database.types'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 interface ApiConfigJson {
   naverClientId?: string
@@ -155,22 +156,33 @@ const ANALYSIS_PROMPT = `당신은 이커머스 가격 분석 전문가입니다
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
+    const { data: userData } = await supabase.auth.getUser()
+
+    if (!userData.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please log in to use this feature.' },
+        { status: 401, headers: corsHeaders() }
+      )
+    }
+
+    const { allowed, retryAfterSeconds } = checkRateLimit(`analyze-extension:${userData.user.id}`, {
+      limit: 20,
+      windowMs: 60_000,
+    })
+    if (!allowed) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { ...corsHeaders(), 'Retry-After': String(retryAfterSeconds) } }
+      )
+    }
+
     const payload: ExtensionPayload = await request.json()
 
     if (!payload.url || !payload.product) {
       return NextResponse.json(
         { error: 'Invalid payload: url and product data are required' },
         { status: 400, headers: corsHeaders() }
-      )
-    }
-
-    const supabase = await createClient()
-    const { data: userData } = await supabase.auth.getUser()
-    
-    if (!userData.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in to use this feature.' },
-        { status: 401, headers: corsHeaders() }
       )
     }
 
@@ -348,10 +360,9 @@ ${payload.page.detailText?.slice(0, 3000) || 'N/A'}
     }, { headers: corsHeaders() })
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('Extension analysis error:', error)
     return NextResponse.json(
-      { error: `Analysis failed: ${errorMessage}` },
+      { error: '분석에 실패했습니다. 잠시 후 다시 시도해주세요.' },
       { status: 500, headers: corsHeaders() }
     )
   }
@@ -364,7 +375,6 @@ export async function OPTIONS() {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Allow-Credentials': 'true',
     },
   })
 }

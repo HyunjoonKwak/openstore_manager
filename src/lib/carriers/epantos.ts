@@ -35,8 +35,13 @@ export class PantosScraper extends CarrierScraper {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
           body: JSON.stringify({ quickNo: trackingNumber, locale: 'ko' }),
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!trackingListResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${trackingListResponse.status})`)
+      }
 
       const trackingListData: PantosTrackingListResponse = await trackingListResponse.json()
 
@@ -60,8 +65,13 @@ export class PantosScraper extends CarrierScraper {
             locale: 'ko',
             expsBizTypeCd: hblInfo.expsBizTypeCd,
           }),
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!trackingListDtlResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${trackingListDtlResponse.status})`)
+      }
 
       const trackingListDtlData: PantosTrackingListDtlResponse = await trackingListDtlResponse.json()
 

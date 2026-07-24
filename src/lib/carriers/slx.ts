@@ -18,8 +18,13 @@ export class SLXScraper extends CarrierScraper {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!response.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${response.status})`)
+      }
 
       const html = await response.text()
       const $ = cheerio.load(html)

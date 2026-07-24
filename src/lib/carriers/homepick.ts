@@ -38,8 +38,13 @@ export class HomepickScraper extends CarrierScraper {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!universalInquiryResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${universalInquiryResponse.status})`)
+      }
 
       const universalInquiryData: HomepickUniversalInquiryResponse = await universalInquiryResponse.json()
 
@@ -54,8 +59,13 @@ export class HomepickScraper extends CarrierScraper {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!deliveryResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${deliveryResponse.status})`)
+      }
 
       const deliveryData: HomepickDeliveryResponse = await deliveryResponse.json()
 

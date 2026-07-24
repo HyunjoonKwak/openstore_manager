@@ -6,12 +6,16 @@ import {
   getActiveSchedules,
   clearAllSchedules,
 } from '@/lib/scheduler'
+import { timingSafeEqualString } from '@/lib/timing-safe'
 
 function isAuthorized(request: Request): boolean {
   const schedulerSecret = process.env.SCHEDULER_SECRET || process.env.CRON_SECRET
-  return Boolean(
-    schedulerSecret &&
-    request.headers.get('authorization') === `Bearer ${schedulerSecret}`
+  if (!schedulerSecret) {
+    return false
+  }
+  return timingSafeEqualString(
+    request.headers.get('authorization') ?? '',
+    `Bearer ${schedulerSecret}`
   )
 }
 

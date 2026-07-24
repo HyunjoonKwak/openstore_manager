@@ -145,6 +145,9 @@
   };
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Ignore messages that do not originate from this extension.
+    if (sender.id !== chrome.runtime.id) return;
+
     if (request.action === 'extractData') {
       const data = extractProductData();
       sendResponse({ success: true, data });

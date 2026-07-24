@@ -553,7 +553,7 @@ export function ComparisonViewerClient({ session: initialSession, products }: Co
                     src={session.my_page_url}
                     className="w-full h-full border-0"
                     title="내 페이지"
-                    sandbox="allow-scripts allow-same-origin allow-popups"
+                    sandbox="allow-scripts allow-popups"
                   />
                 </div>
               ) : (
@@ -660,7 +660,7 @@ export function ComparisonViewerClient({ session: initialSession, products }: Co
                     src={selectedPage.url}
                     className="w-full h-full border-0"
                     title="비교 페이지"
-                    sandbox="allow-scripts allow-same-origin allow-popups"
+                    sandbox="allow-scripts allow-popups"
                   />
                 </div>
               ) : (

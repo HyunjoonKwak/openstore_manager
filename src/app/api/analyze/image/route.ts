@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
 import type { Json } from '@/types/database.types'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 interface ApiConfigJson {
   naverClientId?: string
@@ -93,6 +94,23 @@ Respond in Korean with a JSON object in this exact format:
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { allowed, retryAfterSeconds } = checkRateLimit(`analyze-image:${user.id}`, {
+      limit: 20,
+      windowMs: 60_000,
+    })
+    if (!allowed) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
+      )
+    }
+
     const formData = await request.formData()
     const imageFile = formData.get('image') as File | null
     const imageUrl = formData.get('imageUrl') as string | null
@@ -207,9 +225,9 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Image analysis error:', error)
     return NextResponse.json(
-      { error: `Image analysis failed: ${errorMessage}` },
+      { error: '이미지 분석에 실패했습니다. 잠시 후 다시 시도해주세요.' },
       { status: 500 }
     )
   }

@@ -59,10 +59,66 @@ const loadSettings = async () => {
   elements.serverUrlInput.value = serverUrl;
 };
 
+const validateServerUrl = (value) => {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return { valid: false, error: '올바른 URL 형식이 아닙니다.' };
+  }
+  const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  if (parsed.protocol !== 'https:' && !isLocalhost) {
+    return { valid: false, error: 'localhost가 아니면 https:// 주소만 사용할 수 있습니다.' };
+  }
+  return { valid: true, origin: parsed.origin };
+};
+
+// Settings error element is created lazily to keep popup.html unchanged.
+const showSettingsError = (message) => {
+  let errorEl = document.getElementById('settings-error');
+  if (!errorEl) {
+    errorEl = document.createElement('p');
+    errorEl.id = 'settings-error';
+    errorEl.style.cssText = 'color: #dc2626; font-size: 12px; margin: 4px 0 0; width: 100%;';
+    elements.saveSettingsBtn.closest('.settings').appendChild(errorEl);
+  }
+  errorEl.textContent = message;
+  errorEl.classList.remove('hidden');
+};
+
+const clearSettingsError = () => {
+  const errorEl = document.getElementById('settings-error');
+  if (errorEl) errorEl.classList.add('hidden');
+};
+
+const requestServerPermission = async (origin) => {
+  try {
+    return await chrome.permissions.request({ origins: [`${origin}/*`] });
+  } catch (error) {
+    console.error('Permission request failed:', error);
+    return false;
+  }
+};
+
 const saveSettings = async () => {
-  serverUrl = elements.serverUrlInput.value.trim() || DEFAULT_SERVER_URL;
+  const inputUrl = elements.serverUrlInput.value.trim() || DEFAULT_SERVER_URL;
+
+  const validation = validateServerUrl(inputUrl);
+  if (!validation.valid) {
+    showSettingsError(validation.error);
+    return;
+  }
+
+  const granted = await requestServerPermission(validation.origin);
+  if (!granted) {
+    showSettingsError('서버 주소 접근 권한이 거부되어 저장할 수 없습니다.');
+    return;
+  }
+
+  clearSettingsError();
+  serverUrl = inputUrl;
   await chrome.storage.sync.set({ serverUrl });
-  
+
   elements.saveSettingsBtn.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M5 13l4 4L19 7"/>

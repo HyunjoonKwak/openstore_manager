@@ -125,9 +125,9 @@ export async function POST(request: NextRequest) {
     )
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Shipment registration error:', error)
     return NextResponse.json(
-      { error: `Registration failed: ${errorMessage}` },
+      { error: '송장 등록에 실패했습니다. 잠시 후 다시 시도해주세요.' },
       { status: 500 }
     )
   }

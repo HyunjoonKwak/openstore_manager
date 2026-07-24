@@ -283,6 +283,7 @@ export function AnalysisResultClient({ analysis }: AnalysisResultClientProps) {
           key={iframeKey}
           src={analysis.targetUrl}
           className="w-full h-full border-0"
+          sandbox="allow-scripts allow-forms"
           onError={() => setIframeError(true)}
         />
       )

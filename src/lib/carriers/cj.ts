@@ -37,8 +37,13 @@ export class CJScraper extends CarrierScraper {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!mainPageResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${mainPageResponse.status})`)
+      }
 
       const cookies = mainPageResponse.headers.get('set-cookie') || ''
       const mainPageHtml = await mainPageResponse.text()
@@ -62,8 +67,13 @@ export class CJScraper extends CarrierScraper {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Cookie': cookies,
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!trackingResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${trackingResponse.status})`)
+      }
 
       const data: CJTrackingDetail = await trackingResponse.json()
 

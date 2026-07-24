@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { requireUser } from '@/lib/actions/auth-guard'
 import type { DetailPageStatus, Json } from '@/types/database.types'
 
 export interface DetailPageItem {
@@ -178,6 +179,12 @@ export async function deleteDetailPage(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('detail_pages')
     .delete()
@@ -191,6 +198,12 @@ export async function deleteDetailPage(
   return { success: true, error: null }
 }
 
+// Strip PostgREST filter metacharacters and escape LIKE wildcards so a
+// user-supplied query cannot alter the .or() filter expression
+function sanitizeSearchTerm(query: string): string {
+  return query.replace(/[,():*]/g, ' ').replace(/[\\%_]/g, '\\$&')
+}
+
 export async function searchDetailPages(
   query: string
 ): Promise<{ data: DetailPageItem[] | null; error: string | null }> {
@@ -201,7 +214,7 @@ export async function searchDetailPages(
     return { data: null, error: 'Unauthorized' }
   }
 
-  const searchTerm = `%${query}%`
+  const searchTerm = `%${sanitizeSearchTerm(query)}%`
 
   const { data: pages, error } = await supabase
     .from('detail_pages')

@@ -280,7 +280,7 @@ ghcr_build() {
     # .env.local에서 NEXT_PUBLIC 환경변수 로드
     if [ -f "$APP_DIR/.env.local" ]; then
         log_info ".env.local에서 빌드 환경변수 로드 중..."
-        export $(grep "^NEXT_PUBLIC_" "$APP_DIR/.env.local" | xargs)
+        set -a; source <(grep "^NEXT_PUBLIC_" "$APP_DIR/.env.local"); set +a
     fi
 
     if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then

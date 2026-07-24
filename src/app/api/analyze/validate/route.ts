@@ -72,9 +72,9 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('URL validation error:', error)
     return NextResponse.json(
-      { error: `Invalid request: ${errorMessage}` },
+      { error: '요청을 처리하지 못했습니다. 입력값을 확인한 후 다시 시도해주세요.' },
       { status: 400 }
     )
   }

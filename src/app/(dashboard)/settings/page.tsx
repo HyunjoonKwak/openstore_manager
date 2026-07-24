@@ -179,6 +179,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isFolderSettingsLoaded && orderDownloadPath && orderDownloadPath === trackingUploadPath) {
       setUseSameFolder(true)
+    } else {
+      setUseSameFolder(false)
     }
   }, [isFolderSettingsLoaded, orderDownloadPath, trackingUploadPath])
 
@@ -261,7 +263,7 @@ export default function SettingsPage() {
         setNotificationStatus(data)
       }
     } catch {
-      console.log('Notification status check failed')
+      // Silently ignore; notification status stays unknown
     }
   }
 
@@ -1520,7 +1522,7 @@ export default function SettingsPage() {
                 <p className="text-xs font-medium mb-2">.env.local 파일에 추가할 내용:</p>
                 <pre className="text-xs bg-background p-2 rounded overflow-x-auto">
 {`COOLSMS_API_KEY=${notificationApiKeys.coolsmsApiKey || 'your_api_key'}
-COOLSMS_API_SECRET=${notificationApiKeys.coolsmsApiSecret || 'your_api_secret'}
+COOLSMS_API_SECRET=${notificationApiKeys.coolsmsApiSecret ? '********' : 'your_api_secret'}
 COOLSMS_SENDER_ID=${notificationApiKeys.coolsmsSenderId || 'your_phone_number'}`}
                 </pre>
               </div>
@@ -1582,7 +1584,7 @@ COOLSMS_SENDER_ID=${notificationApiKeys.coolsmsSenderId || 'your_phone_number'}`
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-xs font-medium mb-2">.env.local 파일에 추가할 내용:</p>
                 <pre className="text-xs bg-background p-2 rounded overflow-x-auto">
-{`KAKAO_ALIMTALK_API_KEY=${notificationApiKeys.kakaoApiKey || 'your_api_key'}
+{`KAKAO_ALIMTALK_API_KEY=${notificationApiKeys.kakaoApiKey ? '********' : 'your_api_key'}
 KAKAO_ALIMTALK_SENDER_ID=${notificationApiKeys.kakaoSenderId || 'your_channel_id'}
 KAKAO_ALIMTALK_TEMPLATE_ID=${notificationApiKeys.kakaoTemplateId || 'your_template_id'}`}
                 </pre>

@@ -42,8 +42,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ trackings: data })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('Delivery tracking error:', error)
+    return NextResponse.json(
+      { error: '배송 조회 처리에 실패했습니다. 잠시 후 다시 시도해주세요.' },
+      { status: 500 }
+    )
   }
 }
 
@@ -117,8 +120,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ tracking: data, trackInfo: result })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('Delivery tracking error:', error)
+    return NextResponse.json(
+      { error: '배송 조회 처리에 실패했습니다. 잠시 후 다시 시도해주세요.' },
+      { status: 500 }
+    )
   }
 }
 
@@ -155,7 +161,10 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('Delivery tracking error:', error)
+    return NextResponse.json(
+      { error: '배송 조회 처리에 실패했습니다. 잠시 후 다시 시도해주세요.' },
+      { status: 500 }
+    )
   }
 }

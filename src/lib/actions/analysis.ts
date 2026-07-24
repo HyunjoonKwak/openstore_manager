@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { requireUser } from '@/lib/actions/auth-guard'
 import type { Json } from '@/types/database.types'
 
 export interface AnalysisLog {
@@ -73,6 +74,12 @@ export async function updateAnalysisLog(
   status: 'completed' | 'failed'
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('analysis_logs')
@@ -170,6 +177,12 @@ export async function deleteAnalysisLog(id: string): Promise<{
   error: string | null
 }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('analysis_logs')

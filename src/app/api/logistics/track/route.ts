@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result)
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Package tracking error:', error)
     return NextResponse.json(
-      { error: `Tracking failed: ${errorMessage}` },
+      { error: '배송 조회에 실패했습니다. 잠시 후 다시 시도해주세요.' },
       { status: 500 }
     )
   }
@@ -61,9 +61,9 @@ export async function GET(request: NextRequest) {
     const result = await trackPackage(courierCode, trackingNumber)
     return NextResponse.json(result)
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Package tracking error:', error)
     return NextResponse.json(
-      { error: `Tracking failed: ${errorMessage}` },
+      { error: '배송 조회에 실패했습니다. 잠시 후 다시 시도해주세요.' },
       { status: 500 }
     )
   }

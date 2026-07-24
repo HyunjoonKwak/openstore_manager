@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ContactMethod } from '@/types/database.types'
 import { parseError, formatErrorMessage } from '@/lib/error-messages'
+import { requireUser } from '@/lib/actions/auth-guard'
 
 export interface SupplierWithStats {
   id: string
@@ -167,6 +168,12 @@ export async function updateSupplier(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const updateData: Record<string, string | boolean | null> = {}
   if (input.name !== undefined) updateData.name = input.name
   if (input.contactNumber !== undefined) updateData.contact_number = input.contactNumber
@@ -196,6 +203,12 @@ export async function deleteSupplier(
   id: string
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('suppliers')

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { SyncType as SyncTypeDB } from '@/types/database.types'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { requireUser } from '@/lib/actions/auth-guard'
 
 export type SyncType = SyncTypeDB
 
@@ -351,6 +352,12 @@ export async function toggleSyncSchedule(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('sync_schedules')
     .update({ is_enabled: isEnabled })
@@ -385,6 +392,12 @@ export async function updateLastSyncAt(
   scheduleId: string
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { data: schedule } = await supabase
     .from('sync_schedules')
@@ -429,6 +442,12 @@ export async function getSyncLogs(
 ): Promise<{ data: SyncLog[] | null; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { data: null, error: 'Unauthorized' }
+  }
+
   const { data: logs, error } = await supabase
     .from('sync_logs')
     .select('*')
@@ -463,6 +482,12 @@ export async function createSyncLog(
 ): Promise<{ data: { id: string } | null; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { data: null, error: 'Unauthorized' }
+  }
+
   const { data, error } = await supabase
     .from('sync_logs')
     .insert({
@@ -488,6 +513,12 @@ export async function completeSyncLog(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('sync_logs')
     .update({
@@ -503,53 +534,4 @@ export async function completeSyncLog(
   }
 
   return { success: true, error: null }
-}
-
-export async function getDueSyncSchedules(): Promise<{
-  data: Array<SyncSchedule & { userId: string; apiConfig: Record<string, string> }> | null
-  error: string | null
-}> {
-  const supabase = await createClient()
-
-  const now = new Date().toISOString()
-
-  const { data: schedules, error } = await supabase
-    .from('sync_schedules')
-    .select(`
-      *,
-      stores (
-        api_config
-      )
-    `)
-    .eq('is_enabled', true)
-    .lte('next_sync_at', now)
-
-  if (error) {
-    return { data: null, error: error.message }
-  }
-
-  interface ScheduleWithStore extends SyncScheduleRow {
-    user_id: string
-    stores: { api_config: Record<string, string> } | null
-  }
-
-  const typedSchedules = schedules as unknown as ScheduleWithStore[]
-
-  return {
-    data: typedSchedules.map((s) => ({
-      id: s.id,
-      userId: s.user_id,
-      storeId: s.store_id,
-      syncType: s.sync_type as SyncType,
-      intervalMinutes: s.interval_minutes,
-      isEnabled: s.is_enabled,
-      lastSyncAt: s.last_sync_at,
-      nextSyncAt: s.next_sync_at,
-      syncAtMinute: (s.sync_at_minute ?? 0) as 0 | 30,
-      syncTime: s.sync_time,
-      createdAt: s.created_at,
-      apiConfig: s.stores?.api_config || {},
-    })),
-    error: null,
-  }
 }

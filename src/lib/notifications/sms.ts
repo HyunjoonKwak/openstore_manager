@@ -31,9 +31,9 @@ function getConfig(): SMSConfig | null {
   return { apiKey, apiSecret, senderId }
 }
 
-function generateSignature(_apiKey: string, apiSecret: string, timestamp: string): string {
-  const message = timestamp + apiSecret
-  return crypto.createHmac('sha256', apiSecret).update(message).digest('hex')
+// CoolSMS v4 HMAC-SHA256 auth: sign (date + salt) with the API secret
+function generateSignature(apiSecret: string, date: string, salt: string): string {
+  return crypto.createHmac('sha256', apiSecret).update(date + salt).digest('hex')
 }
 
 export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
@@ -51,16 +51,18 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
     return { success: false, error: '올바른 전화번호 형식이 아닙니다.' }
   }
 
-  const timestamp = new Date().toISOString()
-  const signature = generateSignature(config.apiKey, config.apiSecret, timestamp)
+  const date = new Date().toISOString()
+  const salt = crypto.randomBytes(16).toString('hex')
+  const signature = generateSignature(config.apiSecret, date, salt)
 
   try {
     const response = await fetch('https://api.coolsms.co.kr/messages/v4/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `HMAC-SHA256 apiKey=${config.apiKey}, date=${timestamp}, signature=${signature}`,
+        'Authorization': `HMAC-SHA256 apiKey=${config.apiKey}, date=${date}, salt=${salt}, signature=${signature}`,
       },
+      signal: AbortSignal.timeout(10_000),
       body: JSON.stringify({
         message: {
           to: phoneNumber,

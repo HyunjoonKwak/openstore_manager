@@ -144,7 +144,7 @@ export async function syncNaverOrders(_params: {
         .from('orders')
         .select('id, status')
         .eq('platform_order_id', naverOrder.productOrderId)
-        .single()
+        .maybeSingle()
       
       const isNew = !existing
       const isCancelRequestNew = !isNew && existing?.status !== 'CancelRequested' && orderData.status === 'CancelRequested'

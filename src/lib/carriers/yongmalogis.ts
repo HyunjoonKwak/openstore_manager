@@ -32,8 +32,13 @@ export class YongmaLogisScraper extends CarrierScraper {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!selectDmTrc060Response.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${selectDmTrc060Response.status})`)
+      }
 
       const selectDmTrc060Text = await selectDmTrc060Response.text()
 
@@ -55,8 +60,13 @@ export class YongmaLogisScraper extends CarrierScraper {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!selectDmTrc060StatusResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${selectDmTrc060StatusResponse.status})`)
+      }
 
       const selectDmTrc060StatusData: YongmaSelectDmTrc060StatusResponseItem[] = await selectDmTrc060StatusResponse.json()
 

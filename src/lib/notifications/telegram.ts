@@ -14,7 +14,7 @@ interface SendTelegramParams {
 /**
  * Parse Telegram webhook URL to extract bot token and chat ID
  * Expected format: https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>
- * Or simple webhook URL that will be called directly
+ * Only api.telegram.org is accepted to prevent SSRF via arbitrary URLs
  */
 function parseTelegramUrl(webhookUrl: string): { botToken: string; chatId: string } | null {
   try {
@@ -47,56 +47,42 @@ export async function sendTelegramWebhook(params: SendTelegramParams): Promise<S
     }
   }
 
+  const parsed = parseTelegramUrl(webhookUrl)
+
+  if (!parsed) {
+    return {
+      success: false,
+      error:
+        '유효한 Telegram 웹훅 URL이 아닙니다. https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID> 형식을 사용하세요.',
+    }
+  }
+
   try {
-    const parsed = parseTelegramUrl(webhookUrl)
-    
-    if (parsed) {
-      const response = await fetch(`https://api.telegram.org/bot${parsed.botToken}/sendMessage`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: parsed.chatId,
-          text: message,
-          parse_mode: 'HTML',
-        }),
-      })
+    const response = await fetch(`https://api.telegram.org/bot${parsed.botToken}/sendMessage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: parsed.chatId,
+        text: message,
+        parse_mode: 'HTML',
+      }),
+      signal: AbortSignal.timeout(10_000),
+    })
 
-      const data = await response.json()
+    const data = await response.json()
 
-      if (!response.ok || !data.ok) {
-        return {
-          success: false,
-          error: data.description || `Telegram 전송 실패: ${response.status}`,
-        }
-      }
-
+    if (!response.ok || !data.ok) {
       return {
-        success: true,
-        messageId: data.result?.message_id,
+        success: false,
+        error: data.description || `Telegram 전송 실패: ${response.status}`,
       }
-    } else {
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: message,
-          message: message,
-        }),
-      })
+    }
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '')
-        return {
-          success: false,
-          error: `웹훅 전송 실패: ${response.status} ${errorText}`.trim(),
-        }
-      }
-
-      return { success: true }
+    return {
+      success: true,
+      messageId: data.result?.message_id,
     }
   } catch (error) {
     console.error('[Telegram Webhook] Error:', error)

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 interface ApiConfigJson {
   openaiApiKey?: string
@@ -16,6 +17,17 @@ export async function POST() {
       return NextResponse.json(
         { success: false, error: '로그인이 필요합니다.' },
         { status: 401 }
+      )
+    }
+
+    const { allowed, retryAfterSeconds } = checkRateLimit(`ai-test-connection:${userData.user.id}`, {
+      limit: 20,
+      windowMs: 60_000,
+    })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
       )
     }
 

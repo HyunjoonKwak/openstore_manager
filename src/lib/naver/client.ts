@@ -18,6 +18,7 @@ export class NaverCommerceClient {
   private config: NaverApiConfig
   private accessToken: string | null = null
   private tokenExpiresAt: number = 0
+  private tokenRequest: Promise<string> | null = null
 
   constructor(config: NaverApiConfig) {
     this.config = config
@@ -38,6 +39,19 @@ export class NaverCommerceClient {
       return this.accessToken
     }
 
+    // De-duplicate concurrent token requests: reuse the in-flight promise
+    if (this.tokenRequest) {
+      return this.tokenRequest
+    }
+
+    this.tokenRequest = this.fetchAccessToken().finally(() => {
+      this.tokenRequest = null
+    })
+
+    return this.tokenRequest
+  }
+
+  private async fetchAccessToken(): Promise<string> {
     const { signature, timestamp } = await this.generateSignature()
 
     const params = new URLSearchParams()
@@ -54,6 +68,7 @@ export class NaverCommerceClient {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params,
+      signal: AbortSignal.timeout(10_000),
     })
 
     if (!response.ok) {
@@ -82,6 +97,7 @@ export class NaverCommerceClient {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
+      signal: AbortSignal.timeout(10_000),
     }
 
     if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {

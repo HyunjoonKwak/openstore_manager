@@ -30,11 +30,16 @@ export class HanjinScraper extends CarrierScraper {
             mCode: 'MN038',
             schLang: 'KR',
           }).toString(),
+          signal: AbortSignal.timeout(10_000),
         }
       )
 
       if (response.status === 403) {
-        return this.createErrorResult(trackingNumber, '한진택배 서버 접근이 거부되었습니다.')
+        return this.createErrorResult(trackingNumber, '한진택배 서버 접근이 거부되었습니다. (HTTP 403)')
+      }
+
+      if (!response.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${response.status})`)
       }
 
       const html = await response.text()

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const SEARCH_ENDPOINT = 'https://k-skill-proxy.nomadamas.org/v1/naver-shopping/search'
 
@@ -9,6 +10,17 @@ export async function GET(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { allowed, retryAfterSeconds } = checkRateLimit(`market-research:${user.id}`, {
+    limit: 10,
+    windowMs: 60_000,
+  })
+  if (!allowed) {
+    return NextResponse.json(
+      { message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
+    )
   }
 
   const query = request.nextUrl.searchParams.get('q')?.trim() || ''

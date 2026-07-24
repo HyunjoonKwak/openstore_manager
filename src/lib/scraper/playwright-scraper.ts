@@ -110,6 +110,7 @@ export async function scrapeWithCheerio(url: string): Promise<ScrapeResult> {
         'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
         'Cache-Control': 'no-cache',
       },
+      signal: AbortSignal.timeout(15_000),
     })
 
     if (!response.ok) {
@@ -208,7 +209,7 @@ export async function scrapeWithPlaywright(url: string): Promise<ScrapeResult> {
 
     browser = await chromium.launch({
       executablePath,
-      headless: false,
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

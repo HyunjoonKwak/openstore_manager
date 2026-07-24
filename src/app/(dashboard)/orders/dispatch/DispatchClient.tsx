@@ -78,6 +78,22 @@ const WORKFLOW_STEPS = [
   { step: 3, title: '네이버 발송처리', description: '네이버 스마트스토어에 발송 등록', icon: Send },
 ]
 
+const MAX_UPLOAD_FILE_SIZE = 10 * 1024 * 1024
+const ALLOWED_UPLOAD_EXTENSIONS = ['.csv', '.xlsx', '.xls']
+
+function validateTrackingFile(file: File): boolean {
+  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+  if (!ALLOWED_UPLOAD_EXTENSIONS.includes(extension)) {
+    toast.error('CSV, XLSX 또는 XLS 파일을 사용해주세요.')
+    return false
+  }
+  if (file.size > MAX_UPLOAD_FILE_SIZE) {
+    toast.error('파일은 10MB 이하여야 합니다.')
+    return false
+  }
+  return true
+}
+
 export function DispatchClient({ initialOrders, couriers }: DispatchClientProps) {
   const [orders, setOrders] = useState<DispatchOrder[]>(initialOrders)
   const [currentStep, setCurrentStep] = useState<WorkflowStep>(1)
@@ -127,7 +143,7 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
     startTransition(async () => {
       const result = await updateOrderTrackingNumber(orderId, trackingNumber.trim(), selectedCourier)
       if (result.success) {
-        setOrders(orders.map(o =>
+        setOrders(prev => prev.map(o =>
           o.id === orderId
             ? { ...o, trackingNumber: trackingNumber.trim(), courierCode: selectedCourier }
             : o
@@ -158,7 +174,7 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
       for (const update of updates) {
         await updateOrderTrackingNumber(update.orderId, update.trackingNumber, update.courierCode)
       }
-      setOrders(orders.map(o => {
+      setOrders(prev => prev.map(o => {
         const update = updates.find(u => u.orderId === o.id)
         return update
           ? { ...o, trackingNumber: update.trackingNumber, courierCode: update.courierCode }
@@ -185,7 +201,7 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
 
       if (result.success) {
         const successCount = result.results.filter(r => r.success).length
-        setOrders(orders.map(o => {
+        setOrders(prev => prev.map(o => {
           const res = result.results.find(r => r.orderId === o.id)
           return res?.success ? { ...o, status: 'Dispatched' } : o
         }))
@@ -248,6 +264,13 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (!validateTrackingFile(file)) {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
+
     const formData = new FormData()
     formData.append('file', file)
 
@@ -281,6 +304,8 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
           multiple: false,
         })
         const file = await handle.getFile()
+        if (!validateTrackingFile(file)) return
+
         const formData = new FormData()
         formData.append('file', file)
 

@@ -80,11 +80,9 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
   }, [])
 
   useEffect(() => {
-    const groups = new Map<string, SupplierGroup>()
-    
     const unassignedOrders: OrderForSupplier[] = []
     const supplierOrdersMap = new Map<string, OrderForSupplier[]>()
-    
+
     orders.forEach((order) => {
       if (order.supplierId) {
         const existing = supplierOrdersMap.get(order.supplierId) || []
@@ -94,27 +92,47 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
         unassignedOrders.push(order)
       }
     })
-    
-    suppliers.forEach((supplier) => {
-      const supplierOrders = supplierOrdersMap.get(supplier.id) || []
-      groups.set(supplier.id, {
-        supplier,
-        orders: supplierOrders,
-        isOpen: supplierOrders.length > 0,
-        selectedIds: new Set(supplierOrders.map(o => o.id)),
+
+    setSupplierGroups(prev => {
+      const groups = new Map<string, SupplierGroup>()
+
+      suppliers.forEach((supplier) => {
+        const supplierOrders = supplierOrdersMap.get(supplier.id) || []
+        const prevGroup = prev.get(supplier.id)
+        // Seed full selection only on first mount; afterwards keep manual
+        // deselections and auto-select only genuinely new order ids
+        const prevOrderIds = new Set(prevGroup?.orders.map(o => o.id) ?? [])
+        const selectedIds = prevGroup
+          ? new Set(
+              supplierOrders
+                .filter(o => !prevOrderIds.has(o.id) || prevGroup.selectedIds.has(o.id))
+                .map(o => o.id)
+            )
+          : new Set(supplierOrders.map(o => o.id))
+        groups.set(supplier.id, {
+          supplier,
+          orders: supplierOrders,
+          isOpen: prevGroup ? prevGroup.isOpen : supplierOrders.length > 0,
+          selectedIds,
+        })
       })
+
+      if (unassignedOrders.length > 0) {
+        const prevGroup = prev.get('unassigned')
+        groups.set('unassigned', {
+          supplier: null,
+          orders: unassignedOrders,
+          isOpen: prevGroup ? prevGroup.isOpen : true,
+          selectedIds: new Set(
+            unassignedOrders
+              .filter(o => prevGroup?.selectedIds.has(o.id))
+              .map(o => o.id)
+          ),
+        })
+      }
+
+      return groups
     })
-    
-    if (unassignedOrders.length > 0) {
-      groups.set('unassigned', {
-        supplier: null,
-        orders: unassignedOrders,
-        isOpen: true,
-        selectedIds: new Set(),
-      })
-    }
-    
-    setSupplierGroups(groups)
   }, [orders, suppliers])
 
   const toggleGroup = (supplierId: string) => {

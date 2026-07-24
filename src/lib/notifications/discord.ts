@@ -40,6 +40,7 @@ export async function sendDiscordWebhook(params: SendDiscordParams): Promise<Sen
       body: JSON.stringify({
         content: message,
       }),
+      signal: AbortSignal.timeout(10_000),
     })
 
     if (!response.ok) {

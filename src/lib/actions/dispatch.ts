@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { NaverCommerceClient, NAVER_DELIVERY_COMPANIES } from '@/lib/naver/client'
 import type { OrderStatus } from '@/types/database.types'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { requireUser } from '@/lib/actions/auth-guard'
+import { sanitizeCsvCell, parseCsvLine } from '@/lib/csv'
 
 interface NaverApiConfig {
   naverClientId?: string
@@ -173,6 +175,12 @@ export async function updateOrderTrackingNumber(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: '로그인이 필요합니다.' }
+  }
+
   const { error } = await supabase
     .from('orders')
     .update({
@@ -193,6 +201,13 @@ export async function bulkUpdateTrackingNumbers(
   updates: Array<{ orderId: string; trackingNumber: string; courierCode: string }>
 ): Promise<{ success: boolean; updatedCount: number; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, updatedCount: 0, error: '로그인이 필요합니다.' }
+  }
+
   let updatedCount = 0
 
   for (const update of updates) {
@@ -225,9 +240,16 @@ export async function dispatchOrdersToNaver(
   }>
   error: string | null
 }> {
+  const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, results: [], error: '로그인이 필요합니다.' }
+  }
+
   if (testMode) {
     // 테스트 모드: 실제 API 호출 없이 시뮬레이션
-    const supabase = await createClient()
     const results: Array<{ orderId: string; success: boolean; error?: string }> = []
 
     for (const orderId of orderIds) {
@@ -266,7 +288,6 @@ export async function dispatchOrdersToNaver(
     return { success: false, results: [], error: clientError }
   }
 
-  const supabase = await createClient()
   const results: Array<{ orderId: string; success: boolean; error?: string }> = []
 
   for (const orderId of orderIds) {
@@ -376,7 +397,7 @@ export async function downloadOrdersExcel(): Promise<{
   ])
 
   const csvContent = [headers, ...rows]
-    .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+    .map(row => row.map(cell => sanitizeCsvCell(cell)).join(','))
     .join('\n')
 
   const base64 = Buffer.from('\uFEFF' + csvContent, 'utf-8').toString('base64')
@@ -407,6 +428,11 @@ export async function uploadTrackingExcel(
     return { success: false, updatedCount: 0, errors: ['로그인이 필요합니다.'] }
   }
 
+  const storeId = await resolveCurrentStoreId(supabase, userData.user.id)
+  if (!storeId) {
+    return { success: false, updatedCount: 0, errors: ['스토어가 없습니다.'] }
+  }
+
   try {
     const text = await file.text()
     const lines = text.split('\n').map(line => line.trim()).filter(Boolean)
@@ -421,23 +447,28 @@ export async function uploadTrackingExcel(
     const errors: string[] = []
 
     for (const line of dataLines) {
-      // CSV 파싱 (간단한 버전)
-      const cells = line.split(',').map(cell => cell.replace(/^"|"$/g, '').replace(/""/g, '"'))
-      
-      const platformOrderId = cells[0]
+      // Proper CSV parsing (handles quoted fields with embedded commas)
+      const cells = parseCsvLine(line)
+
+      // Strip a leading quote added by CSV formula-injection sanitization
+      const platformOrderId = (cells[0] ?? '').replace(/^'/, '')
       const trackingNumber = cells[9] // 마지막 컬럼
 
       if (!platformOrderId || !trackingNumber) {
         continue // 운송장 없으면 스킵
       }
 
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from('orders')
         .update({ tracking_number: trackingNumber })
         .eq('platform_order_id', platformOrderId)
+        .eq('store_id', storeId)
+        .select('id')
 
       if (error) {
         errors.push(`${platformOrderId}: ${error.message}`)
+      } else if (!updatedRows || updatedRows.length === 0) {
+        errors.push(`${platformOrderId}: 현재 스토어에 일치하는 주문이 없습니다.`)
       } else {
         updatedCount++
       }

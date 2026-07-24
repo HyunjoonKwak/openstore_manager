@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { NaverCommerceClient } from '@/lib/naver/client'
+import { timingSafeEqualString } from '@/lib/timing-safe'
 
 type SupabaseAdminClient = SupabaseClient
 
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
   if (!CRON_SECRET) {
     return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
   }
-  if (authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (!timingSafeEqualString(authHeader ?? '', `Bearer ${CRON_SECRET}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

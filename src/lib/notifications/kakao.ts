@@ -62,6 +62,7 @@ export async function sendKakaoAlimtalk(params: SendKakaoParams): Promise<SendKa
           },
         }],
       }),
+      signal: AbortSignal.timeout(10_000),
     })
 
     if (!response.ok) {

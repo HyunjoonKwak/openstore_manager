@@ -38,8 +38,14 @@ export class KdexpScraper extends CarrierScraper {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      // Fall back to the legacy endpoint on HTTP errors, same as other failures.
+      if (!response.ok) {
+        return this.trackLegacy(trackingNumber)
+      }
 
       const data: KdexpResponse = await response.json()
 
@@ -76,8 +82,13 @@ export class KdexpScraper extends CarrierScraper {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!response.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${response.status})`)
+      }
 
       const data: KdexpLegacyResponse = await response.json()
 

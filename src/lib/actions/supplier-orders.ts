@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { OrderStatus, ContactMethod } from '@/types/database.types'
 import { sendOrderNotification, getNotificationStatus } from '@/lib/notifications'
+import { requireUser } from '@/lib/actions/auth-guard'
 
 export interface OrderForSupplier {
   id: string
@@ -304,6 +305,12 @@ export async function markOrdersAsOrdered(
   orderIds: string[]
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('orders')

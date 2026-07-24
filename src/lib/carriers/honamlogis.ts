@@ -29,8 +29,13 @@ export class HonamLogisScraper extends CarrierScraper {
           body: new URLSearchParams({
             SLIP_BARCD: trackingNumber,
           }).toString(),
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!response.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${response.status})`)
+      }
 
       const data: HonamLogisResponse = await response.json()
 

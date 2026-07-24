@@ -4,6 +4,9 @@ import { NaverCommerceClient } from '@/lib/naver/client'
 
 const activeCronJobs = new Map<string, ScheduledTask>()
 
+// Overlap guard: schedule IDs whose sync is currently in flight
+const runningSyncJobs = new Set<string>()
+
 interface SyncScheduleRow {
   id: string
   user_id: string
@@ -59,68 +62,80 @@ function toCronExpression(intervalMinutes: number, syncAtMinute: number, syncTim
 }
 
 async function executeSyncJob(scheduleId: string) {
-  console.log(`🚀 [Scheduler] Executing sync for schedule: ${scheduleId}`)
-
-  const supabase = getSupabaseAdmin()
-
-  const { data: schedule, error: fetchError } = await supabase
-    .from('sync_schedules')
-    .select(`
-      *,
-      stores (
-        id,
-        api_config
-      )
-    `)
-    .eq('id', scheduleId)
-    .single()
-
-  if (fetchError || !schedule) {
-    console.error(`❌ [Scheduler] Schedule not found: ${scheduleId}`)
+  if (runningSyncJobs.has(scheduleId)) {
+    console.error(`⏭️ [Scheduler] Sync already in progress, skipping: ${scheduleId}`)
     return
   }
+  runningSyncJobs.add(scheduleId)
 
-  const typedSchedule = schedule as unknown as SyncScheduleRow
-
-  if (!typedSchedule.is_enabled) {
-    console.log(`⏭️ [Scheduler] Schedule disabled: ${scheduleId}`)
-    return
-  }
-
-  const apiConfig = typedSchedule.stores?.api_config
-  if (!apiConfig?.naverClientId || !apiConfig?.naverClientSecret) {
-    console.log(`⏭️ [Scheduler] Missing API credentials for: ${scheduleId}`)
-    return
-  }
-
-  const { data: logData } = await supabase
-    .from('sync_logs')
-    .insert({
-      schedule_id: scheduleId,
-      sync_type: typedSchedule.sync_type,
-      status: 'running',
-    })
-    .select('id')
-    .single()
-
-  const logId = logData?.id
+  let supabase: ReturnType<typeof getSupabaseAdmin> | null = null
+  let logId: string | undefined
 
   try {
+    console.log(`🚀 [Scheduler] Executing sync for schedule: ${scheduleId}`)
+
+    supabase = getSupabaseAdmin()
+
+    const { data: schedule, error: fetchError } = await supabase
+      .from('sync_schedules')
+      .select(`
+        *,
+        stores (
+          id,
+          api_config
+        )
+      `)
+      .eq('id', scheduleId)
+      .single()
+
+    if (fetchError || !schedule) {
+      console.error(`❌ [Scheduler] Schedule not found: ${scheduleId}`)
+      return
+    }
+
+    const typedSchedule = schedule as unknown as SyncScheduleRow
+
+    if (!typedSchedule.is_enabled) {
+      console.log(`⏭️ [Scheduler] Schedule disabled: ${scheduleId}`)
+      return
+    }
+
+    const apiConfig = typedSchedule.stores?.api_config
+    if (!apiConfig?.naverClientId || !apiConfig?.naverClientSecret) {
+      console.log(`⏭️ [Scheduler] Missing API credentials for: ${scheduleId}`)
+      return
+    }
+
+    const { data: logData } = await supabase
+      .from('sync_logs')
+      .insert({
+        schedule_id: scheduleId,
+        sync_type: typedSchedule.sync_type,
+        status: 'running',
+      })
+      .select('id')
+      .single()
+
+    logId = logData?.id
+
     const client = new NaverCommerceClient({
       clientId: apiConfig.naverClientId,
       clientSecret: apiConfig.naverClientSecret,
     })
 
     let itemsSynced = 0
+    let itemsFailed = 0
 
     if (typedSchedule.sync_type === 'orders' || typedSchedule.sync_type === 'both') {
       const ordersResult = await syncOrders(supabase, client, typedSchedule.store_id)
       itemsSynced += ordersResult.count
+      itemsFailed += ordersResult.failed
     }
 
     if (typedSchedule.sync_type === 'products' || typedSchedule.sync_type === 'both') {
       const productsResult = await syncProducts(supabase, client, typedSchedule.store_id)
       itemsSynced += productsResult.count
+      itemsFailed += productsResult.failed
     }
 
     await supabase
@@ -131,22 +146,28 @@ async function executeSyncJob(scheduleId: string) {
       .eq('id', scheduleId)
 
     if (logId) {
+      // sync_logs.status only allows 'success' | 'failed' | 'running',
+      // so any error marks the run 'failed' with counts in error_message
       await supabase
         .from('sync_logs')
         .update({
-          status: 'success',
+          status: itemsFailed > 0 ? 'failed' : 'success',
           items_synced: itemsSynced,
+          error_message:
+            itemsFailed > 0
+              ? `${itemsFailed} error(s) during sync, ${itemsSynced} item(s) synced`
+              : null,
           completed_at: new Date().toISOString(),
         })
         .eq('id', logId)
     }
 
-    console.log(`✅ [Scheduler] Sync completed: ${scheduleId}, items: ${itemsSynced}`)
+    console.log(`✅ [Scheduler] Sync completed: ${scheduleId}, items: ${itemsSynced}, errors: ${itemsFailed}`)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error(`❌ [Scheduler] Sync failed: ${scheduleId}`, error)
 
-    if (logId) {
+    if (supabase && logId) {
       await supabase
         .from('sync_logs')
         .update({
@@ -156,6 +177,8 @@ async function executeSyncJob(scheduleId: string) {
         })
         .eq('id', logId)
     }
+  } finally {
+    runningSyncJobs.delete(scheduleId)
   }
 }
 
@@ -163,11 +186,12 @@ async function syncOrders(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   client: NaverCommerceClient,
   storeId: string
-): Promise<{ count: number }> {
+): Promise<{ count: number; failed: number }> {
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
   let count = 0
+  let failed = 0
   const today = new Date()
 
   for (let d = new Date(sevenDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
@@ -188,7 +212,7 @@ async function syncOrders(
             .from('orders')
             .select('id')
             .eq('platform_order_id', order.productOrderId)
-            .single()
+            .maybeSingle()
 
           if (existingOrder) {
             await supabase
@@ -204,9 +228,9 @@ async function syncOrders(
               .from('products')
               .select('id')
               .eq('store_id', storeId)
-              .ilike('name', `%${order.productName.slice(0, 20)}%`)
+              .ilike('name', `%${escapeLikePattern(order.productName.slice(0, 20))}%`)
               .limit(1)
-              .single()
+              .maybeSingle()
 
             await supabase.from('orders').insert({
               store_id: storeId,
@@ -227,19 +251,21 @@ async function syncOrders(
         }
       }
     } catch (error) {
+      failed++
       console.error(`Error syncing orders for date ${d.toISOString()}:`, error)
     }
   }
 
-  return { count }
+  return { count, failed }
 }
 
 async function syncProducts(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   client: NaverCommerceClient,
   storeId: string
-): Promise<{ count: number }> {
+): Promise<{ count: number; failed: number }> {
   let count = 0
+  let failed = 0
 
   try {
     const response = await client.searchProducts({
@@ -259,7 +285,7 @@ async function syncProducts(
           .select('id')
           .eq('store_id', storeId)
           .eq('platform_product_id', platformProductId)
-          .single()
+          .maybeSingle()
 
         if (existingByPlatformId) {
           await supabase
@@ -284,7 +310,7 @@ async function syncProducts(
                 .select('id')
                 .eq('store_id', storeId)
                 .eq('sku', sku)
-                .single()
+                .maybeSingle()
             : { data: null }
 
           if (existingBySku) {
@@ -321,10 +347,16 @@ async function syncProducts(
       }
     }
   } catch (error) {
+    failed++
     console.error('Error syncing products:', error)
   }
 
-  return { count }
+  return { count, failed }
+}
+
+// Escape LIKE/ILIKE metacharacters (% _ \) so user data cannot alter the pattern
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`)
 }
 
 function mapNaverOrderStatus(naverStatus: string): string {
@@ -377,7 +409,10 @@ export function registerSchedule(
       cronExpr,
       () => {
         console.log(`🕐 [Scheduler] Cron triggered for: ${scheduleId}`)
-        executeSyncJob(scheduleId)
+        // Fire-and-forget: catch rejections so they never crash the process
+        executeSyncJob(scheduleId).catch((error) => {
+          console.error(`❌ [Scheduler] Unhandled sync error for ${scheduleId}:`, error)
+        })
       },
       {
         timezone: 'Asia/Seoul',

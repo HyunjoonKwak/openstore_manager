@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { parseError, formatErrorMessage } from '@/lib/error-messages'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { requireUser } from '@/lib/actions/auth-guard'
 
 export interface ProductWithSupplier {
   id: string
@@ -161,6 +162,12 @@ export async function createProduct(
 ): Promise<{ data: ProductWithSupplier | null; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { data: null, error: 'Unauthorized' }
+  }
+
   const { data, error } = await supabase
     .from('products')
     .insert({
@@ -227,6 +234,12 @@ export async function updateProduct(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const updateData: Record<string, string | number | null> = {}
   if (input.name !== undefined) updateData.name = input.name
   if (input.price !== undefined) updateData.price = input.price
@@ -253,6 +266,12 @@ export async function updateStock(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('products')
     .update({ stock_quantity: quantity })
@@ -270,6 +289,12 @@ export async function deleteProduct(
   id: string
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('products')
@@ -399,6 +424,12 @@ export async function updateProductDetail(
   input: UpdateProductDetailInput
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const updateData: Record<string, string | number | null> = {}
   if (input.name !== undefined) updateData.name = input.name

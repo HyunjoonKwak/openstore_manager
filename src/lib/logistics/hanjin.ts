@@ -232,6 +232,7 @@ export async function registerHanjinShipment(
         memo: input.memo,
         requestDate: input.requestDate,
       }),
+      signal: AbortSignal.timeout(10_000),
     })
 
     if (!response.ok) {
@@ -330,6 +331,7 @@ export async function trackHanjinPackage(
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'application/json',
         },
+        signal: AbortSignal.timeout(10_000),
       }
     )
 

@@ -22,6 +22,7 @@ export class CwayScraper extends CarrierScraper {
 
   async track(trackingNumber: string): Promise<TrackInfo> {
     try {
+      // Upstream does not support TLS (https://cway.hagoto.com is unreachable), so http is kept.
       const detailResponse = await fetch('http://cway.hagoto.com/where/details', {
         method: 'POST',
         headers: {
@@ -31,7 +32,12 @@ export class CwayScraper extends CarrierScraper {
         body: new URLSearchParams({
           hblNo: trackingNumber,
         }).toString(),
+        signal: AbortSignal.timeout(10_000),
       })
+
+      if (!detailResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${detailResponse.status})`)
+      }
 
       const detailData: CwayDetailResponse = await detailResponse.json()
 
@@ -39,6 +45,7 @@ export class CwayScraper extends CarrierScraper {
         return this.createErrorResult(trackingNumber, '배송 정보를 찾을 수 없습니다.')
       }
 
+      // Upstream does not support TLS (https://cway.hagoto.com is unreachable), so http is kept.
       const logListResponse = await fetch('http://cway.hagoto.com/where/hbl/logList', {
         method: 'POST',
         headers: {
@@ -50,7 +57,12 @@ export class CwayScraper extends CarrierScraper {
           pageNum: 'NaN',
           isAsc: 'asc',
         }).toString(),
+        signal: AbortSignal.timeout(10_000),
       })
+
+      if (!logListResponse.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${logListResponse.status})`)
+      }
 
       const logListData: CwayLogListResponse = await logListResponse.json()
 

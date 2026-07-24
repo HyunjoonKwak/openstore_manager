@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import type { OrderStatus } from '@/types/database.types'
 import { parseError, formatErrorMessage } from '@/lib/error-messages'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { requireUser } from '@/lib/actions/auth-guard'
+import { sanitizeCsvCell } from '@/lib/csv'
 
 export interface OrderWithProduct {
   id: string
@@ -202,6 +204,12 @@ export async function updateOrderStatus(
 ): Promise<{ success: boolean; error: string | null; naverSyncResult?: { success: boolean; error?: string } }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   let naverSyncResult: { success: boolean; error?: string } | undefined
 
   if (status === 'Ordered' && syncToNaver) {
@@ -240,6 +248,12 @@ export async function updateTrackingNumber(
   syncToNaver: boolean = true
 ): Promise<{ success: boolean; error: string | null; naverSyncResult?: { success: boolean; error?: string } }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { data: order, error: fetchError } = await supabase
     .from('orders')
@@ -380,6 +394,12 @@ export async function createOrder(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase.from('orders').insert({
     store_id: input.storeId,
     product_id: input.productId,
@@ -403,6 +423,12 @@ export async function deleteOrder(
   orderId: string
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('orders')
@@ -878,15 +904,7 @@ export async function exportOrdersToExcel(): Promise<{
 
   const csvContent = [
     headers.join(','),
-    ...rows.map((row) =>
-      row.map((cell) => {
-        const str = String(cell)
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`
-        }
-        return str
-      }).join(',')
-    ),
+    ...rows.map((row) => row.map((cell) => sanitizeCsvCell(cell)).join(',')),
   ].join('\n')
 
   const BOM = '\uFEFF'

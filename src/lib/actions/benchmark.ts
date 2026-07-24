@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { requireUser } from '@/lib/actions/auth-guard'
 import type {
   BenchmarkSession,
   BenchmarkPage,
@@ -155,6 +156,12 @@ export async function updateBenchmarkSession(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('benchmark_sessions')
     .update({
@@ -182,6 +189,12 @@ export async function deleteBenchmarkSession(sessionId: string): Promise<{
 }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('benchmark_sessions')
     .delete()
@@ -205,13 +218,19 @@ export async function addBenchmarkPage(
 ): Promise<{ data: BenchmarkPage | null; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { data: null, error: 'Unauthorized' }
+  }
+
   const { data: maxOrder } = await supabase
     .from('benchmark_pages')
     .select('display_order')
     .eq('session_id', sessionId)
     .order('display_order', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   const newOrder = (maxOrder?.display_order ?? -1) + 1
 
@@ -249,6 +268,12 @@ export async function updateBenchmarkPage(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('benchmark_pages')
     .update({
@@ -269,6 +294,12 @@ export async function deleteBenchmarkPage(pageId: string, sessionId: string): Pr
   error: string | null
 }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('benchmark_pages')
@@ -294,6 +325,12 @@ export async function addBenchmarkMemo(
   }
 ): Promise<{ data: BenchmarkMemo | null; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { data: null, error: 'Unauthorized' }
+  }
 
   const { data, error } = await supabase
     .from('benchmark_memos')
@@ -330,6 +367,12 @@ export async function updateBenchmarkMemo(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('benchmark_memos')
     .update({
@@ -351,6 +394,12 @@ export async function deleteBenchmarkMemo(memoId: string, sessionId: string): Pr
   error: string | null
 }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('benchmark_memos')
@@ -375,13 +424,19 @@ export async function addBenchmarkChecklist(
 ): Promise<{ data: BenchmarkChecklist | null; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { data: null, error: 'Unauthorized' }
+  }
+
   const { data: maxOrder } = await supabase
     .from('benchmark_checklists')
     .select('display_order')
     .eq('session_id', sessionId)
     .order('display_order', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   const newOrder = (maxOrder?.display_order ?? -1) + 1
 
@@ -421,6 +476,12 @@ export async function updateBenchmarkChecklist(
 ): Promise<{ success: boolean; error: string | null }> {
   const supabase = await createClient()
 
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
   const { error } = await supabase
     .from('benchmark_checklists')
     .update({
@@ -444,6 +505,12 @@ export async function deleteBenchmarkChecklist(checklistId: string, sessionId: s
   error: string | null
 }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('benchmark_checklists')
@@ -470,6 +537,12 @@ export async function addBenchmarkAsset(
   }
 ): Promise<{ data: BenchmarkAsset | null; error: string | null }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { data: null, error: 'Unauthorized' }
+  }
 
   const { data, error } = await supabase
     .from('benchmark_assets')
@@ -503,6 +576,12 @@ export async function deleteBenchmarkAsset(assetId: string, sessionId: string): 
   error: string | null
 }> {
   const supabase = await createClient()
+
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('benchmark_assets')

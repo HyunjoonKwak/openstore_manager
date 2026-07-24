@@ -20,8 +20,13 @@ export class DaesinScraper extends CarrierScraper {
           body: new URLSearchParams({
             billno: trackingNumber,
           }).toString(),
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!response.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${response.status})`)
+      }
 
       const buffer = await response.arrayBuffer()
       const decoder = new TextDecoder('euc-kr')

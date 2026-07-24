@@ -20,8 +20,13 @@ export class GoodsToLuckScraper extends CarrierScraper {
             RetrieveFlag: 'SEARCH',
             Txt_word: trackingNumber,
           }).toString(),
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!response.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${response.status})`)
+      }
 
       const html = await response.text()
       const $ = cheerio.load(html)

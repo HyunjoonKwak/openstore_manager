@@ -6,6 +6,9 @@ const getServerUrl = async () => {
 };
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Ignore messages that do not originate from this extension.
+  if (sender.id !== chrome.runtime.id) return;
+
   if (request.action === 'captureScreenshot') {
     chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 85 }, (dataUrl) => {
       sendResponse({ screenshot: dataUrl });

@@ -41,8 +41,13 @@ export class IlyangLogisScraper extends CarrierScraper {
             tracking_type: '0',
             blNum: trackingNumber,
           }).toString(),
+          signal: AbortSignal.timeout(10_000),
         }
       )
+
+      if (!response.ok) {
+        return this.createErrorResult(trackingNumber, `서버 응답 오류 (HTTP ${response.status})`)
+      }
 
       const data: IlyangLogisResponse = await response.json()
 
