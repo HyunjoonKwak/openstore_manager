@@ -1116,7 +1116,7 @@ export async function syncStockToNaver(productId: string): Promise<{
   try {
     const { data: rawProduct } = await supabase
       .from('products')
-      .select('id, stock_quantity, platform_product_id')
+      .select('id, stock_quantity, naver_origin_product_no, platform_product_id')
       .eq('id', productId)
       .single()
 
@@ -1180,7 +1180,7 @@ export async function syncAllStockToNaver(): Promise<{
 
     const { data: rawProducts } = await supabase
       .from('products')
-      .select('id, stock_quantity, platform_product_id')
+      .select('id, stock_quantity, naver_origin_product_no, platform_product_id')
       .in('store_id', storeIds)
       .not('platform_product_id', 'is', null)
 
@@ -1382,7 +1382,7 @@ export async function getProductDetailFromNaver(productId: string): Promise<{
   try {
     const { data: rawProduct } = await supabase
       .from('products')
-      .select('platform_product_id, category')
+      .select('naver_origin_product_no, platform_product_id, category')
       .eq('id', productId)
       .single()
 
@@ -1614,7 +1614,7 @@ export async function updateProductDetailToNaver(
   try {
     const { data: rawProduct } = await supabase
       .from('products')
-      .select('platform_product_id')
+      .select('naver_origin_product_no, platform_product_id')
       .eq('id', productId)
       .single()
 

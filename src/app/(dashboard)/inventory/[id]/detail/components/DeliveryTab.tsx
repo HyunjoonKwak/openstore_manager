@@ -37,9 +37,9 @@ export function DeliveryTab({ productData, updateField }: DeliveryTabProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>배송비 유형</Label>
+                <Label htmlFor="detail-delivery-fee-type">배송비 유형</Label>
                 <Select value={productData.deliveryFeeType || 'PAID'} onValueChange={(v) => updateField('deliveryFeeType', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="detail-delivery-fee-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {DELIVERY_FEE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                   </SelectContent>
@@ -47,25 +47,25 @@ export function DeliveryTab({ productData, updateField }: DeliveryTabProps) {
               </div>
               {productData.deliveryFeeType !== 'FREE' && (
                 <div className="space-y-2">
-                  <Label>기본 배송비</Label>
-                  <Input type="number" value={productData.baseFee || 0} onChange={(e) => updateField('baseFee', Number(e.target.value))} />
+                  <Label htmlFor="detail-base-fee">기본 배송비</Label>
+                  <Input id="detail-base-fee" type="number" value={productData.baseFee || 0} onChange={(e) => updateField('baseFee', Number(e.target.value))} />
                 </div>
               )}
               {productData.deliveryFeeType === 'CONDITIONAL_FREE' && (
                 <div className="space-y-2">
-                  <Label>무료배송 기준금액</Label>
-                  <Input type="number" value={productData.freeConditionalAmount || 0} onChange={(e) => updateField('freeConditionalAmount', Number(e.target.value))} />
+                  <Label htmlFor="detail-free-conditional-amount">무료배송 기준금액</Label>
+                  <Input id="detail-free-conditional-amount" type="number" value={productData.freeConditionalAmount || 0} onChange={(e) => updateField('freeConditionalAmount', Number(e.target.value))} />
                 </div>
               )}
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>반품 배송비 (편도)</Label>
-                <Input type="number" value={productData.returnDeliveryFee || 0} onChange={(e) => updateField('returnDeliveryFee', Number(e.target.value))} />
+                <Label htmlFor="detail-return-delivery-fee">반품 배송비 (편도)</Label>
+                <Input id="detail-return-delivery-fee" type="number" value={productData.returnDeliveryFee || 0} onChange={(e) => updateField('returnDeliveryFee', Number(e.target.value))} />
               </div>
               <div className="space-y-2">
-                <Label>교환 배송비 (왕복)</Label>
-                <Input type="number" value={productData.exchangeDeliveryFee || 0} onChange={(e) => updateField('exchangeDeliveryFee', Number(e.target.value))} />
+                <Label htmlFor="detail-exchange-delivery-fee">교환 배송비 (왕복)</Label>
+                <Input id="detail-exchange-delivery-fee" type="number" value={productData.exchangeDeliveryFee || 0} onChange={(e) => updateField('exchangeDeliveryFee', Number(e.target.value))} />
               </div>
             </div>
           </div>

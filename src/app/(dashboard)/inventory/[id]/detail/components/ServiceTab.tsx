@@ -22,12 +22,12 @@ export function ServiceTab({ productData, updateField }: ServiceTabProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>A/S 전화번호</Label>
-            <Input value={productData.afterServiceTel || ''} onChange={(e) => updateField('afterServiceTel', e.target.value)} placeholder="02-1234-5678" />
+            <Label htmlFor="detail-after-service-tel">A/S 전화번호</Label>
+            <Input id="detail-after-service-tel" value={productData.afterServiceTel || ''} onChange={(e) => updateField('afterServiceTel', e.target.value)} placeholder="02-1234-5678" />
           </div>
           <div className="space-y-2">
-            <Label>A/S 안내</Label>
-            <Textarea value={productData.afterServiceGuide || ''} onChange={(e) => updateField('afterServiceGuide', e.target.value)} placeholder="A/S 관련 안내사항..." className="min-h-[150px]" />
+            <Label htmlFor="detail-after-service-guide">A/S 안내</Label>
+            <Textarea id="detail-after-service-guide" value={productData.afterServiceGuide || ''} onChange={(e) => updateField('afterServiceGuide', e.target.value)} placeholder="A/S 관련 안내사항..." className="min-h-[150px]" />
           </div>
         </CardContent>
       </Card>

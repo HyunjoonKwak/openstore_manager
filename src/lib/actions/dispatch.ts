@@ -8,6 +8,7 @@ import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { requireUser } from '@/lib/actions/auth-guard'
 import { sanitizeCsvCell, parseCsvLine } from '@/lib/csv'
 import { decryptSecret } from '@/lib/secret-crypto'
+import { z } from 'zod'
 import {
   validateInput,
   orderIdsSchema,
@@ -101,11 +102,15 @@ export async function getOrdersForDispatch(): Promise<{
   }
 
   // 발주확인 완료(Ordered) 상태이고 운송장이 없는 주문 + 운송장 있지만 발송처리 안된 주문
+  // Also include orders dispatched within the last 30 days so the
+  // step-3 (발송 완료) list stays populated after a reload.
+  const dispatchedSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
   const { data: orders, error } = await supabase
     .from('orders')
     .select('*')
     .eq('store_id', storeId)
-    .in('status', ['Ordered', 'New'])
+    .or(`status.in.(Ordered,New),and(status.eq.Dispatched,order_date.gte.${dispatchedSince})`)
     .order('order_date', { ascending: false })
 
   if (error) {
@@ -441,8 +446,12 @@ export async function downloadOrdersExcel(): Promise<{
   }
 }
 
+// Courier codes are short identifiers such as 'CJGLS'
+const uploadCourierCodeSchema = z.string().trim().min(1).max(50)
+
 export async function uploadTrackingExcel(
-  formData: FormData
+  formData: FormData,
+  courierCode: string
 ): Promise<{
   success: boolean
   updatedCount: number
@@ -451,6 +460,11 @@ export async function uploadTrackingExcel(
   const file = formData.get('file') as File
   if (!file) {
     return { success: false, updatedCount: 0, errors: ['파일이 없습니다.'] }
+  }
+
+  const courierValidation = validateInput(uploadCourierCodeSchema, courierCode)
+  if (courierValidation.error !== null) {
+    return { success: false, updatedCount: 0, errors: [courierValidation.error] }
   }
 
   const supabase = await createClient()
@@ -500,7 +514,10 @@ export async function uploadTrackingExcel(
 
       const { data: updatedRows, error } = await supabase
         .from('orders')
-        .update({ tracking_number: trackingNumber })
+        .update({
+          tracking_number: trackingNumber,
+          courier_code: courierValidation.data,
+        })
         .eq('platform_order_id', platformOrderId)
         .eq('store_id', storeId)
         .select('id')

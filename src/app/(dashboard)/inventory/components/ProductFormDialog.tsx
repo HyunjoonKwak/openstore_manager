@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -105,6 +106,9 @@ export function ProductFormDialog({
           <DialogTitle>
             {editingProduct ? '상품 수정' : '새 상품 추가'}
           </DialogTitle>
+          <DialogDescription>
+            상품 정보를 입력하고 저장하세요.
+          </DialogDescription>
         </DialogHeader>
 
         {!editingProduct && (

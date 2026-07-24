@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -109,6 +110,9 @@ export function SupplierSettingsDialog({
           <DialogTitle>
             {settingsSupplier?.name} 설정
           </DialogTitle>
+          <DialogDescription>
+            발주 메시지 템플릿과 발송 방법을 설정하세요.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 py-4">
           <div className="space-y-3">

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -56,6 +58,7 @@ import { cn } from '@/lib/utils'
 import {
   type DispatchOrder,
   type CourierOption,
+  getOrdersForDispatch,
   updateOrderTrackingNumber,
   dispatchOrdersToNaver,
   downloadOrdersExcel,
@@ -108,6 +111,17 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
   const [testMode, setTestMode] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { orderDownloadPath, trackingUploadPath } = useDefaultFolder()
+  const router = useRouter()
+
+  // Re-fetch orders in place instead of a full page reload so toasts stay visible
+  const refreshOrders = async () => {
+    const { data } = await getOrdersForDispatch()
+    if (data) {
+      setOrders(data)
+    }
+    setSelectedIds([])
+    router.refresh()
+  }
 
   const pendingOrders = orders.filter(o => !o.trackingNumber)
   const readyOrders = orders.filter(o => o.trackingNumber && o.status !== 'Dispatched')
@@ -208,6 +222,11 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
         setSelectedIds([])
         toast.success(`${successCount}건이 발송처리 되었습니다.`)
       } else {
+        // Close the dialog when the action fails with no per-order results,
+        // otherwise it would show the loading spinner forever
+        if (result.results.length === 0) {
+          setIsDispatchDialogOpen(false)
+        }
         toast.error(result.error || '발송처리에 실패했습니다.')
       }
     })
@@ -275,10 +294,10 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
     formData.append('file', file)
 
     startTransition(async () => {
-      const result = await uploadTrackingExcel(formData)
+      const result = await uploadTrackingExcel(formData, selectedCourier)
       if (result.success) {
         toast.success(`${result.updatedCount}건의 운송장이 업로드 되었습니다.`)
-        window.location.reload()
+        await refreshOrders()
       } else {
         toast.error(result.errors[0] || '업로드에 실패했습니다.')
       }
@@ -310,10 +329,10 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
         formData.append('file', file)
 
         startTransition(async () => {
-          const result = await uploadTrackingExcel(formData)
+          const result = await uploadTrackingExcel(formData, selectedCourier)
           if (result.success) {
             toast.success(`${result.updatedCount}건의 운송장이 업로드 되었습니다.`)
-            window.location.reload()
+            await refreshOrders()
           } else {
             toast.error(result.errors[0] || '업로드에 실패했습니다.')
           }
@@ -333,7 +352,7 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
       const result = await createTestOrders(3)
       if (result.success) {
         toast.success(`${result.createdCount}건의 테스트 주문이 생성되었습니다.`)
-        window.location.reload()
+        await refreshOrders()
       } else {
         toast.error(result.error || '생성에 실패했습니다.')
       }
@@ -345,7 +364,7 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
       const result = await deleteTestOrders()
       if (result.success) {
         toast.success(`${result.deletedCount}건의 테스트 주문이 삭제되었습니다.`)
-        window.location.reload()
+        await refreshOrders()
       } else {
         toast.error(result.error || '삭제에 실패했습니다.')
       }
@@ -705,6 +724,9 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
             <DialogTitle>
               {testMode ? '[테스트] ' : ''}네이버 발송처리 결과
             </DialogTitle>
+            <DialogDescription>
+              주문별 발송처리 결과를 확인하세요.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 max-h-[400px] overflow-y-auto">
             {dispatchResults.length === 0 ? (

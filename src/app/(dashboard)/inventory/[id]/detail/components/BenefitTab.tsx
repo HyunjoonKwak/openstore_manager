@@ -33,13 +33,13 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>할인 금액/률</Label>
-                <Input type="number" value={productData.discountValue || 0} onChange={(e) => updateField('discountValue', Number(e.target.value))} />
+                <Label htmlFor="detail-discount-value">할인 금액/률</Label>
+                <Input id="detail-discount-value" type="number" value={productData.discountValue || 0} onChange={(e) => updateField('discountValue', Number(e.target.value))} />
               </div>
               <div className="space-y-2">
-                <Label>단위</Label>
+                <Label htmlFor="detail-discount-unit-type">단위</Label>
                 <Select value={productData.discountUnitType || 'WON'} onValueChange={(v) => updateField('discountUnitType', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="detail-discount-unit-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="WON">원</SelectItem>
                     <SelectItem value="PERCENT">%</SelectItem>
@@ -47,7 +47,8 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
                 </Select>
               </div>
             </div>
-            {productData.discountValue && productData.discountValue > 0 && (
+            {/* Explicit null/zero check: a discount of 0 renders nothing (avoids stray "0") */}
+            {productData.discountValue != null && productData.discountValue > 0 && (
               <div className="p-3 bg-primary/10 rounded-lg">
                 <p className="text-sm font-medium text-primary">
                   할인 적용가: {formatCurrency(
@@ -68,13 +69,13 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>구매 적립</Label>
-                <Input type="number" value={productData.purchasePointValue || 0} onChange={(e) => updateField('purchasePointValue', Number(e.target.value))} />
+                <Label htmlFor="detail-purchase-point-value">구매 적립</Label>
+                <Input id="detail-purchase-point-value" type="number" value={productData.purchasePointValue || 0} onChange={(e) => updateField('purchasePointValue', Number(e.target.value))} />
               </div>
               <div className="space-y-2">
-                <Label>단위</Label>
+                <Label htmlFor="detail-purchase-point-unit-type">단위</Label>
                 <Select value={productData.purchasePointUnitType || 'WON'} onValueChange={(v) => updateField('purchasePointUnitType', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="detail-purchase-point-unit-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="WON">원</SelectItem>
                     <SelectItem value="PERCENT">%</SelectItem>
@@ -85,12 +86,12 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
             <Separator />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>텍스트 리뷰 포인트</Label>
-                <Input type="number" value={productData.textReviewPoint || 0} onChange={(e) => updateField('textReviewPoint', Number(e.target.value))} />
+                <Label htmlFor="detail-text-review-point">텍스트 리뷰 포인트</Label>
+                <Input id="detail-text-review-point" type="number" value={productData.textReviewPoint || 0} onChange={(e) => updateField('textReviewPoint', Number(e.target.value))} />
               </div>
               <div className="space-y-2">
-                <Label>포토/동영상 리뷰 포인트</Label>
-                <Input type="number" value={productData.photoVideoReviewPoint || 0} onChange={(e) => updateField('photoVideoReviewPoint', Number(e.target.value))} />
+                <Label htmlFor="detail-photo-video-review-point">포토/동영상 리뷰 포인트</Label>
+                <Input id="detail-photo-video-review-point" type="number" value={productData.photoVideoReviewPoint || 0} onChange={(e) => updateField('photoVideoReviewPoint', Number(e.target.value))} />
               </div>
             </div>
           </CardContent>
@@ -102,8 +103,8 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <Label>사은품명</Label>
-              <Input value={productData.giftName || ''} onChange={(e) => updateField('giftName', e.target.value)} placeholder="구매 시 증정되는 사은품" />
+              <Label htmlFor="detail-gift-name">사은품명</Label>
+              <Input id="detail-gift-name" value={productData.giftName || ''} onChange={(e) => updateField('giftName', e.target.value)} placeholder="구매 시 증정되는 사은품" />
             </div>
           </CardContent>
         </Card>
@@ -114,13 +115,13 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>이벤트 문구 사용</Label>
-              <Switch checked={productData.eventPhraseEnabled || false} onCheckedChange={(checked) => updateField('eventPhraseEnabled', checked)} />
+              <Label htmlFor="detail-event-phrase-enabled">이벤트 문구 사용</Label>
+              <Switch id="detail-event-phrase-enabled" checked={productData.eventPhraseEnabled || false} onCheckedChange={(checked) => updateField('eventPhraseEnabled', checked)} />
             </div>
             {productData.eventPhraseEnabled && (
               <div className="space-y-2">
-                <Label>문구 내용</Label>
-                <Input value={productData.eventPhraseContent || ''} onChange={(e) => updateField('eventPhraseContent', e.target.value)} placeholder="예: 오늘만 50% 할인!" />
+                <Label htmlFor="detail-event-phrase-content">문구 내용</Label>
+                <Input id="detail-event-phrase-content" value={productData.eventPhraseContent || ''} onChange={(e) => updateField('eventPhraseContent', e.target.value)} placeholder="예: 오늘만 50% 할인!" />
               </div>
             )}
           </CardContent>

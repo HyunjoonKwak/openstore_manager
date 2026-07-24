@@ -37,8 +37,8 @@ export function ImagesTab({
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label>대표 이미지 URL</Label>
-            <Input value={productData.representativeImageUrl || ''} onChange={(e) => updateField('representativeImageUrl', e.target.value)} placeholder="https://..." />
+            <Label htmlFor="detail-representative-image-url">대표 이미지 URL</Label>
+            <Input id="detail-representative-image-url" value={productData.representativeImageUrl || ''} onChange={(e) => updateField('representativeImageUrl', e.target.value)} placeholder="https://..." />
             {productData.representativeImageUrl && (
               <div className="mt-2">
                 <Image src={productData.representativeImageUrl} alt="대표이미지" width={150} height={150} className="rounded-lg object-cover border" />
@@ -47,9 +47,9 @@ export function ImagesTab({
           </div>
           <Separator />
           <div className="space-y-4">
-            <Label>추가 이미지 ({productData.optionalImageUrls?.length || 0}/9)</Label>
+            <Label htmlFor="detail-new-image-url">추가 이미지 ({productData.optionalImageUrls?.length || 0}/9)</Label>
             <div className="flex gap-2">
-              <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="이미지 URL 입력" className="flex-1" />
+              <Input id="detail-new-image-url" value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="이미지 URL 입력" className="flex-1" />
               <Button onClick={addOptionalImage} disabled={!newImageUrl}>
                 <Plus className="h-4 w-4 mr-1" />추가
               </Button>

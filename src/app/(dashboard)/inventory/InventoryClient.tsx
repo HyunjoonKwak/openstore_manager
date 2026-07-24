@@ -157,14 +157,26 @@ export function InventoryClient({
       })
 
       if (!response.ok) {
-        throw new Error('Generation failed')
+        // Surface the server-provided error reason instead of a fixed message
+        const body = await response.json().catch(() => null)
+        const serverError =
+          typeof body?.error === 'string'
+            ? body.error
+            : typeof body?.message === 'string'
+              ? body.message
+              : ''
+        const message = serverError.includes('API key')
+          ? 'API 키가 설정되지 않았습니다. 설정 페이지에서 OpenAI API 키를 입력하세요.'
+          : serverError || '생성에 실패했습니다.'
+        toast.error(message)
+        return
       }
 
       const data = await response.json()
       setAiGenerated(data)
       toast.success('AI가 상품 정보를 생성했습니다!')
     } catch {
-      toast.error('API 키가 설정되지 않았습니다. 설정 페이지에서 OpenAI API 키를 입력하세요.')
+      toast.error('생성에 실패했습니다.')
     } finally {
       setIsGenerating(false)
     }

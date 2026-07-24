@@ -46,20 +46,20 @@ export function OptionsTab({
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label>옵션1</Label>
-              <Input value={productData.optionGroupNames?.optionGroupName1 || ''} onChange={(e) => updateField('optionGroupNames', { ...productData.optionGroupNames, optionGroupName1: e.target.value })} placeholder="예: 색상" />
+              <Label htmlFor="detail-option-group-name1">옵션1</Label>
+              <Input id="detail-option-group-name1" value={productData.optionGroupNames?.optionGroupName1 || ''} onChange={(e) => updateField('optionGroupNames', { ...productData.optionGroupNames, optionGroupName1: e.target.value })} placeholder="예: 색상" />
             </div>
             <div className="space-y-2">
-              <Label>옵션2</Label>
-              <Input value={productData.optionGroupNames?.optionGroupName2 || ''} onChange={(e) => updateField('optionGroupNames', { ...productData.optionGroupNames, optionGroupName2: e.target.value })} placeholder="예: 사이즈" />
+              <Label htmlFor="detail-option-group-name2">옵션2</Label>
+              <Input id="detail-option-group-name2" value={productData.optionGroupNames?.optionGroupName2 || ''} onChange={(e) => updateField('optionGroupNames', { ...productData.optionGroupNames, optionGroupName2: e.target.value })} placeholder="예: 사이즈" />
             </div>
             <div className="space-y-2">
-              <Label>옵션3</Label>
-              <Input value={productData.optionGroupNames?.optionGroupName3 || ''} onChange={(e) => updateField('optionGroupNames', { ...productData.optionGroupNames, optionGroupName3: e.target.value })} />
+              <Label htmlFor="detail-option-group-name3">옵션3</Label>
+              <Input id="detail-option-group-name3" value={productData.optionGroupNames?.optionGroupName3 || ''} onChange={(e) => updateField('optionGroupNames', { ...productData.optionGroupNames, optionGroupName3: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>옵션4</Label>
-              <Input value={productData.optionGroupNames?.optionGroupName4 || ''} onChange={(e) => updateField('optionGroupNames', { ...productData.optionGroupNames, optionGroupName4: e.target.value })} />
+              <Label htmlFor="detail-option-group-name4">옵션4</Label>
+              <Input id="detail-option-group-name4" value={productData.optionGroupNames?.optionGroupName4 || ''} onChange={(e) => updateField('optionGroupNames', { ...productData.optionGroupNames, optionGroupName4: e.target.value })} />
             </div>
           </div>
         </CardContent>
@@ -74,16 +74,16 @@ export function OptionsTab({
           <div className="space-y-4">
             <div className="flex gap-2 items-end">
               <div className="flex-1 space-y-1">
-                <Label className="text-xs">옵션값1</Label>
-                <Input value={newOptionRow.optionName1 || ''} onChange={(e) => setNewOptionRow({ ...newOptionRow, optionName1: e.target.value })} placeholder="옵션값" />
+                <Label htmlFor="detail-new-option-name1" className="text-xs">옵션값1</Label>
+                <Input id="detail-new-option-name1" value={newOptionRow.optionName1 || ''} onChange={(e) => setNewOptionRow({ ...newOptionRow, optionName1: e.target.value })} placeholder="옵션값" />
               </div>
               <div className="w-24 space-y-1">
-                <Label className="text-xs">추가금액</Label>
-                <Input type="number" value={newOptionRow.price || 0} onChange={(e) => setNewOptionRow({ ...newOptionRow, price: Number(e.target.value) })} />
+                <Label htmlFor="detail-new-option-price" className="text-xs">추가금액</Label>
+                <Input id="detail-new-option-price" type="number" value={newOptionRow.price || 0} onChange={(e) => setNewOptionRow({ ...newOptionRow, price: Number(e.target.value) })} />
               </div>
               <div className="w-24 space-y-1">
-                <Label className="text-xs">재고</Label>
-                <Input type="number" value={newOptionRow.stockQuantity || 0} onChange={(e) => setNewOptionRow({ ...newOptionRow, stockQuantity: Number(e.target.value) })} />
+                <Label htmlFor="detail-new-option-stock" className="text-xs">재고</Label>
+                <Input id="detail-new-option-stock" type="number" value={newOptionRow.stockQuantity || 0} onChange={(e) => setNewOptionRow({ ...newOptionRow, stockQuantity: Number(e.target.value) })} />
               </div>
               <Button onClick={addOption} disabled={!newOptionRow.optionName1}>
                 <Plus className="h-4 w-4" />

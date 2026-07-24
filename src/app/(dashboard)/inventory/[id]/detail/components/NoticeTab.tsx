@@ -62,9 +62,9 @@ export function NoticeTab({ productData, updateField }: NoticeTabProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>상품 유형</Label>
+            <Label htmlFor="detail-notice-type">상품 유형</Label>
             <Select value={productData.productInfoProvidedNotice?.productInfoProvidedNoticeType || 'ETC'} onValueChange={(v) => updateField('productInfoProvidedNotice', { ...productData.productInfoProvidedNotice, productInfoProvidedNoticeType: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="detail-notice-type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PRODUCT_INFO_NOTICE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
               </SelectContent>

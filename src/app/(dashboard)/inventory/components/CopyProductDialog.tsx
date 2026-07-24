@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -45,6 +46,9 @@ export function CopyProductDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>다른 스토어로 상품 복사</DialogTitle>
+          <DialogDescription>
+            복사할 대상 스토어를 선택하세요.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="p-3 border rounded-lg bg-muted/30">

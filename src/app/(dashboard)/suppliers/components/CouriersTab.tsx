@@ -17,6 +17,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -94,6 +95,9 @@ export function CouriersTab({
               <DialogTitle>
                 {editingCourier ? '택배업체 수정' : '새 택배업체 추가'}
               </DialogTitle>
+              <DialogDescription>
+                사용할 택배사를 선택하고 정보를 입력하세요.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">

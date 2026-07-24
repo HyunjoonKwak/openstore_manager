@@ -28,6 +28,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -456,6 +457,9 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
                             <DialogContent className="max-w-2xl">
                               <DialogHeader>
                                 <DialogTitle>{group.supplier.name} 설정</DialogTitle>
+                                <DialogDescription>
+                                  이 공급업체의 발주 메시지 템플릿을 설정하세요.
+                                </DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4 pt-4">
                                 <div className="space-y-2">

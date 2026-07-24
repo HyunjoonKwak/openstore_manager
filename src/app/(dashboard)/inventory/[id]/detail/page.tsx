@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
+import Link from 'next/link'
 import {
+  AlertTriangle,
   Code,
   Loader2,
   Package,
@@ -15,6 +17,8 @@ import {
   Gift,
 } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
@@ -33,7 +37,7 @@ import {
   type NaverOptionItem,
 } from '@/lib/actions/naver-sync'
 import { getSuppliersSimple, type SupplierSimple } from '@/lib/actions/suppliers'
-import { updateProduct } from '@/lib/actions/products'
+import { updateProduct, getProductById } from '@/lib/actions/products'
 import { ProductEditorHeader } from './components/ProductEditorHeader'
 import { BasicInfoTab } from './components/BasicInfoTab'
 import { ImagesTab } from './components/ImagesTab'
@@ -61,6 +65,7 @@ export default function ProductDetailEditPage({ params }: PageProps) {
   const [productData, setProductData] = useState<NaverProductFullDetail | null>(null)
   const [originalData, setOriginalData] = useState<NaverProductFullDetail | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const [suppliers, setSuppliers] = useState<SupplierSimple[]>([])
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null)
@@ -76,21 +81,35 @@ export default function ProductDetailEditPage({ params }: PageProps) {
   useEffect(() => {
     async function fetchData() {
       setIsSyncing(true)
+      setLoadError(null)
       try {
         const result = await getProductDetailFromNaver(productId)
         if (result.data) {
           setProductData(result.data)
           setOriginalData(JSON.parse(JSON.stringify(result.data)))
         } else if (result.error) {
+          setLoadError(result.error)
           toast.error(result.error)
         }
+      } catch (error) {
+        console.error('Failed to load product detail:', error)
+        const message = '상품 정보를 불러오는 중 오류가 발생했습니다.'
+        setLoadError(message)
+        toast.error(message)
       } finally {
         setIsSyncing(false)
       }
 
-      const supplierResult = await getSuppliersSimple()
+      // Suppliers and the linked supplier id live in the local DB, not Naver
+      const [supplierResult, localProductResult] = await Promise.all([
+        getSuppliersSimple(),
+        getProductById(productId),
+      ])
       if (supplierResult.data) {
         setSuppliers(supplierResult.data)
+      }
+      if (localProductResult.data) {
+        setSelectedSupplierId(localProductResult.data.supplierId)
       }
     }
     fetchData()
@@ -122,14 +141,21 @@ export default function ProductDetailEditPage({ params }: PageProps) {
 
   async function loadProductDetail() {
     setIsSyncing(true)
+    setLoadError(null)
     try {
       const result = await getProductDetailFromNaver(productId)
       if (result.data) {
         setProductData(result.data)
         setOriginalData(JSON.parse(JSON.stringify(result.data)))
       } else if (result.error) {
+        setLoadError(result.error)
         toast.error(result.error)
       }
+    } catch (error) {
+      console.error('Failed to load product detail:', error)
+      const message = '상품 정보를 불러오는 중 오류가 발생했습니다.'
+      setLoadError(message)
+      toast.error(message)
     } finally {
       setIsSyncing(false)
     }
@@ -293,6 +319,29 @@ export default function ProductDetailEditPage({ params }: PageProps) {
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
         <div className="max-w-6xl mx-auto space-y-6">
+          {!productData && loadError && (
+            <Card>
+              <CardContent className="py-12">
+                <div className="flex flex-col items-center text-center gap-4">
+                  <AlertTriangle className="h-10 w-10 text-muted-foreground" />
+                  <div className="space-y-1">
+                    <p className="font-medium">상품 정보를 불러올 수 없습니다</p>
+                    <p className="text-sm text-muted-foreground">{loadError}</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    {(loadError.includes('API 키') || loadError.includes('설정')) && (
+                      <Button asChild>
+                        <Link href="/settings">설정으로 이동</Link>
+                      </Button>
+                    )}
+                    <Button variant="outline" asChild>
+                      <Link href="/inventory">상품 목록으로</Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           {productData && (
             <>
               <ProductEditorHeader

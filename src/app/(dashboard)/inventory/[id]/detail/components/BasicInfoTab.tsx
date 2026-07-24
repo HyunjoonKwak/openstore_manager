@@ -48,24 +48,24 @@ export function BasicInfoTab({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>상품명 {isFieldChanged('name') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
-              <Input value={productData.name} onChange={(e) => updateField('name', e.target.value)} className={getFieldStyle('name')} />
+              <Label htmlFor="detail-name">상품명 {isFieldChanged('name') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
+              <Input id="detail-name" value={productData.name} onChange={(e) => updateField('name', e.target.value)} className={getFieldStyle('name')} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>판매가 {isFieldChanged('salePrice') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
-                <Input type="number" value={productData.salePrice} onChange={(e) => updateField('salePrice', Number(e.target.value))} className={getFieldStyle('salePrice')} />
+                <Label htmlFor="detail-sale-price">판매가 {isFieldChanged('salePrice') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
+                <Input id="detail-sale-price" type="number" value={productData.salePrice} onChange={(e) => updateField('salePrice', Number(e.target.value))} className={getFieldStyle('salePrice')} />
               </div>
               <div className="space-y-2">
-                <Label>재고수량 {isFieldChanged('stockQuantity') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
-                <Input type="number" value={productData.stockQuantity} onChange={(e) => updateField('stockQuantity', Number(e.target.value))} className={getFieldStyle('stockQuantity')} />
+                <Label htmlFor="detail-stock-quantity">재고수량 {isFieldChanged('stockQuantity') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
+                <Input id="detail-stock-quantity" type="number" value={productData.stockQuantity} onChange={(e) => updateField('stockQuantity', Number(e.target.value))} className={getFieldStyle('stockQuantity')} />
               </div>
             </div>
             <Separator />
             <div className="space-y-2">
-              <Label>카테고리</Label>
+              <Label htmlFor="detail-category-name">카테고리</Label>
               <div className="flex gap-2">
-                <Input value={productData.categoryName || ''} disabled className="flex-1" />
+                <Input id="detail-category-name" value={productData.categoryName || ''} disabled className="flex-1" />
                 <Button variant="outline" size="sm" disabled>
                   <Search className="h-4 w-4 mr-1" />검색
                 </Button>
@@ -73,17 +73,17 @@ export function BasicInfoTab({
               <p className="text-xs text-muted-foreground">카테고리 변경은 스마트스토어 센터에서 가능합니다.</p>
             </div>
             <div className="space-y-2">
-              <Label>브랜드 {isFieldChanged('brandName') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
-              <Input value={productData.brandName || ''} onChange={(e) => updateField('brandName', e.target.value)} className={getFieldStyle('brandName')} />
+              <Label htmlFor="detail-brand-name">브랜드 {isFieldChanged('brandName') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
+              <Input id="detail-brand-name" value={productData.brandName || ''} onChange={(e) => updateField('brandName', e.target.value)} className={getFieldStyle('brandName')} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>모델명 {isFieldChanged('modelName') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
-                <Input value={productData.modelName || ''} onChange={(e) => updateField('modelName', e.target.value)} className={getFieldStyle('modelName')} />
+                <Label htmlFor="detail-model-name">모델명 {isFieldChanged('modelName') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
+                <Input id="detail-model-name" value={productData.modelName || ''} onChange={(e) => updateField('modelName', e.target.value)} className={getFieldStyle('modelName')} />
               </div>
               <div className="space-y-2">
-                <Label>제조사 {isFieldChanged('manufacturerName') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
-                <Input value={productData.manufacturerName || ''} onChange={(e) => updateField('manufacturerName', e.target.value)} className={getFieldStyle('manufacturerName')} />
+                <Label htmlFor="detail-manufacturer-name">제조사 {isFieldChanged('manufacturerName') && <span className="text-yellow-500 text-xs ml-1">변경됨</span>}</Label>
+                <Input id="detail-manufacturer-name" value={productData.manufacturerName || ''} onChange={(e) => updateField('manufacturerName', e.target.value)} className={getFieldStyle('manufacturerName')} />
               </div>
             </div>
           </CardContent>
@@ -95,31 +95,31 @@ export function BasicInfoTab({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>판매자 관리코드 (SKU)</Label>
-              <Input value={productData.sellerManagementCode || ''} onChange={(e) => updateField('sellerManagementCode', e.target.value)} placeholder="자체 상품코드" />
+              <Label htmlFor="detail-seller-management-code">판매자 관리코드 (SKU)</Label>
+              <Input id="detail-seller-management-code" value={productData.sellerManagementCode || ''} onChange={(e) => updateField('sellerManagementCode', e.target.value)} placeholder="자체 상품코드" />
             </div>
             <div className="space-y-2">
-              <Label>바코드</Label>
-              <Input value={productData.sellerBarcode || ''} onChange={(e) => updateField('sellerBarcode', e.target.value)} />
+              <Label htmlFor="detail-seller-barcode">바코드</Label>
+              <Input id="detail-seller-barcode" value={productData.sellerBarcode || ''} onChange={(e) => updateField('sellerBarcode', e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>커스텀 코드 1</Label>
-                <Input value={productData.sellerCustomCode1 || ''} onChange={(e) => updateField('sellerCustomCode1', e.target.value)} />
+                <Label htmlFor="detail-seller-custom-code1">커스텀 코드 1</Label>
+                <Input id="detail-seller-custom-code1" value={productData.sellerCustomCode1 || ''} onChange={(e) => updateField('sellerCustomCode1', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>커스텀 코드 2</Label>
-                <Input value={productData.sellerCustomCode2 || ''} onChange={(e) => updateField('sellerCustomCode2', e.target.value)} />
+                <Label htmlFor="detail-seller-custom-code2">커스텀 코드 2</Label>
+                <Input id="detail-seller-custom-code2" value={productData.sellerCustomCode2 || ''} onChange={(e) => updateField('sellerCustomCode2', e.target.value)} />
               </div>
             </div>
             <Separator />
             <div className="space-y-2">
-              <Label>원산지</Label>
-              <Input value={productData.originArea || ''} onChange={(e) => updateField('originArea', e.target.value)} placeholder="예: 국내산, 중국산" />
+              <Label htmlFor="detail-origin-area">원산지</Label>
+              <Input id="detail-origin-area" value={productData.originArea || ''} onChange={(e) => updateField('originArea', e.target.value)} placeholder="예: 국내산, 중국산" />
             </div>
             <div className="space-y-2">
-              <Label>수입사</Label>
-              <Input value={productData.importer || ''} onChange={(e) => updateField('importer', e.target.value)} />
+              <Label htmlFor="detail-importer">수입사</Label>
+              <Input id="detail-importer" value={productData.importer || ''} onChange={(e) => updateField('importer', e.target.value)} />
             </div>
           </CardContent>
         </Card>
@@ -133,13 +133,13 @@ export function BasicInfoTab({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>공급업체 선택</Label>
+              <Label htmlFor="detail-supplier">공급업체 선택</Label>
               <Select
                 value={selectedSupplierId || 'none'}
                 onValueChange={(v) => handleSupplierChange(v === 'none' ? null : v)}
                 disabled={isSavingSupplier}
               >
-                <SelectTrigger>
+                <SelectTrigger id="detail-supplier">
                   <SelectValue placeholder="공급업체를 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
@@ -174,12 +174,12 @@ export function BasicInfoTab({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>상품 상태</Label>
-                <Input value={productData.saleType === 'NEW' ? '신상품' : productData.saleType === 'OLD' ? '중고' : productData.saleType || ''} disabled className="bg-muted" />
+                <Label htmlFor="detail-sale-type">상품 상태</Label>
+                <Input id="detail-sale-type" value={productData.saleType === 'NEW' ? '신상품' : productData.saleType === 'OLD' ? '중고' : productData.saleType || ''} disabled className="bg-muted" />
               </div>
               <div className="space-y-2">
-                <Label>판매 상태</Label>
-                <Input value={
+                <Label htmlFor="detail-status-type">판매 상태</Label>
+                <Input id="detail-status-type" value={
                   productData.statusType === 'SALE' ? '판매중' :
                   productData.statusType === 'SUSPENSION' ? '판매중지' :
                   productData.statusType === 'OUTOFSTOCK' ? '품절' :
@@ -191,8 +191,8 @@ export function BasicInfoTab({
             </div>
             <Separator />
             <div className="space-y-2">
-              <Label>KC 인증 면제 유형</Label>
-              <Input value={
+              <Label htmlFor="detail-kc-exemption-type">KC 인증 면제 유형</Label>
+              <Input id="detail-kc-exemption-type" value={
                 productData.kcExemptionType === 'OVERSEAS_DIRECT_PURCHASE' ? '해외직구' :
                 productData.kcExemptionType === 'PARALLEL_IMPORT' ? '병행수입' :
                 productData.kcExemptionType === 'ETC' ? '기타' :

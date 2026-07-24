@@ -24,13 +24,13 @@ export function SeoTab({ productData, updateField }: SeoTabProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>페이지 제목</Label>
-            <Input value={productData.seoPageTitle || ''} onChange={(e) => updateField('seoPageTitle', e.target.value)} placeholder="검색 결과에 표시될 제목" />
+            <Label htmlFor="detail-seo-page-title">페이지 제목</Label>
+            <Input id="detail-seo-page-title" value={productData.seoPageTitle || ''} onChange={(e) => updateField('seoPageTitle', e.target.value)} placeholder="검색 결과에 표시될 제목" />
             <p className="text-xs text-muted-foreground">{productData.seoPageTitle?.length || 0}/100자</p>
           </div>
           <div className="space-y-2">
-            <Label>메타 설명</Label>
-            <Textarea value={productData.seoMetaDescription || ''} onChange={(e) => updateField('seoMetaDescription', e.target.value)} placeholder="검색 결과에 표시될 설명" className="min-h-[100px]" />
+            <Label htmlFor="detail-seo-meta-description">메타 설명</Label>
+            <Textarea id="detail-seo-meta-description" value={productData.seoMetaDescription || ''} onChange={(e) => updateField('seoMetaDescription', e.target.value)} placeholder="검색 결과에 표시될 설명" className="min-h-[100px]" />
             <p className="text-xs text-muted-foreground">{productData.seoMetaDescription?.length || 0}/200자</p>
           </div>
           <div className="space-y-2">

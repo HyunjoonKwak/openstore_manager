@@ -412,7 +412,8 @@ export async function getProductById(
     .single()
 
   if (error) {
-    return { data: null, error: error.message }
+    console.error('Failed to fetch product detail:', error)
+    return { data: null, error: '상품을 불러오지 못했습니다.' }
   }
 
   const typedProduct = product as unknown as ProductDetailRow
@@ -486,7 +487,8 @@ export async function updateProductDetail(
     .eq('id', input.id)
 
   if (error) {
-    return { success: false, error: error.message }
+    console.error('Failed to update product detail:', error)
+    return { success: false, error: '상품 정보를 저장하지 못했습니다.' }
   }
 
   revalidatePath('/inventory')
@@ -508,7 +510,8 @@ export async function getUserStores(): Promise<{ data: { id: string; storeName: 
     .eq('user_id', userData.user.id)
 
   if (error) {
-    return { data: null, error: error.message }
+    console.error('Failed to fetch user stores:', error)
+    return { data: null, error: '스토어 정보를 불러오지 못했습니다.' }
   }
 
   const typedStores = stores as unknown as { id: string; store_name: string }[]

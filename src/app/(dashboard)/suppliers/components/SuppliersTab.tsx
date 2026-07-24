@@ -16,6 +16,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -95,6 +96,9 @@ export function SuppliersTab({
               <DialogTitle>
                 {editingSupplier ? '공급업체 수정' : '새 공급업체 추가'}
               </DialogTitle>
+              <DialogDescription>
+                공급업체 정보와 연락 방법을 입력하세요.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
