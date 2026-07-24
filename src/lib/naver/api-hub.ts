@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { decryptApiConfigSecrets } from '@/lib/secret-crypto'
 
 const API_HUB_BASE = 'https://naverapihub.apigw.ntruss.com'
 
@@ -32,7 +33,14 @@ export async function getCurrentApiHubConfig(): Promise<{
   if (!config.naverApiHubClientId || !config.naverApiHubClientSecret) {
     return { config: null, error: '설정에서 NAVER API HUB 키를 입력해주세요.' }
   }
-  return { config, error: null }
+
+  // Secrets are stored encrypted at rest; legacy plaintext passes through unchanged
+  try {
+    return { config: decryptApiConfigSecrets(config), error: null }
+  } catch (error) {
+    console.error('Failed to decrypt NAVER API HUB secret:', error)
+    return { config: null, error: '저장된 NAVER API HUB 키를 복호화할 수 없습니다. 서버 암호화 키 설정을 확인해주세요.' }
+  }
 }
 
 export async function apiHubPost(path: string, body: Record<string, unknown>) {

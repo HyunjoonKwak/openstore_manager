@@ -1,6 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron'
 import { createClient } from '@supabase/supabase-js'
 import { NaverCommerceClient } from '@/lib/naver/client'
+import { decryptSecret } from '@/lib/secret-crypto'
 
 const activeCronJobs = new Map<string, ScheduledTask>()
 
@@ -120,7 +121,8 @@ async function executeSyncJob(scheduleId: string) {
 
     const client = new NaverCommerceClient({
       clientId: apiConfig.naverClientId,
-      clientSecret: apiConfig.naverClientSecret,
+      // Stored encrypted at rest; legacy plaintext passes through unchanged
+      clientSecret: decryptSecret(apiConfig.naverClientSecret),
     })
 
     let itemsSynced = 0

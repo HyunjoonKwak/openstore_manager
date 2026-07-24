@@ -3,6 +3,7 @@ import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { decryptSecret } from '@/lib/secret-crypto'
 
 interface ApiConfigJson {
   openaiApiKey?: string
@@ -38,7 +39,10 @@ export async function POST() {
       .maybeSingle()
 
     const apiConfig = (store?.api_config || {}) as ApiConfigJson
-    const apiKey = apiConfig.openaiApiKey || process.env.OPENAI_API_KEY
+    // Stored encrypted at rest; legacy plaintext passes through unchanged
+    const apiKey = apiConfig.openaiApiKey
+      ? decryptSecret(apiConfig.openaiApiKey)
+      : process.env.OPENAI_API_KEY
 
     if (!apiKey) {
       return NextResponse.json(

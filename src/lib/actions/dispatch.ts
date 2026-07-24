@@ -7,6 +7,15 @@ import type { OrderStatus } from '@/types/database.types'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { requireUser } from '@/lib/actions/auth-guard'
 import { sanitizeCsvCell, parseCsvLine } from '@/lib/csv'
+import { decryptSecret } from '@/lib/secret-crypto'
+import {
+  validateInput,
+  orderIdsSchema,
+  dispatchTrackingUpdateSchema,
+  bulkTrackingUpdatesSchema,
+  testOrderCountSchema,
+  trackingExcelRowSchema,
+} from '@/lib/validation'
 
 interface NaverApiConfig {
   naverClientId?: string
@@ -64,12 +73,15 @@ async function getNaverClient(): Promise<{ client: NaverCommerceClient | null; e
     return { client: null, error: '네이버 API 키를 설정해주세요.' }
   }
 
-  const client = new NaverCommerceClient({
-    clientId: apiConfig.naverClientId,
-    clientSecret: apiConfig.naverClientSecret,
-  })
-
-  return { client, error: null }
+  try {
+    const client = new NaverCommerceClient({
+      clientId: apiConfig.naverClientId,
+      clientSecret: decryptSecret(apiConfig.naverClientSecret),
+    })
+    return { client, error: null }
+  } catch {
+    return { client: null, error: 'API 키 복호화에 실패했습니다. 키를 다시 저장해주세요.' }
+  }
 }
 
 export async function getOrdersForDispatch(): Promise<{
@@ -181,6 +193,15 @@ export async function updateOrderTrackingNumber(
     return { success: false, error: '로그인이 필요합니다.' }
   }
 
+  const validation = validateInput(dispatchTrackingUpdateSchema, {
+    orderId,
+    trackingNumber,
+    courierCode,
+  })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('orders')
     .update({
@@ -206,6 +227,11 @@ export async function bulkUpdateTrackingNumbers(
     await requireUser(supabase)
   } catch {
     return { success: false, updatedCount: 0, error: '로그인이 필요합니다.' }
+  }
+
+  const validation = validateInput(bulkTrackingUpdatesSchema, updates)
+  if (validation.error !== null) {
+    return { success: false, updatedCount: 0, error: validation.error }
   }
 
   let updatedCount = 0
@@ -246,6 +272,11 @@ export async function dispatchOrdersToNaver(
     await requireUser(supabase)
   } catch {
     return { success: false, results: [], error: '로그인이 필요합니다.' }
+  }
+
+  const validation = validateInput(orderIdsSchema, orderIds)
+  if (validation.error !== null) {
+    return { success: false, results: [], error: validation.error }
   }
 
   if (testMode) {
@@ -458,6 +489,15 @@ export async function uploadTrackingExcel(
         continue // 운송장 없으면 스킵
       }
 
+      const rowValidation = validateInput(trackingExcelRowSchema, {
+        platformOrderId,
+        trackingNumber,
+      })
+      if (rowValidation.error !== null) {
+        errors.push(`${platformOrderId.slice(0, 100)}: ${rowValidation.error}`)
+        continue
+      }
+
       const { data: updatedRows, error } = await supabase
         .from('orders')
         .update({ tracking_number: trackingNumber })
@@ -495,6 +535,11 @@ export async function createTestOrders(count: number = 3): Promise<{
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { success: false, createdCount: 0, error: '로그인이 필요합니다.' }
+  }
+
+  const validation = validateInput(testOrderCountSchema, count)
+  if (validation.error !== null) {
+    return { success: false, createdCount: 0, error: validation.error }
   }
 
   const { data: store } = await supabase

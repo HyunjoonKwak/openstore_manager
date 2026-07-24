@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { NaverCommerceClient } from '@/lib/naver/client'
 import { timingSafeEqualString } from '@/lib/timing-safe'
+import { decryptSecret } from '@/lib/secret-crypto'
 
 type SupabaseAdminClient = SupabaseClient
 
@@ -93,7 +94,8 @@ export async function GET(request: Request) {
     try {
       const client = new NaverCommerceClient({
         clientId: apiConfig.naverClientId,
-        clientSecret: apiConfig.naverClientSecret,
+        // Stored encrypted at rest; legacy plaintext passes through unchanged
+        clientSecret: decryptSecret(apiConfig.naverClientSecret),
       })
 
       let itemsSynced = 0

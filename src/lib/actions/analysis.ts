@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/actions/auth-guard'
 import type { Json } from '@/types/database.types'
+import {
+  validateInput,
+  idSchema,
+  createAnalysisLogSchema,
+  updateAnalysisLogSchema,
+} from '@/lib/validation'
 
 export interface AnalysisLog {
   id: string
@@ -34,6 +40,11 @@ export async function createAnalysisLog(input: {
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(createAnalysisLogSchema, input)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data, error } = await supabase
@@ -79,6 +90,11 @@ export async function updateAnalysisLog(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(updateAnalysisLogSchema, { id, analysisResult, status })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase
@@ -145,6 +161,11 @@ export async function getAnalysisById(id: string): Promise<{
     return { data: null, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(idSchema, id)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
+  }
+
   const { data, error } = await supabase
     .from('analysis_logs')
     .select('*')
@@ -182,6 +203,11 @@ export async function deleteAnalysisLog(id: string): Promise<{
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, id)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase

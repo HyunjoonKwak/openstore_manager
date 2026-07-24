@@ -5,6 +5,15 @@ import { revalidatePath } from 'next/cache'
 import type { SyncType as SyncTypeDB } from '@/types/database.types'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { requireUser } from '@/lib/actions/auth-guard'
+import {
+  validateInput,
+  idSchema,
+  createOrUpdateSyncScheduleSchema,
+  toggleSyncScheduleSchema,
+  getSyncLogsSchema,
+  createSyncLogSchema,
+  completeSyncLogSchema,
+} from '@/lib/validation'
 
 export type SyncType = SyncTypeDB
 
@@ -132,6 +141,11 @@ export async function getSyncScheduleByStore(storeId: string): Promise<{
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, storeId)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data: schedule, error } = await supabase
@@ -275,6 +289,11 @@ export async function createOrUpdateSyncSchedule(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(createOrUpdateSyncScheduleSchema, input)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const nextSyncAt = input.isEnabled
     ? calculateNextSyncAt(input.intervalMinutes, input.syncAtMinute, input.syncTime)
     : null
@@ -358,6 +377,11 @@ export async function toggleSyncSchedule(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(toggleSyncScheduleSchema, { scheduleId, isEnabled })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('sync_schedules')
     .update({ is_enabled: isEnabled })
@@ -397,6 +421,11 @@ export async function updateLastSyncAt(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, scheduleId)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { data: schedule } = await supabase
@@ -448,6 +477,11 @@ export async function getSyncLogs(
     return { data: null, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(getSyncLogsSchema, { scheduleId, limit })
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
+  }
+
   const { data: logs, error } = await supabase
     .from('sync_logs')
     .select('*')
@@ -488,6 +522,11 @@ export async function createSyncLog(
     return { data: null, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(createSyncLogSchema, { scheduleId, syncType })
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
+  }
+
   const { data, error } = await supabase
     .from('sync_logs')
     .insert({
@@ -517,6 +556,16 @@ export async function completeSyncLog(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(completeSyncLogSchema, {
+    logId,
+    status,
+    itemsSynced,
+    errorMessage,
+  })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase

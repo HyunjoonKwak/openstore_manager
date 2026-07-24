@@ -6,6 +6,7 @@ import { NaverCommerceClient, type NaverOrder } from '@/lib/naver/client'
 import type { OrderStatus } from '@/types/database.types'
 import { sendSyncSummaryAlert } from '@/lib/notifications/store-alerts'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { decryptSecret } from '@/lib/secret-crypto'
 
 const DEBUG = process.env.NODE_ENV === 'development'
 const log = (...args: unknown[]): void => { if (DEBUG) console.log(...args) }
@@ -39,12 +40,15 @@ async function getNaverClient(): Promise<{ client: NaverCommerceClient | null; e
     return { client: null, error: '네이버 API 키를 설정해주세요.' }
   }
 
-  const client = new NaverCommerceClient({
-    clientId: apiConfig.naverClientId,
-    clientSecret: apiConfig.naverClientSecret,
-  })
-
-  return { client, error: null }
+  try {
+    const client = new NaverCommerceClient({
+      clientId: apiConfig.naverClientId,
+      clientSecret: decryptSecret(apiConfig.naverClientSecret),
+    })
+    return { client, error: null }
+  } catch {
+    return { client: null, error: 'API 키 복호화에 실패했습니다. 키를 다시 저장해주세요.' }
+  }
 }
 
 export async function syncNaverOrders(_params: {

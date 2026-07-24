@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { decryptSecret } from '@/lib/secret-crypto'
 
 interface ApiConfigJson {
   openaiApiKey?: string
@@ -22,7 +23,8 @@ async function getOpenAIKey(): Promise<string | null> {
     
     const apiConfig = (store?.api_config || {}) as ApiConfigJson
     if (apiConfig.openaiApiKey) {
-      return apiConfig.openaiApiKey
+      // Stored encrypted at rest; legacy plaintext passes through unchanged
+      return decryptSecret(apiConfig.openaiApiKey)
     }
   }
   

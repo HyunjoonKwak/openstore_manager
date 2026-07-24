@@ -5,6 +5,12 @@ import { revalidatePath } from 'next/cache'
 import type { ContactMethod } from '@/types/database.types'
 import { parseError, formatErrorMessage } from '@/lib/error-messages'
 import { requireUser } from '@/lib/actions/auth-guard'
+import {
+  validateInput,
+  idSchema,
+  createSupplierSchema,
+  updateSupplierSchema,
+} from '@/lib/validation'
 
 export interface SupplierWithStats {
   id: string
@@ -108,6 +114,11 @@ export async function createSupplier(
     return { data: null, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(createSupplierSchema, input)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
+  }
+
   const { data, error } = await supabase
     .from('suppliers')
     .insert({
@@ -174,6 +185,11 @@ export async function updateSupplier(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateSupplierSchema, input)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const updateData: Record<string, string | boolean | null> = {}
   if (input.name !== undefined) updateData.name = input.name
   if (input.contactNumber !== undefined) updateData.contact_number = input.contactNumber
@@ -208,6 +224,11 @@ export async function deleteSupplier(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, id)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase

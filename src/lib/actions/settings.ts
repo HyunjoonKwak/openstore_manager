@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Platform, Json } from '@/types/database.types'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { encryptApiConfigSecrets } from '@/lib/secret-crypto'
 
 export interface UserProfile {
   id: string
@@ -164,13 +165,16 @@ export async function createOrUpdateStore(
   if (input.naverApiHubClientSecret) apiConfig.naverApiHubClientSecret = input.naverApiHubClientSecret
   if (input.openaiApiKey) apiConfig.openaiApiKey = input.openaiApiKey
 
+  // Encrypt secret fields before persisting so the anon client only sees ciphertext
+  const storedApiConfig = encryptApiConfigSecrets(apiConfig)
+
   if (existingStore) {
     const { error } = await supabase
       .from('stores')
       .update({
         store_name: input.storeName,
         platform: input.platform,
-        api_config: apiConfig,
+        api_config: storedApiConfig,
       })
       .eq('id', existingStore.id)
 
@@ -182,7 +186,7 @@ export async function createOrUpdateStore(
       user_id: userData.user.id,
       store_name: input.storeName,
       platform: input.platform,
-      api_config: apiConfig,
+      api_config: storedApiConfig,
     })
 
     if (error) {
@@ -230,7 +234,8 @@ export async function updateDeliveryCheckSettings(
 
   const { error } = await supabase
     .from('stores')
-    .update({ api_config: updatedConfig })
+    // Re-encrypt any legacy plaintext secrets carried over from the existing config
+    .update({ api_config: encryptApiConfigSecrets(updatedConfig) })
     .eq('id', existingStore.id)
 
   if (error) {

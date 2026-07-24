@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NaverCommerceClient, type NaverInquiry, type NaverQna } from '@/lib/naver/client'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { validateInput, paginationLimitSchema } from '@/lib/validation'
+import { decryptSecret } from '@/lib/secret-crypto'
 
 interface NaverApiConfig {
   naverClientId?: string
@@ -32,12 +34,15 @@ async function getNaverClient() {
     return { client: null, error: 'API credentials not configured' }
   }
 
-  const client = new NaverCommerceClient({
-    clientId: config.naverClientId,
-    clientSecret: config.naverClientSecret,
-  })
-
-  return { client, error: null }
+  try {
+    const client = new NaverCommerceClient({
+      clientId: config.naverClientId,
+      clientSecret: decryptSecret(config.naverClientSecret),
+    })
+    return { client, error: null }
+  } catch {
+    return { client: null, error: 'API credentials could not be decrypted' }
+  }
 }
 
 export interface InquiryItem {
@@ -128,9 +133,14 @@ export async function getRecentInquiries(limit: number = 10): Promise<{
   error: string | null
 }> {
   const { client, error } = await getNaverClient()
-  
+
   if (error || !client) {
     return { data: [], error: null }
+  }
+
+  const validation = validateInput(paginationLimitSchema, limit)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const today = new Date()

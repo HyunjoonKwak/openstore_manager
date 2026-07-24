@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import type { Platform, Json } from '@/types/database.types'
 import { cookies } from 'next/headers'
 import { CURRENT_STORE_COOKIE, resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { encryptApiConfigSecrets } from '@/lib/secret-crypto'
 
 export interface StoreInfo {
   id: string
@@ -154,7 +155,8 @@ export async function createStore(input: CreateStoreInput): Promise<{ data: Stor
       user_id: userData.user.id,
       store_name: input.storeName,
       platform: input.platform,
-      api_config: apiConfig,
+      // Encrypt secret fields before persisting so the anon client only sees ciphertext
+      api_config: encryptApiConfigSecrets(apiConfig),
     })
     .select()
     .single()
@@ -220,8 +222,9 @@ export async function updateStore(
     if (input.naverApiHubClientSecret) newConfig.naverApiHubClientSecret = input.naverApiHubClientSecret
     if (input.openaiApiKey) newConfig.openaiApiKey = input.openaiApiKey
     if (input.storeUrl !== undefined) newConfig.storeUrl = input.storeUrl
-    
-    updateData.api_config = newConfig
+
+    // Encrypt secret fields (including legacy plaintext carried over) before persisting
+    updateData.api_config = encryptApiConfigSecrets(newConfig)
   }
 
   const { error } = await supabase

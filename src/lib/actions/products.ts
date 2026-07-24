@@ -5,6 +5,14 @@ import { revalidatePath } from 'next/cache'
 import { parseError, formatErrorMessage } from '@/lib/error-messages'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { requireUser } from '@/lib/actions/auth-guard'
+import {
+  validateInput,
+  idSchema,
+  createProductSchema,
+  updateProductSchema,
+  updateStockSchema,
+  updateProductDetailSchema,
+} from '@/lib/validation'
 
 export interface ProductWithSupplier {
   id: string
@@ -168,6 +176,11 @@ export async function createProduct(
     return { data: null, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(createProductSchema, input)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
+  }
+
   const { data, error } = await supabase
     .from('products')
     .insert({
@@ -240,6 +253,11 @@ export async function updateProduct(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateProductSchema, input)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const updateData: Record<string, string | number | null> = {}
   if (input.name !== undefined) updateData.name = input.name
   if (input.price !== undefined) updateData.price = input.price
@@ -272,6 +290,11 @@ export async function updateStock(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateStockSchema, { productId, quantity })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('products')
     .update({ stock_quantity: quantity })
@@ -294,6 +317,11 @@ export async function deleteProduct(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, id)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase
@@ -336,6 +364,11 @@ export async function getProductById(
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, productId)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   interface ProductDetailRow {
@@ -429,6 +462,11 @@ export async function updateProductDetail(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(updateProductDetailSchema, input)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const updateData: Record<string, string | number | null> = {}

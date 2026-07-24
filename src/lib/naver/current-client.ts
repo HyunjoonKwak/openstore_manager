@@ -3,6 +3,7 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { NaverCommerceClient } from '@/lib/naver/client'
+import { decryptSecret } from '@/lib/secret-crypto'
 
 interface NaverApiConfig {
   naverClientId?: string
@@ -49,10 +50,19 @@ export async function getCurrentNaverClient(): Promise<{
     return { client: null, configured: false, error: '설정에서 네이버 커머스 API 키를 입력해주세요.' }
   }
 
+  // Secrets are stored encrypted at rest; legacy plaintext passes through unchanged
+  let clientSecret: string
+  try {
+    clientSecret = decryptSecret(config.naverClientSecret)
+  } catch (error) {
+    console.error('Failed to decrypt Naver Commerce API secret:', error)
+    return { client: null, configured: false, error: '저장된 API 키를 복호화할 수 없습니다. 서버 암호화 키 설정을 확인해주세요.' }
+  }
+
   return {
     client: new NaverCommerceClient({
       clientId: config.naverClientId,
-      clientSecret: config.naverClientSecret,
+      clientSecret,
       sellerId: config.naverSellerId,
     }),
     configured: true,

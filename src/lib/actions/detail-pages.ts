@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/actions/auth-guard'
 import type { DetailPageStatus, Json } from '@/types/database.types'
+import {
+  validateInput,
+  idSchema,
+  saveDetailPageSchema,
+  searchQuerySchema,
+} from '@/lib/validation'
 
 export interface DetailPageItem {
   id: string
@@ -125,6 +131,11 @@ export async function saveDetailPage(
     return { data: null, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(saveDetailPageSchema, input)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
+  }
+
   const contentHtml = buildDetailHtml(input)
 
   const userInputs = {
@@ -185,6 +196,11 @@ export async function deleteDetailPage(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(idSchema, id)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('detail_pages')
     .delete()
@@ -212,6 +228,11 @@ export async function searchDetailPages(
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(searchQuerySchema, query)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const searchTerm = `%${sanitizeSearchTerm(query)}%`

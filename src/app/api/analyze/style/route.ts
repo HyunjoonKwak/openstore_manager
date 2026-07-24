@@ -5,6 +5,7 @@ import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-us
 import type { Json } from '@/types/database.types'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { decryptSecret } from '@/lib/secret-crypto'
 
 interface ColorInfo {
   hex: string
@@ -57,7 +58,10 @@ async function getOpenAIClient(): Promise<OpenAI | null> {
     .maybeSingle()
 
   const apiConfig = (store?.api_config as Json as ApiConfigJson) || {}
-  const apiKey = apiConfig.openaiApiKey || process.env.OPENAI_API_KEY
+  // Stored encrypted at rest; legacy plaintext passes through unchanged
+  const apiKey = apiConfig.openaiApiKey
+    ? decryptSecret(apiConfig.openaiApiKey)
+    : process.env.OPENAI_API_KEY
 
   if (!apiKey) {
     return null

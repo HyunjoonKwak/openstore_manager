@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/actions/auth-guard'
 import type { Json } from '@/types/database.types'
+import {
+  validateInput,
+  idSchema,
+  createCourierSchema,
+  updateCourierSchema,
+} from '@/lib/validation'
 
 export interface CourierData {
   id: string
@@ -95,6 +101,11 @@ export async function createCourier(
     return { data: null, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(createCourierSchema, input)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
+  }
+
   if (input.isDefault) {
     await supabase
       .from('couriers')
@@ -157,6 +168,11 @@ export async function updateCourier(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateCourierSchema, input)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   if (input.isDefault) {
     await supabase
       .from('couriers')
@@ -194,6 +210,11 @@ export async function deleteCourier(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, id)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase

@@ -5,6 +5,7 @@ import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
 import type { OrderStatus } from '@/types/database.types'
+import { validateInput, excelProductRowSchema, excelOrderRowSchema } from '@/lib/validation'
 
 interface ProductRow {
   name: string
@@ -18,13 +19,13 @@ interface OrderRow {
   customer_name: string
   customer_address?: string
   quantity: number
-  status?: OrderStatus
-  order_date?: string
+  status: OrderStatus
+  order_date: string
 }
 
 export async function uploadProductsFromExcel(
   formData: FormData
-): Promise<{ success: boolean; importedCount: number; error: string | null }> {
+): Promise<{ success: boolean; importedCount: number; error: string | null; errors?: string[] }> {
   const supabase = await createClient()
 
   const { data: userData } = await supabase.auth.getUser()
@@ -58,17 +59,32 @@ export async function uploadProductsFromExcel(
       return { success: false, importedCount: 0, error: '엑셀 파일에 데이터가 없습니다.' }
     }
 
-    const products: ProductRow[] = jsonData.map((row) => ({
-      name: String(row['상품명'] || row['name'] || ''),
-      price: Number(row['가격'] || row['price'] || 0),
-      stock_quantity: Number(row['재고'] || row['stock_quantity'] || row['재고수량'] || 0),
-      sku: row['SKU'] || row['sku'] ? String(row['SKU'] || row['sku']) : undefined,
-    }))
+    // Validate each parsed row; invalid rows are skipped and reported
+    const rowErrors: string[] = []
+    const validProducts: ProductRow[] = []
 
-    const validProducts = products.filter((p) => p.name && p.price > 0)
+    jsonData.forEach((row, index) => {
+      const validation = validateInput(excelProductRowSchema, {
+        name: String(row['상품명'] || row['name'] || ''),
+        price: row['가격'] ?? row['price'] ?? 0,
+        stock_quantity: row['재고'] ?? row['stock_quantity'] ?? row['재고수량'] ?? 0,
+        sku: row['SKU'] || row['sku'] ? String(row['SKU'] || row['sku']) : undefined,
+      })
+
+      if (validation.error !== null) {
+        rowErrors.push(`${index + 2}행: ${validation.error}`)
+        return
+      }
+      validProducts.push(validation.data)
+    })
 
     if (validProducts.length === 0) {
-      return { success: false, importedCount: 0, error: '유효한 상품 데이터가 없습니다. 필수 컬럼: 상품명, 가격' }
+      return {
+        success: false,
+        importedCount: 0,
+        error: '유효한 상품 데이터가 없습니다. 필수 컬럼: 상품명, 가격',
+        errors: rowErrors,
+      }
     }
 
     let importedCount = 0
@@ -87,7 +103,12 @@ export async function uploadProductsFromExcel(
     }
 
     revalidatePath('/inventory')
-    return { success: true, importedCount, error: null }
+    return {
+      success: true,
+      importedCount,
+      error: null,
+      ...(rowErrors.length > 0 && { errors: rowErrors }),
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : '엑셀 파일 처리 중 오류가 발생했습니다.'
     return { success: false, importedCount: 0, error: message }
@@ -96,7 +117,7 @@ export async function uploadProductsFromExcel(
 
 export async function uploadOrdersFromExcel(
   formData: FormData
-): Promise<{ success: boolean; importedCount: number; error: string | null }> {
+): Promise<{ success: boolean; importedCount: number; error: string | null; errors?: string[] }> {
   const supabase = await createClient()
 
   const { data: userData } = await supabase.auth.getUser()
@@ -130,23 +151,41 @@ export async function uploadOrdersFromExcel(
       return { success: false, importedCount: 0, error: '엑셀 파일에 데이터가 없습니다.' }
     }
 
-    const orders: OrderRow[] = jsonData.map((row) => ({
-      platform_order_id: row['주문번호'] || row['platform_order_id'] 
-        ? String(row['주문번호'] || row['platform_order_id']) 
-        : undefined,
-      customer_name: String(row['고객명'] || row['customer_name'] || ''),
-      customer_address: row['주소'] || row['customer_address'] 
-        ? String(row['주소'] || row['customer_address']) 
-        : undefined,
-      quantity: Number(row['수량'] || row['quantity'] || 1),
-      status: parseOrderStatus(row['상태'] || row['status']),
-      order_date: parseOrderDate(row['주문일'] || row['order_date']),
-    }))
+    // Validate each parsed row; invalid rows are skipped and reported
+    const rowErrors: string[] = []
+    const validOrders: OrderRow[] = []
 
-    const validOrders = orders.filter((o) => o.customer_name)
+    jsonData.forEach((row, index) => {
+      const validation = validateInput(excelOrderRowSchema, {
+        platform_order_id: row['주문번호'] || row['platform_order_id']
+          ? String(row['주문번호'] || row['platform_order_id'])
+          : undefined,
+        customer_name: String(row['고객명'] || row['customer_name'] || ''),
+        customer_address: row['주소'] || row['customer_address']
+          ? String(row['주소'] || row['customer_address'])
+          : undefined,
+        quantity: row['수량'] || row['quantity'] || 1,
+      })
+
+      if (validation.error !== null) {
+        rowErrors.push(`${index + 2}행: ${validation.error}`)
+        return
+      }
+
+      validOrders.push({
+        ...validation.data,
+        status: parseOrderStatus(row['상태'] || row['status']),
+        order_date: parseOrderDate(row['주문일'] || row['order_date']),
+      })
+    })
 
     if (validOrders.length === 0) {
-      return { success: false, importedCount: 0, error: '유효한 주문 데이터가 없습니다. 필수 컬럼: 고객명' }
+      return {
+        success: false,
+        importedCount: 0,
+        error: '유효한 주문 데이터가 없습니다. 필수 컬럼: 고객명',
+        errors: rowErrors,
+      }
     }
 
     let importedCount = 0
@@ -168,7 +207,12 @@ export async function uploadOrdersFromExcel(
 
     revalidatePath('/orders')
     revalidatePath('/dashboard')
-    return { success: true, importedCount, error: null }
+    return {
+      success: true,
+      importedCount,
+      error: null,
+      ...(rowErrors.length > 0 && { errors: rowErrors }),
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : '엑셀 파일 처리 중 오류가 발생했습니다.'
     return { success: false, importedCount: 0, error: message }

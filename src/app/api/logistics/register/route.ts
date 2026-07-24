@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { registerHanjinShipment, type RegisterShipmentInput } from '@/lib/logistics/hanjin'
 import type { Json } from '@/types/database.types'
+import { decryptApiConfigSecrets } from '@/lib/secret-crypto'
 
 interface ApiConfigJson {
   hanjinApiKey?: string
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const apiConfig = (storeData.api_config as ApiConfigJson) || {}
+    // Secrets are stored encrypted at rest; legacy plaintext passes through unchanged
+    const apiConfig = decryptApiConfigSecrets((storeData.api_config as ApiConfigJson) || {})
 
     const shipmentInput: RegisterShipmentInput = {
       orderId: order.id,

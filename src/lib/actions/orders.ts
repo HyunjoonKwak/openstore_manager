@@ -7,6 +7,13 @@ import { parseError, formatErrorMessage } from '@/lib/error-messages'
 import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { requireUser } from '@/lib/actions/auth-guard'
 import { sanitizeCsvCell } from '@/lib/csv'
+import {
+  validateInput,
+  idSchema,
+  updateOrderStatusSchema,
+  updateTrackingNumberSchema,
+  createOrderSchema,
+} from '@/lib/validation'
 
 export interface OrderWithProduct {
   id: string
@@ -210,6 +217,11 @@ export async function updateOrderStatus(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateOrderStatusSchema, { orderId, status, syncToNaver })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   let naverSyncResult: { success: boolean; error?: string } | undefined
 
   if (status === 'Ordered' && syncToNaver) {
@@ -253,6 +265,16 @@ export async function updateTrackingNumber(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(updateTrackingNumberSchema, {
+    orderId,
+    trackingNumber,
+    courierCode,
+    syncToNaver,
+  })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { data: order, error: fetchError } = await supabase
@@ -400,6 +422,11 @@ export async function createOrder(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(createOrderSchema, input)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase.from('orders').insert({
     store_id: input.storeId,
     product_id: input.productId,
@@ -428,6 +455,11 @@ export async function deleteOrder(
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, orderId)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase
@@ -472,7 +504,7 @@ export async function getWeeklyStats(): Promise<{
   if (!storeId) {
     return { data: [], error: null }
   }
-  const stats: DailyStats[] = []
+  const ranges: { date: Date; nextDate: Date }[] = []
 
   for (let i = 6; i >= 0; i--) {
     const date = new Date()
@@ -482,36 +514,45 @@ export async function getWeeklyStats(): Promise<{
     const nextDate = new Date(date)
     nextDate.setDate(nextDate.getDate() + 1)
 
-    const { data: orders } = await supabase
-      .from('orders')
-      .select(`
+    ranges.push({ date, nextDate })
+  }
+
+  // Run the seven independent daily queries in parallel
+  const results = await Promise.all(
+    ranges.map(({ date, nextDate }) =>
+      supabase
+        .from('orders')
+        .select(`
         id,
         quantity,
         products (price)
       `)
-      .eq('store_id', storeId)
-      .gte('order_date', date.toISOString())
-      .lt('order_date', nextDate.toISOString())
-      .not('status', 'in', '("Cancelled","CancelRequested")')
+        .eq('store_id', storeId)
+        .gte('order_date', date.toISOString())
+        .lt('order_date', nextDate.toISOString())
+        .not('status', 'in', '("Cancelled","CancelRequested")')
+    )
+  )
 
-    interface OrderWithPrice {
-      id: string
-      quantity: number
-      products: { price: number } | null
-    }
+  interface OrderWithPrice {
+    id: string
+    quantity: number
+    products: { price: number } | null
+  }
 
-    const typedOrders = (orders || []) as unknown as OrderWithPrice[]
+  const stats: DailyStats[] = ranges.map(({ date }, index) => {
+    const typedOrders = (results[index].data || []) as unknown as OrderWithPrice[]
     const revenue = typedOrders.reduce((sum, order) => {
       const price = order.products?.price || 0
       return sum + price * order.quantity
     }, 0)
 
-    stats.push({
+    return {
       date: date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
       revenue,
       orders: typedOrders.length,
-    })
-  }
+    }
+  })
 
   return { data: stats, error: null }
 }
@@ -533,17 +574,22 @@ export async function getOrderStatusCounts(): Promise<{
   }
 
   const statuses: OrderStatus[] = ['New', 'Ordered', 'Dispatched', 'Delivering', 'Delivered', 'Confirmed', 'CancelRequested', 'Cancelled']
-  const counts: { status: string; count: number }[] = []
 
-  for (const status of statuses) {
-    const { count } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('store_id', storeId)
-      .eq('status', status)
+  // Run the independent per-status count queries in parallel
+  const results = await Promise.all(
+    statuses.map((status) =>
+      supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('store_id', storeId)
+        .eq('status', status)
+    )
+  )
 
-    counts.push({ status, count: count || 0 })
-  }
+  const counts: { status: string; count: number }[] = statuses.map((status, index) => ({
+    status,
+    count: results[index].count || 0,
+  }))
 
   return { data: counts, error: null }
 }
@@ -607,52 +653,55 @@ export async function getDashboardStats(): Promise<{
   const threeDaysAgo = new Date(today)
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
 
-  const { data: todayOrdersRaw } = await supabase
-    .from('orders')
-    .select(`id, quantity, status, total_payment_amount, products (price)`)
-    .eq('store_id', storeId)
-    .gte('order_date', today.toISOString())
-    .not('status', 'in', '("Cancelled","CancelRequested")')
-
-  const { data: yesterdayOrdersRaw } = await supabase
-    .from('orders')
-    .select(`id, quantity, total_payment_amount, products (price)`)
-    .eq('store_id', storeId)
-    .gte('order_date', yesterday.toISOString())
-    .lt('order_date', today.toISOString())
-    .not('status', 'in', '("Cancelled","CancelRequested")')
-
-  const statusCounts = await Promise.all([
-    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'New'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).in('status', ['Ordered', 'Dispatched']),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Delivering'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Delivered'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Confirmed'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'CancelRequested'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'ReturnRequested'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'ExchangeRequested'),
+  // Run all independent dashboard queries in parallel
+  const [
+    { data: todayOrdersRaw },
+    { data: yesterdayOrdersRaw },
+    statusCounts,
+    { count: delayedCount },
+    { data: todaySettlement },
+    { data: expectedSettlement },
+  ] = await Promise.all([
+    supabase
+      .from('orders')
+      .select(`id, quantity, status, total_payment_amount, products (price)`)
+      .eq('store_id', storeId)
+      .gte('order_date', today.toISOString())
+      .not('status', 'in', '("Cancelled","CancelRequested")'),
+    supabase
+      .from('orders')
+      .select(`id, quantity, total_payment_amount, products (price)`)
+      .eq('store_id', storeId)
+      .gte('order_date', yesterday.toISOString())
+      .lt('order_date', today.toISOString())
+      .not('status', 'in', '("Cancelled","CancelRequested")'),
+    Promise.all([
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'New'),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).in('status', ['Ordered', 'Dispatched']),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Delivering'),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Delivered'),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'Confirmed'),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'CancelRequested'),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'ReturnRequested'),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'ExchangeRequested'),
+    ]),
+    supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId)
+      .eq('status', 'New')
+      .lt('order_date', threeDaysAgo.toISOString()),
+    supabase
+      .from('settlements')
+      .select('settlement_amount')
+      .eq('store_id', storeId)
+      .eq('settlement_date', today.toISOString().split('T')[0]),
+    supabase
+      .from('settlements')
+      .select('settlement_amount')
+      .eq('store_id', storeId)
+      .eq('status', 'pending'),
   ])
-
-  const { count: delayedCount } = await supabase
-    .from('orders')
-    .select('*', { count: 'exact', head: true })
-    .eq('store_id', storeId)
-    .eq('status', 'New')
-    .lt('order_date', threeDaysAgo.toISOString())
-
-  const { data: todaySettlement } = await supabase
-    .from('settlements')
-    .select('settlement_amount')
-    .eq('store_id', storeId)
-    .eq('settlement_date', today.toISOString().split('T')[0])
-
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const { data: expectedSettlement } = await supabase
-    .from('settlements')
-    .select('settlement_amount')
-    .eq('store_id', storeId)
-    .eq('status', 'pending')
 
   interface OrderWithPayment {
     id: string

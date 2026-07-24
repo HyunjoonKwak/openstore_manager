@@ -5,6 +5,13 @@ import { revalidatePath } from 'next/cache'
 import type { OrderStatus, ContactMethod } from '@/types/database.types'
 import { sendOrderNotification, getNotificationStatus } from '@/lib/notifications'
 import { requireUser } from '@/lib/actions/auth-guard'
+import {
+  validateInput,
+  orderStatusSchema,
+  orderIdsSchema,
+  getOrdersBySupplierSchema,
+  sendOrdersToSupplierSchema,
+} from '@/lib/validation'
 
 export interface OrderForSupplier {
   id: string
@@ -63,6 +70,11 @@ export async function getOrdersForSupplierSend(
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(orderStatusSchema, status)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data: stores } = await supabase
@@ -136,6 +148,11 @@ export async function getOrdersBySupplier(
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(getOrdersBySupplierSchema, { supplierId, status })
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data: stores } = await supabase
@@ -312,6 +329,11 @@ export async function markOrdersAsOrdered(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(orderIdsSchema, orderIds)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('orders')
     .update({ status: 'Ordered' as OrderStatus })
@@ -381,6 +403,15 @@ export async function sendOrdersToSupplier(
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { success: false, orderCount: 0, notificationSent: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(sendOrdersToSupplierSchema, {
+    supplierId,
+    orderIds,
+    sendNotification,
+  })
+  if (validation.error !== null) {
+    return { success: false, orderCount: 0, notificationSent: false, error: validation.error }
   }
 
   const { data: supplier } = await supabase

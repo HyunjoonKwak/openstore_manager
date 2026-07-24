@@ -12,6 +12,23 @@ import type {
   BenchmarkSessionStatus,
   BenchmarkAssetType,
 } from '@/types/database.types'
+import {
+  validateInput,
+  idSchema,
+  createBenchmarkSessionSchema,
+  updateBenchmarkSessionSchema,
+  addBenchmarkPageSchema,
+  updateBenchmarkPageSchema,
+  deleteBenchmarkPageSchema,
+  addBenchmarkMemoSchema,
+  updateBenchmarkMemoSchema,
+  deleteBenchmarkMemoSchema,
+  addBenchmarkChecklistSchema,
+  updateBenchmarkChecklistSchema,
+  deleteBenchmarkChecklistSchema,
+  addBenchmarkAssetSchema,
+  deleteBenchmarkAssetSchema,
+} from '@/lib/validation'
 
 export interface BenchmarkSessionWithDetails extends BenchmarkSession {
   pages: BenchmarkPage[]
@@ -63,6 +80,11 @@ export async function getBenchmarkSession(sessionId: string): Promise<{
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(idSchema, sessionId)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data: session, error: sessionError } = await supabase
@@ -124,6 +146,11 @@ export async function createBenchmarkSession(input: {
     return { data: null, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(createBenchmarkSessionSchema, input)
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
+  }
+
   const { data, error } = await supabase
     .from('benchmark_sessions')
     .insert({
@@ -162,6 +189,11 @@ export async function updateBenchmarkSession(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateBenchmarkSessionSchema, { sessionId, ...input })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('benchmark_sessions')
     .update({
@@ -195,6 +227,11 @@ export async function deleteBenchmarkSession(sessionId: string): Promise<{
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(idSchema, sessionId)
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('benchmark_sessions')
     .delete()
@@ -222,6 +259,11 @@ export async function addBenchmarkPage(
     await requireUser(supabase)
   } catch {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(addBenchmarkPageSchema, { sessionId, ...input })
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data: maxOrder } = await supabase
@@ -274,6 +316,11 @@ export async function updateBenchmarkPage(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateBenchmarkPageSchema, { pageId, ...input })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('benchmark_pages')
     .update({
@@ -299,6 +346,11 @@ export async function deleteBenchmarkPage(pageId: string, sessionId: string): Pr
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(deleteBenchmarkPageSchema, { pageId, sessionId })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase
@@ -330,6 +382,11 @@ export async function addBenchmarkMemo(
     await requireUser(supabase)
   } catch {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(addBenchmarkMemoSchema, { sessionId, ...input })
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data, error } = await supabase
@@ -373,6 +430,11 @@ export async function updateBenchmarkMemo(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateBenchmarkMemoSchema, { memoId, ...input })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('benchmark_memos')
     .update({
@@ -399,6 +461,11 @@ export async function deleteBenchmarkMemo(memoId: string, sessionId: string): Pr
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(deleteBenchmarkMemoSchema, { memoId, sessionId })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase
@@ -428,6 +495,11 @@ export async function addBenchmarkChecklist(
     await requireUser(supabase)
   } catch {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(addBenchmarkChecklistSchema, { sessionId, ...input })
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data: maxOrder } = await supabase
@@ -482,6 +554,11 @@ export async function updateBenchmarkChecklist(
     return { success: false, error: 'Unauthorized' }
   }
 
+  const validation = validateInput(updateBenchmarkChecklistSchema, { checklistId, ...input })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('benchmark_checklists')
     .update({
@@ -510,6 +587,11 @@ export async function deleteBenchmarkChecklist(checklistId: string, sessionId: s
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(deleteBenchmarkChecklistSchema, { checklistId, sessionId })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase
@@ -542,6 +624,11 @@ export async function addBenchmarkAsset(
     await requireUser(supabase)
   } catch {
     return { data: null, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(addBenchmarkAssetSchema, { sessionId, ...input })
+  if (validation.error !== null) {
+    return { data: null, error: validation.error }
   }
 
   const { data, error } = await supabase
@@ -581,6 +668,11 @@ export async function deleteBenchmarkAsset(assetId: string, sessionId: string): 
     await requireUser(supabase)
   } catch {
     return { success: false, error: 'Unauthorized' }
+  }
+
+  const validation = validateInput(deleteBenchmarkAssetSchema, { assetId, sessionId })
+  if (validation.error !== null) {
+    return { success: false, error: validation.error }
   }
 
   const { error } = await supabase
