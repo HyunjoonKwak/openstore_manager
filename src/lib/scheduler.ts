@@ -271,7 +271,7 @@ async function syncProducts(
 
   try {
     const response = await client.searchProducts({
-      productStatusTypes: ['SALE', 'SUSPENSION', 'WAIT', 'UNADMISSION', 'REJECTION', 'PROHIBITION'],
+      productStatusTypes: ['SALE', 'OUTOFSTOCK', 'SUSPENSION', 'WAIT', 'UNADMISSION', 'REJECTION', 'PROHIBITION'],
       pageSize: 100,
     })
 
@@ -281,6 +281,13 @@ async function syncProducts(
         if (!channelProduct) continue
 
         const platformProductId = String(channelProduct.channelProductNo)
+
+        // Naver omits stockQuantity for some products; for OUTOFSTOCK items
+        // force 0 so the local stock never stays stale at a positive value.
+        const resolvedStock =
+          channelProduct.statusType === 'OUTOFSTOCK'
+            ? channelProduct.stockQuantity ?? 0
+            : channelProduct.stockQuantity
 
         const { data: existingByPlatformId } = await supabase
           .from('products')
@@ -295,7 +302,7 @@ async function syncProducts(
             .update({
               name: channelProduct.name,
               price: channelProduct.discountedPrice || channelProduct.salePrice,
-              stock_quantity: channelProduct.stockQuantity,
+              stock_quantity: resolvedStock,
               status: channelProduct.statusType,
               image_url: channelProduct.representativeImage?.url || null,
               category: channelProduct.wholeCategoryName || null,
@@ -321,7 +328,7 @@ async function syncProducts(
               .update({
                 name: channelProduct.name,
                 price: channelProduct.discountedPrice || channelProduct.salePrice,
-                stock_quantity: channelProduct.stockQuantity,
+                stock_quantity: resolvedStock,
                 platform_product_id: platformProductId,
                 status: channelProduct.statusType,
                 image_url: channelProduct.representativeImage?.url || null,
@@ -335,7 +342,7 @@ async function syncProducts(
               store_id: storeId,
               name: channelProduct.name,
               price: channelProduct.discountedPrice || channelProduct.salePrice,
-              stock_quantity: channelProduct.stockQuantity,
+              stock_quantity: resolvedStock,
               sku,
               platform_product_id: platformProductId,
               status: channelProduct.statusType,

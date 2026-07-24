@@ -467,7 +467,8 @@ export function InventoryClient({
     if (statusFilter === 'all') {
       matchesStatus = true
     } else if (statusFilter === 'lowstock') {
-      matchesStatus = product.stockQuantity <= 10
+      // Include Naver-flagged OUTOFSTOCK products whose local stock is stale
+      matchesStatus = product.stockQuantity <= 10 || product.status === 'OUTOFSTOCK'
     } else if (statusFilter === 'PROHIBITION') {
       matchesStatus = product.status === 'PROHIBITION' || product.status === 'SUSPENSION'
     } else {

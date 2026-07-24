@@ -134,7 +134,7 @@ export async function getProductStats(): Promise<{
 
   const { data: products } = await supabase
     .from('products')
-    .select('stock_quantity')
+    .select('stock_quantity, status')
     .eq('store_id', storeId)
 
   if (!products) {
@@ -144,10 +144,17 @@ export async function getProductStats(): Promise<{
     }
   }
 
-  const typedProducts = products as unknown as { stock_quantity: number }[]
+  // Products marked OUTOFSTOCK by Naver count as out of stock even when the
+  // local stock figure is stale (nonzero), so they never fall outside the
+  // stock cards on the inventory page.
+  const typedProducts = products as unknown as { stock_quantity: number; status: string | null }[]
   const totalProducts = typedProducts.length
-  const outOfStock = typedProducts.filter((p) => p.stock_quantity === 0).length
-  const lowStock = typedProducts.filter((p) => p.stock_quantity > 0 && p.stock_quantity <= 10).length
+  const outOfStock = typedProducts.filter(
+    (p) => p.stock_quantity === 0 || p.status === 'OUTOFSTOCK'
+  ).length
+  const lowStock = typedProducts.filter(
+    (p) => p.status !== 'OUTOFSTOCK' && p.stock_quantity > 0 && p.stock_quantity <= 10
+  ).length
   const healthy = totalProducts - outOfStock - lowStock
 
   return {

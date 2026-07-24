@@ -272,7 +272,7 @@ export async function syncNaverProducts(): Promise<{ success: boolean; syncedCou
     log('[syncNaverProducts] Fetching all products...')
     const response = await client.searchProducts({ 
       pageSize: 100,
-      productStatusTypes: ['SALE', 'SUSPENSION', 'WAIT', 'UNADMISSION', 'REJECTION', 'PROHIBITION']
+      productStatusTypes: ['SALE', 'OUTOFSTOCK', 'SUSPENSION', 'WAIT', 'UNADMISSION', 'REJECTION', 'PROHIBITION']
     })
     log('[syncNaverProducts] API Response:', JSON.stringify(response, null, 2))
     
@@ -293,10 +293,17 @@ export async function syncNaverProducts(): Promise<{ success: boolean; syncedCou
       
       log('[syncNaverProducts] Processing:', channelProduct.name, '| Status:', channelProduct.statusType)
 
+      // Naver omits stockQuantity for some products; for OUTOFSTOCK items
+      // force 0 so the local stock never stays stale at a positive value.
+      const resolvedStock =
+        channelProduct.statusType === 'OUTOFSTOCK'
+          ? channelProduct.stockQuantity ?? 0
+          : channelProduct.stockQuantity
+
       const productData = {
         name: channelProduct.name,
         price: channelProduct.discountedPrice || channelProduct.salePrice,
-        stock_quantity: channelProduct.stockQuantity,
+        stock_quantity: resolvedStock,
         status: channelProduct.statusType,
         platform_product_id: platformProductId,
         naver_channel_product_no: channelProduct.channelProductNo,
