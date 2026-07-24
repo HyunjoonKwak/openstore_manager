@@ -1,9 +1,14 @@
+'use client'
+
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { FileQuestion, Home, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function NotFound() {
+  const router = useRouter()
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="max-w-md w-full">
@@ -21,11 +26,9 @@ export default function NotFound() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="flex-1" asChild>
-              <Link href="javascript:history.back()">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                이전 페이지
-              </Link>
+            <Button variant="outline" className="flex-1" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              이전 페이지
             </Button>
             <Button className="flex-1" asChild>
               <Link href="/dashboard">

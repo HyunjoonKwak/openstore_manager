@@ -3,6 +3,11 @@ import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import './globals.css'
 
+// Nonce-based CSP (see src/proxy.ts) requires per-request rendering:
+// statically prerendered HTML cannot carry a fresh nonce, so its inline
+// framework scripts would be blocked by the browser.
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'SmartStore Manager',
   description: '스마트스토어 통합 관리 시스템',
