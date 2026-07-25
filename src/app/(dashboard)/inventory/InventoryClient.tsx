@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Package, AlertTriangle, Search, RefreshCw, Upload, FileSpreadsheet, ShoppingBag, Ban, ArrowUpRight } from 'lucide-react'
+import { Package, AlertTriangle, Search, RefreshCw, Upload, FileSpreadsheet, ShoppingBag, Ban, ArrowUpRight, MoreVertical } from 'lucide-react'
 import { Header } from '@/components/layouts/Header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import {
   createProduct,
@@ -507,23 +513,26 @@ export function InventoryClient({
       />
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {statItems.map((stat) => (
             <Card
               key={stat.label}
               className={cn(
                 'cursor-pointer transition-all hover:ring-2 hover:ring-primary/50',
+                // Compact vertical rhythm on phones; desktop keeps the original py-6
+                'py-3 sm:py-6',
                 statusFilter === stat.filter && 'ring-2 ring-primary'
               )}
               onClick={() => setStatusFilter(stat.filter)}
             >
-              <CardContent className="flex items-center gap-4 py-4">
-                <div className={cn('rounded-lg bg-muted p-2', stat.color)}>
-                  <stat.icon className="h-5 w-5" />
+              <CardContent className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 py-0 sm:py-4">
+                <div className={cn('shrink-0 rounded-lg bg-muted p-1.5 sm:p-2', stat.color)}>
+                  <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
+                {/* min-w-0 lets the label truncate instead of forcing the card wider */}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
                 </div>
               </CardContent>
             </Card>
@@ -531,7 +540,8 @@ export function InventoryClient({
         </div>
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-          <div className="flex flex-1 gap-2 max-w-2xl">
+          {/* Phones stack the filter under the search box so the placeholder is readable */}
+          <div className="flex flex-col sm:flex-row flex-1 gap-2 max-w-2xl">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -543,7 +553,7 @@ export function InventoryClient({
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="상태 필터" />
               </SelectTrigger>
               <SelectContent>
@@ -557,34 +567,67 @@ export function InventoryClient({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={handleNaverSync}
-              disabled={isSyncing}
-            >
-              <RefreshCw className={cn('h-4 w-4 mr-2', isSyncing && 'animate-spin')} />
-              상품 동기화
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleStockSync}
-              disabled={isStockSyncing}
-            >
-              <ArrowUpRight className={cn('h-4 w-4 mr-2', isStockSyncing && 'animate-pulse')} />
-              {isStockSyncing ? '재고 동기화 중...' : '재고 → 네이버'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {isUploading ? '업로드 중...' : '엑셀 업로드'}
-            </Button>
-            <Button variant="outline" onClick={handleDownloadTemplate}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              템플릿 다운로드
-            </Button>
+            {/* Phones collapse the secondary actions into a single menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="sm:hidden">
+                  <MoreVertical className="h-4 w-4 mr-2" />
+                  관리
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 sm:hidden">
+                <DropdownMenuItem onClick={handleNaverSync} disabled={isSyncing}>
+                  <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
+                  상품 동기화
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleStockSync} disabled={isStockSyncing}>
+                  <ArrowUpRight className={cn('h-4 w-4', isStockSyncing && 'animate-pulse')} />
+                  {isStockSyncing ? '재고 동기화 중...' : '재고 → 네이버'}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  <Upload className="h-4 w-4" />
+                  {isUploading ? '업로드 중...' : '엑셀 업로드'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadTemplate}>
+                  <FileSpreadsheet className="h-4 w-4" />
+                  템플릿 다운로드
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* `sm:contents` keeps the desktop row byte-identical to the previous markup */}
+            <div className="hidden sm:contents">
+              <Button
+                variant="outline"
+                onClick={handleNaverSync}
+                disabled={isSyncing}
+              >
+                <RefreshCw className={cn('h-4 w-4 mr-2', isSyncing && 'animate-spin')} />
+                상품 동기화
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleStockSync}
+                disabled={isStockSyncing}
+              >
+                <ArrowUpRight className={cn('h-4 w-4 mr-2', isStockSyncing && 'animate-pulse')} />
+                {isStockSyncing ? '재고 동기화 중...' : '재고 → 네이버'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? '업로드 중...' : '엑셀 업로드'}
+              </Button>
+              <Button variant="outline" onClick={handleDownloadTemplate}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                템플릿 다운로드
+              </Button>
+            </div>
             <ProductFormDialog
               isDialogOpen={isDialogOpen}
               setIsDialogOpen={setIsDialogOpen}

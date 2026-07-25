@@ -399,7 +399,8 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
                   <button
                     onClick={() => setCurrentStep(step.step as WorkflowStep)}
                     className={cn(
-                      'flex w-full sm:w-auto items-center gap-2 px-4 py-2 rounded-lg transition-colors',
+                      // min-h keeps a >=44px tap target on phones without growing the desktop row
+                      'flex w-full sm:w-auto items-center gap-2 px-4 py-2 min-h-[48px] sm:min-h-0 rounded-lg transition-colors',
                       currentStep === step.step
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted hover:bg-muted/80'
@@ -432,8 +433,9 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
             </div>
           </div>
 
-          <Card className="bg-muted/30">
-            <CardContent className="py-3">
+          {/* Hint banner: compact one-line box on phones, unchanged from lg up */}
+          <Card className="bg-muted/30 py-2 sm:py-6">
+            <CardContent className="px-4 sm:px-6 py-1 sm:py-3">
               <div className="flex items-center gap-2 text-sm">
                 <Info className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">
@@ -444,7 +446,9 @@ export function DispatchClient({ initialOrders, couriers }: DispatchClientProps)
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+        {/* Read-only stat cards duplicate the workflow step badges, so phones show
+            only the actionable funnel above. Desktop keeps the full 4-card row. */}
+        <div className="hidden lg:grid lg:grid-cols-4 gap-4 mb-6">
           <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50" onClick={() => setCurrentStep(1)}>
             <CardContent className="flex items-center gap-4 py-4">
               <div className="rounded-lg bg-warning/10 text-warning p-2">

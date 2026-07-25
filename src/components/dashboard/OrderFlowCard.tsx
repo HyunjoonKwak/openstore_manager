@@ -6,6 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+/**
+ * The Card primitive ships `py-6 gap-6`, and CardHeader carries a `[.border-b]:pb-6`
+ * rule that outranks the `py-3` we pass (two-class selector). On a phone that adds
+ * ~70px of empty padding per card and pushes the next card off-screen, so the mobile
+ * base collapses it and the `sm:` variants restore the desktop spacing byte for byte.
+ */
+const compactCard = 'gap-0 py-0 sm:gap-6 sm:py-6'
+const compactCardHeader =
+  'flex flex-row items-center justify-between py-3 px-4 border-b [.border-b]:pb-3 sm:[.border-b]:pb-6'
+
 export interface OrderFlowStep {
   label: string
   count: number
@@ -31,8 +41,8 @@ export function OrderFlowCard({
   className,
 }: OrderFlowCardProps) {
   return (
-    <Card className={cn('', className)}>
-      <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
+    <Card className={cn(compactCard, className)}>
+      <CardHeader className={compactCardHeader}>
         <div className="flex items-center gap-2">
           <div className="text-muted-foreground">{icon}</div>
           <CardTitle className="text-base font-semibold">{title}</CardTitle>
@@ -105,8 +115,8 @@ export function QuickStatCard({
   className,
 }: QuickStatCardProps) {
   return (
-    <Card className={cn('', className)}>
-      <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
+    <Card className={cn(compactCard, className)}>
+      <CardHeader className={compactCardHeader}>
         <div className="flex items-center gap-2">
           <div className="text-muted-foreground">{icon}</div>
           <CardTitle className="text-base font-semibold">{title}</CardTitle>
@@ -180,8 +190,8 @@ export function SettlementCard({
   }
 
   return (
-    <Card className={cn('', className)}>
-      <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
+    <Card className={cn(compactCard, className)}>
+      <CardHeader className={compactCardHeader}>
         <div className="flex items-center gap-2">
           <div className="text-muted-foreground">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -208,14 +218,16 @@ export function SettlementCard({
             className="flex flex-col gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors"
           >
             <span className="text-sm text-muted-foreground">오늘정산</span>
-            <span className="text-2xl font-bold text-primary">{formatCurrency(todaySettlement)}</span>
+            {/* Amounts must never orphan the 원 suffix: text-xl in the narrow
+                phone and 4-column desktop tracks, text-2xl where there is room */}
+            <span className="whitespace-nowrap text-xl sm:text-2xl lg:text-xl font-bold text-primary">{formatCurrency(todaySettlement)}</span>
           </Link>
           <Link
             href="/settlements"
             className="flex flex-col gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors"
           >
             <span className="text-sm text-muted-foreground">정산예정</span>
-            <span className="text-2xl font-bold">{formatCurrency(expectedSettlement)}</span>
+            <span className="whitespace-nowrap text-xl sm:text-2xl lg:text-xl font-bold">{formatCurrency(expectedSettlement)}</span>
           </Link>
         </div>
       </CardContent>

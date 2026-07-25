@@ -14,6 +14,20 @@ import { checkDeliveryStatusBatch } from '@/lib/actions/orders'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
+/**
+ * Mobile density helpers. The Card primitive ships `py-6 gap-6`, and CardHeader carries a
+ * `[.border-b]:pb-6` rule whose two-class selector outranks the `py-3` passed in, so each
+ * card wastes ~70px of empty padding on a phone. The mobile base collapses that padding and
+ * the `sm:` variants restore today's desktop spacing exactly.
+ */
+const compactCard = 'gap-0 py-0 sm:gap-6 sm:py-6'
+const compactCardHeaderMd =
+  'flex flex-row items-center justify-between py-3 px-4 border-b [.border-b]:pb-3 sm:[.border-b]:pb-6'
+const compactCardHeaderSm =
+  'flex flex-row items-center justify-between py-2 px-3 border-b [.border-b]:pb-2 sm:[.border-b]:pb-6'
+
+const pad2 = (value: number) => String(value).padStart(2, '0')
+
 interface DashboardStats {
   dailyRevenue: number
   revenueChange: number
@@ -110,22 +124,38 @@ export function DashboardClient({
     return isToday ? time : `${date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} ${time}`
   }
 
-  const currentTime = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  // Phone-only 24h format ("23:00" / "07/24 23:00"). The ko-KR locale form
+  // ("7월 24일 오후 11:00") overflows a 390px row and CJK breaks mid-token.
+  const formatSyncTimeCompact = (isoString: string | null) => {
+    if (!isoString) return '없음'
+    const date = new Date(isoString)
+    const isToday = date.toDateString() === new Date().toDateString()
+    const time = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+    return isToday ? time : `${pad2(date.getMonth() + 1)}/${pad2(date.getDate())} ${time}`
+  }
+
+  const now = new Date()
+  const currentTime = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  const currentTimeCompact = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`
 
   return (
     <div className="flex-1 overflow-y-auto p-3 lg:p-4 pb-20 lg:pb-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span>현재 {currentTime}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* whitespace-nowrap keeps each token atomic; if the row still cannot fit, it wraps
+            at a gap and the button drops to its own right-aligned line instead of overlapping. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:gap-x-3 sm:text-sm">
+          <span className="whitespace-nowrap sm:hidden">현재 {currentTimeCompact}</span>
+          <span className="hidden whitespace-nowrap sm:inline">현재 {currentTime}</span>
           <span className="text-muted-foreground/50">|</span>
-          <span>마지막 동기화: {formatSyncTime(lastSyncAt)}</span>
+          <span className="whitespace-nowrap sm:hidden">마지막 동기화: {formatSyncTimeCompact(lastSyncAt)}</span>
+          <span className="hidden whitespace-nowrap sm:inline">마지막 동기화: {formatSyncTime(lastSyncAt)}</span>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={handleSync}
           disabled={isLoading}
-          className="gap-2"
+          className="ml-auto shrink-0 gap-2"
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -148,7 +178,7 @@ export function DashboardClient({
         ]}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <SettlementCard
           todaySettlement={stats.settlement.today}
           expectedSettlement={stats.settlement.expected}
@@ -202,8 +232,8 @@ export function DashboardClient({
           ]}
         />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
+        <Card className={compactCard}>
+          <CardHeader className={compactCardHeaderMd}>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-muted-foreground" />
               <CardTitle className="text-base font-semibold">오늘 매출</CardTitle>
@@ -226,8 +256,8 @@ export function DashboardClient({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-2 px-3 border-b">
+        <Card className={compactCard}>
+          <CardHeader className={compactCardHeaderSm}>
             <div className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">주간 매출 추이</CardTitle>
@@ -244,8 +274,8 @@ export function DashboardClient({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-2 px-3 border-b">
+        <Card className={compactCard}>
+          <CardHeader className={compactCardHeaderSm}>
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">빠른 작업</CardTitle>
@@ -275,8 +305,8 @@ export function DashboardClient({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
+      <Card className={compactCard}>
+        <CardHeader className={compactCardHeaderMd}>
           <div className="flex items-center gap-2">
             <CardTitle className="text-sm font-semibold">최근 주문</CardTitle>
             <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">
