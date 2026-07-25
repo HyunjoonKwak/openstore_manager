@@ -11,14 +11,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogTrigger,
+  ResponsiveDialogFooter,
+} from '@/components/ui/responsive-dialog'
 import {
   Select,
   SelectContent,
@@ -28,6 +28,16 @@ import {
 } from '@/components/ui/select'
 import type { ProductWithSupplier } from '@/lib/actions/products'
 import type { SupplierWithStats } from '@/lib/actions/suppliers'
+
+/**
+ * Tab body height. Radix resolves the scroll viewport's `h-full` against the auto-height
+ * root, so the mobile cap has to be repeated on the viewport for it to scroll instead of
+ * overflowing. Desktop keeps the original fixed 400px area.
+ */
+const TAB_SCROLL_AREA_CLASS =
+  'max-h-[45dvh] pr-4 sm:h-[400px] ' +
+  '[&>[data-radix-scroll-area-viewport]]:max-h-[45dvh] ' +
+  'sm:[&>[data-radix-scroll-area-viewport]]:max-h-none'
 
 export interface ProductFormData {
   name: string
@@ -94,22 +104,22 @@ export function ProductFormDialog({
   const router = useRouter()
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogTrigger asChild>
+    <ResponsiveDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <ResponsiveDialogTrigger asChild>
         <Button onClick={() => handleOpenDialog()}>
           <Plus className="h-4 w-4 mr-2" />
           상품 추가
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh]">
-        <DialogHeader>
-          <DialogTitle>
+      </ResponsiveDialogTrigger>
+      <ResponsiveDialogContent className="max-w-2xl">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>
             {editingProduct ? '상품 수정' : '새 상품 추가'}
-          </DialogTitle>
-          <DialogDescription>
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             상품 정보를 입력하고 저장하세요.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         {!editingProduct && (
           <div className="flex gap-2 mb-4">
@@ -144,7 +154,7 @@ export function ProductFormDialog({
                 placeholder="예: 무선 블루투스 이어폰, 노이즈캔슬링"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>카테고리</Label>
                 <Select value={aiCategory} onValueChange={setAiCategory}>
@@ -225,7 +235,7 @@ export function ProductFormDialog({
             <TabsTrigger value="etc">기타</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="h-[400px] pr-4">
+          <ScrollArea className={TAB_SCROLL_AREA_CLASS}>
             <TabsContent value="basic" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="name">상품명 *</Label>
@@ -236,7 +246,7 @@ export function ProductFormDialog({
                   placeholder="상품명을 입력하세요"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">가격 *</Label>
                   <Input
@@ -258,7 +268,7 @@ export function ProductFormDialog({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="sku">SKU</Label>
                   <Input
@@ -395,16 +405,16 @@ export function ProductFormDialog({
         )}
 
         {(addMode === 'manual' || editingProduct) && (
-        <DialogFooter className="mt-4">
+        <ResponsiveDialogFooter className="mt-4">
           <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
             취소
           </Button>
           <Button onClick={handleSave} disabled={isPending}>
             {isPending ? '저장 중...' : editingProduct ? '수정' : '추가'}
           </Button>
-        </DialogFooter>
+        </ResponsiveDialogFooter>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

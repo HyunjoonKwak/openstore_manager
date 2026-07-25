@@ -46,26 +46,26 @@ export function ProductEditorHeader({
 
   return (
     <Card>
-      <CardContent className="flex items-center justify-between py-4">
-        <div className="flex items-center gap-4">
+      <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4">
+        <div className="flex items-center gap-4 min-w-0">
           {productData.representativeImageUrl ? (
             <Image
               src={productData.representativeImageUrl}
               alt={productData.name}
               width={60}
               height={60}
-              className="rounded-lg object-cover"
+              className="rounded-lg object-cover shrink-0"
             />
           ) : (
-            <div className="w-[60px] h-[60px] bg-muted rounded-lg flex items-center justify-center">
+            <div className="w-[60px] h-[60px] shrink-0 bg-muted rounded-lg flex items-center justify-center">
               <Package className="h-6 w-6 text-muted-foreground" />
             </div>
           )}
-          <div>
-            <h2 className="text-lg font-bold">{productData.name}</h2>
-            <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-              <span>{formatCurrency(productData.salePrice)}</span>
-              <span>재고: {productData.stockQuantity}개</span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold truncate">{productData.name}</h2>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
+              <span className="whitespace-nowrap">{formatCurrency(productData.salePrice)}</span>
+              <span className="whitespace-nowrap">재고: {productData.stockQuantity}개</span>
               {productData.categoryName && (
                 <Badge variant="outline" className="text-xs">
                   {productData.categoryName.split('>').pop()?.trim()}
@@ -74,24 +74,24 @@ export function ProductEditorHeader({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           {hasChanges && (
             <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
               <AlertTriangle className="h-3 w-3 mr-1" />
               변경됨
             </Badge>
           )}
-          <Button variant="outline" size="sm" onClick={loadProductDetail} disabled={isSyncing}>
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={loadProductDetail} disabled={isSyncing}>
             {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
             새로고침
           </Button>
-          <Button variant="outline" size="sm" onClick={() => router.push(`/benchmarking?view=ai&productId=${productId}`)}>
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => router.push(`/benchmarking?view=ai&productId=${productId}`)}>
             <Sparkles className="h-4 w-4 mr-2" />
             AI 생성
           </Button>
           <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
             <DialogTrigger asChild>
-              <Button size="sm" disabled={isUploading || !hasChanges}>
+              <Button size="sm" className="flex-1 sm:flex-none" disabled={isUploading || !hasChanges}>
                 {isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
                 스마트스토어 업로드
               </Button>

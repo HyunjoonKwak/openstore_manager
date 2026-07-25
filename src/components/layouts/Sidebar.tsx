@@ -109,7 +109,7 @@ export function Sidebar({ className }: SidebarProps) {
                 {item.badge && (
                   <Badge
                     variant="secondary"
-                    className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-bold bg-primary/20 text-primary border border-primary/30"
+                    className="ml-auto h-5 min-w-5 px-1.5 text-xs font-bold bg-primary/20 text-primary border border-primary/30"
                   >
                     {item.badge}
                   </Badge>

@@ -23,9 +23,11 @@ const mobileNavItems = [
 export function MobileNav() {
   const pathname = usePathname()
 
+  // Safe-area padding sits on the bar itself so the tab row keeps its full
+  // h-16 tap-target height instead of being squeezed on notched phones.
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card lg:hidden">
-      <div className="flex items-center justify-around h-16 pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <div className="flex items-center justify-around h-16">
         {mobileNavItems.map((item) => {
           const isActive = item.href === '/orders'
             ? pathname === '/orders' || pathname === '/orders/send'
@@ -35,20 +37,20 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex min-h-11 min-w-[64px] flex-col items-center justify-center gap-1 px-3 py-2',
+                'flex min-h-11 min-w-[64px] flex-col items-center justify-center gap-0.5 px-2 py-1.5',
                 isActive ? 'text-primary' : 'text-muted-foreground'
               )}
             >
               <item.icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-xs font-medium leading-4 whitespace-nowrap">{item.label}</span>
             </Link>
           )
         })}
         <Sheet>
           <SheetTrigger asChild>
-            <button className="flex min-h-11 min-w-[64px] flex-col items-center justify-center gap-1 px-3 py-2 text-muted-foreground">
+            <button className="flex min-h-11 min-w-[64px] flex-col items-center justify-center gap-0.5 px-2 py-1.5 text-muted-foreground">
               <MoreHorizontal className="h-5 w-5" />
-              <span className="text-[10px] font-medium">더보기</span>
+              <span className="text-xs font-medium leading-4 whitespace-nowrap">더보기</span>
             </button>
           </SheetTrigger>
           <SheetContent side="left" className="w-72 p-0">

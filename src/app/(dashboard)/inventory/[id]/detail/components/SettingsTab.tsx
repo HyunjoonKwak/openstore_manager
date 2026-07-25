@@ -59,7 +59,7 @@ export function SettingsTab({ productData, updateField }: SettingsTabProps) {
             <CardTitle className="text-base">구매 수량 제한</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="detail-min-purchase-quantity">최소 수량</Label>
                 <Input id="detail-min-purchase-quantity" type="number" value={productData.minPurchaseQuantity || ''} onChange={(e) => updateField('minPurchaseQuantity', Number(e.target.value) || undefined)} placeholder="1" />

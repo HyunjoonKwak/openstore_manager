@@ -15,7 +15,7 @@ interface LegacyTabsProps {
 export function LegacyTabs({ result, isExtensionResult, activeTab, onTabChange }: LegacyTabsProps) {
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-4 mb-6">
+      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-6 h-auto sm:h-9">
         <TabsTrigger value="structure"><Layout className="h-4 w-4 mr-2"/>구조</TabsTrigger>
         <TabsTrigger value="design"><Palette className="h-4 w-4 mr-2"/>디자인</TabsTrigger>
         <TabsTrigger value="copy"><MessageSquare className="h-4 w-4 mr-2"/>마케팅</TabsTrigger>

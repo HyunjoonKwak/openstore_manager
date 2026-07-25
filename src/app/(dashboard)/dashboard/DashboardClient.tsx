@@ -288,9 +288,8 @@ export function DashboardClient({
           </Link>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <OrdersTable orders={orders} />
-          </div>
+          {/* OrdersTable owns the single horizontal scroll container. */}
+          <OrdersTable orders={orders} />
         </CardContent>
       </Card>
     </div>

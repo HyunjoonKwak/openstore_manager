@@ -31,7 +31,7 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
             <CardTitle className="text-base">할인 설정</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="detail-discount-value">할인 금액/률</Label>
                 <Input id="detail-discount-value" type="number" value={productData.discountValue || 0} onChange={(e) => updateField('discountValue', Number(e.target.value))} />
@@ -67,7 +67,7 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
             <CardTitle className="text-base">포인트/적립</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="detail-purchase-point-value">구매 적립</Label>
                 <Input id="detail-purchase-point-value" type="number" value={productData.purchasePointValue || 0} onChange={(e) => updateField('purchasePointValue', Number(e.target.value))} />
@@ -84,7 +84,7 @@ export function BenefitTab({ productData, updateField, formatCurrency }: Benefit
               </div>
             </div>
             <Separator />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="detail-text-review-point">텍스트 리뷰 포인트</Label>
                 <Input id="detail-text-review-point" type="number" value={productData.textReviewPoint || 0} onChange={(e) => updateField('textReviewPoint', Number(e.target.value))} />

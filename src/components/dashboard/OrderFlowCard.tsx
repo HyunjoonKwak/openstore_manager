@@ -42,16 +42,17 @@ export function OrderFlowCard({
             <span className="text-sm text-muted-foreground">최근 {lastUpdated}</span>
           )}
           {onRefresh && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRefresh}>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={onRefresh}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           )}
         </div>
       </CardHeader>
       <CardContent className="p-3 sm:p-4">
-        <div className="flex items-center justify-between">
+        {/* Mobile: 3-column grid so all steps stay visible; desktop keeps the single flex row */}
+        <div className="grid grid-cols-3 gap-y-1 sm:flex sm:items-center sm:justify-between">
           {steps.map((step, index) => (
-            <div key={step.label} className="flex items-center">
+            <div key={step.label} className="flex items-center justify-center sm:justify-start">
               <Link
                 href={step.href}
                 className={cn(
@@ -71,7 +72,7 @@ export function OrderFlowCard({
                 </span>
               </Link>
               {index < steps.length - 1 && (
-                <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0" />
+                <ChevronRight className="hidden sm:block h-5 w-5 text-muted-foreground/50 shrink-0" />
               )}
             </div>
           ))}
@@ -115,7 +116,7 @@ export function QuickStatCard({
             <span className="text-sm text-muted-foreground">최근 {lastUpdated}</span>
           )}
           {onRefresh && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRefresh}>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={onRefresh}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           )}
@@ -194,7 +195,7 @@ export function SettlementCard({
             <span className="text-sm text-muted-foreground">최근 {lastUpdated}</span>
           )}
           {onRefresh && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRefresh}>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={onRefresh}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           )}

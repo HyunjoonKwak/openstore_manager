@@ -60,7 +60,7 @@ export function ComparePagePane({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0"
+                className="h-9 w-9 sm:h-6 sm:w-6 shrink-0"
                 onClick={() => window.open(selectedPage.url, '_blank')}
               >
                 <ExternalLink className="h-3 w-3" />
@@ -75,7 +75,7 @@ export function ComparePagePane({
                 key={zoom}
                 variant={comparePageZoom === zoom ? 'secondary' : 'ghost'}
                 size="sm"
-                className="h-6 px-2 text-xs rounded-none first:rounded-l-md last:rounded-r-md"
+                className="h-9 px-3 text-xs rounded-none first:rounded-l-md last:rounded-r-md sm:h-6 sm:px-2"
                 onClick={() => onZoomChange(zoom)}
               >
                 {zoom}%
@@ -85,7 +85,7 @@ export function ComparePagePane({
           {pages.length > 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 text-xs">
+                <Button variant="ghost" size="sm" className="h-9 text-xs sm:h-7">
                   <Columns className="h-3 w-3 mr-1" />
                   페이지 선택
                 </Button>
@@ -113,7 +113,7 @@ export function ComparePagePane({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs"
+            className="h-9 text-xs sm:h-7"
             onClick={() => onOpenAddPage()}
           >
             <Plus className="h-3 w-3 mr-1" />

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
@@ -8,6 +8,15 @@ import './globals.css'
 // statically prerendered HTML cannot carry a fresh nonce, so its inline
 // framework scripts would be blocked by the browser.
 export const dynamic = 'force-dynamic'
+
+// `viewportFit: 'cover'` lets the page paint under the iOS notch/home indicator,
+// which is what makes `env(safe-area-inset-*)` resolve to a non-zero value.
+// Without it the safe-area padding in MobileNav is dead code.
+export const viewport: Viewport = {
+  viewportFit: 'cover',
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export const metadata: Metadata = {
   title: 'SmartStore Manager',

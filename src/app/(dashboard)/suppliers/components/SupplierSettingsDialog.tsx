@@ -7,13 +7,13 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogFooter,
+} from '@/components/ui/responsive-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -104,16 +104,16 @@ export function SupplierSettingsDialog({
   isPending,
 }: SupplierSettingsDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent className="max-w-2xl">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>
             {settingsSupplier?.name} 설정
-          </DialogTitle>
-          <DialogDescription>
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             발주 메시지 템플릿과 발송 방법을 설정하세요.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
         <div className="space-y-6 py-4">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ export function SupplierSettingsDialog({
               <Clock className="h-4 w-4 text-muted-foreground" />
               <Label>자동 발송 스케줄</Label>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">발송 시간</Label>
                 <Input
@@ -260,7 +260,7 @@ export function SupplierSettingsDialog({
               <Truck className="h-4 w-4 text-muted-foreground" />
               <Label>택배 설정</Label>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">기본 택배업체</Label>
                 <Select
@@ -298,15 +298,15 @@ export function SupplierSettingsDialog({
             </div>
           </div>
         </div>
-        <DialogFooter>
+        <ResponsiveDialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             취소
           </Button>
           <Button onClick={handleSaveSettings} disabled={isPending}>
             {isPending ? '저장 중...' : '저장'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

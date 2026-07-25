@@ -55,11 +55,11 @@ export function MarketResearchPanel({
               if (event.key === 'Enter') void onSearch()
             }}
             placeholder="예: 휴대용 선풍기"
-            className="h-8 text-sm"
+            className="h-9 text-sm sm:h-8"
           />
           <Button
             size="sm"
-            className="h-8 px-3"
+            className="h-9 px-3 sm:h-8"
             onClick={() => void onSearch()}
             disabled={isMarketLoading}
           >
@@ -98,14 +98,14 @@ export function MarketResearchPanel({
                   </div>
                   <div className="mt-2 flex items-center justify-end gap-1">
                     {product.url && product.url !== '#' && (
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => window.open(product.url, '_blank')}>
+                      <Button variant="ghost" size="sm" className="h-9 text-xs sm:h-7" onClick={() => window.open(product.url, '_blank')}>
                         <ExternalLink className="mr-1 h-3 w-3" /> 보기
                       </Button>
                     )}
                     <Button
                       variant={isAdded ? 'secondary' : 'outline'}
                       size="sm"
-                      className="h-7 text-xs"
+                      className="h-9 text-xs sm:h-7"
                       disabled={isAdded || isPending}
                       onClick={() => onAddProduct(product)}
                     >

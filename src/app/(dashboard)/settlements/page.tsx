@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ResponsiveTable } from '@/components/ui/responsive-table'
 import { toast } from 'sonner'
 import { syncSettlements, getSettlements } from '@/lib/actions/naver-sync'
 
@@ -178,42 +179,45 @@ export default function SettlementsPage() {
         </div>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between border-b border-border py-4">
-            <CardTitle className="text-lg font-bold">정산 내역</CardTitle>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div className="flex items-center gap-2">
+          <CardHeader className="flex flex-col gap-3 border-b border-border py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <CardTitle className="text-lg font-bold min-w-0">정산 내역</CardTitle>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                {/* Date inputs have a ~178px intrinsic width, so they stack on phones */}
+                <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
                     type="date"
                     value={dateRange.startDate}
                     onChange={(e) =>
                       setDateRange((prev) => ({ ...prev, startDate: e.target.value }))
                     }
-                    className="w-36 h-8"
+                    className="w-full min-w-0 sm:w-36 h-8"
                   />
-                  <span className="text-muted-foreground">~</span>
+                  <span className="text-center text-muted-foreground">~</span>
                   <Input
                     type="date"
                     value={dateRange.endDate}
                     onChange={(e) =>
                       setDateRange((prev) => ({ ...prev, endDate: e.target.value }))
                     }
-                    className="w-36 h-8"
+                    className="w-full min-w-0 sm:w-36 h-8"
                   />
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => startTransition(loadSettlements)} disabled={isPending}>
-                조회
-              </Button>
-              <Button size="sm" onClick={handleSync} disabled={isSyncing}>
-                {isSyncing ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                )}
-                동기화
-              </Button>
+              <div className="flex gap-2 sm:contents">
+                <Button variant="outline" size="sm" className="flex-1 sm:flex-initial" onClick={() => startTransition(loadSettlements)} disabled={isPending}>
+                  조회
+                </Button>
+                <Button size="sm" className="flex-1 sm:flex-initial" onClick={handleSync} disabled={isSyncing}>
+                  {isSyncing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  동기화
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -229,62 +233,64 @@ export default function SettlementsPage() {
                 </p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>정산일</TableHead>
-                    <TableHead className="text-right">주문건수</TableHead>
-                    <TableHead className="text-right">매출액</TableHead>
-                    <TableHead className="text-right">수수료</TableHead>
-                    <TableHead className="text-right">배송비</TableHead>
-                    <TableHead className="text-right">할인액</TableHead>
-                    <TableHead className="text-right">정산금액</TableHead>
-                    <TableHead>상태</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {settlements.map((settlement) => (
-                    <TableRow key={settlement.id}>
-                      <TableCell className="font-medium">
-                        {formatDate(settlement.settlementDate)}
-                      </TableCell>
-                      <TableCell className="text-right">{settlement.orderCount}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(settlement.salesAmount)}
-                      </TableCell>
-                      <TableCell className="text-right text-red-500">
-                        -{formatCurrency(settlement.commissionAmount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(settlement.deliveryFeeAmount)}
-                      </TableCell>
-                      <TableCell className="text-right text-red-500">
-                        -{formatCurrency(settlement.discountAmount)}
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-green-500">
-                        {formatCurrency(settlement.settlementAmount)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            settlement.status === 'paid'
-                              ? 'default'
-                              : settlement.status === 'confirmed'
-                              ? 'secondary'
-                              : 'outline'
-                          }
-                        >
-                          {settlement.status === 'paid'
-                            ? '지급완료'
-                            : settlement.status === 'confirmed'
-                            ? '확정'
-                            : '대기'}
-                        </Badge>
-                      </TableCell>
+              <ResponsiveTable>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>정산일</TableHead>
+                      <TableHead className="text-right">주문건수</TableHead>
+                      <TableHead className="text-right">매출액</TableHead>
+                      <TableHead className="text-right">수수료</TableHead>
+                      <TableHead className="text-right">배송비</TableHead>
+                      <TableHead className="text-right">할인액</TableHead>
+                      <TableHead className="text-right">정산금액</TableHead>
+                      <TableHead>상태</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {settlements.map((settlement) => (
+                      <TableRow key={settlement.id}>
+                        <TableCell className="font-medium">
+                          {formatDate(settlement.settlementDate)}
+                        </TableCell>
+                        <TableCell className="text-right">{settlement.orderCount}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(settlement.salesAmount)}
+                        </TableCell>
+                        <TableCell className="text-right text-red-500">
+                          -{formatCurrency(settlement.commissionAmount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(settlement.deliveryFeeAmount)}
+                        </TableCell>
+                        <TableCell className="text-right text-red-500">
+                          -{formatCurrency(settlement.discountAmount)}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-green-500">
+                          {formatCurrency(settlement.settlementAmount)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              settlement.status === 'paid'
+                                ? 'default'
+                                : settlement.status === 'confirmed'
+                                ? 'secondary'
+                                : 'outline'
+                            }
+                          >
+                            {settlement.status === 'paid'
+                              ? '지급완료'
+                              : settlement.status === 'confirmed'
+                              ? '확정'
+                              : '대기'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ResponsiveTable>
             )}
           </CardContent>
         </Card>

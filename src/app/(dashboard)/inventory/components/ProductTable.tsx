@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ResponsiveTable } from '@/components/ui/responsive-table'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -155,7 +156,7 @@ export function ProductTable({
             )}
           </div>
         ) : (
-        <div className="overflow-x-auto">
+        <ResponsiveTable>
           <Table>
             <TableHeader>
               <TableRow>
@@ -303,7 +304,7 @@ export function ProductTable({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </ResponsiveTable>
         )}
       </CardContent>
     </Card>

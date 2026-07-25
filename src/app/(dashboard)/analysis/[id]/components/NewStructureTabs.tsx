@@ -373,7 +373,7 @@ export function NewStructureTabs({ result, activeTab, onTabChange }: NewStructur
               <CardTitle className="text-lg font-bold">상품 이미지</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {result.extractedData.product.mainImage && (
                   <div className="relative group aspect-square">
                     <img src={result.extractedData.product.mainImage} alt="Main" className="w-full h-full object-cover rounded-md border" />
@@ -405,7 +405,7 @@ export function NewStructureTabs({ result, activeTab, onTabChange }: NewStructur
                <CardTitle className="text-lg font-bold">상세페이지 이미지</CardTitle>
              </CardHeader>
              <CardContent>
-               <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                  {result.extractedData.page.detailImages.slice(0, 12).map((img, i) => (
                    <div key={i} className="relative group aspect-square">
                      <img src={img} alt={`Detail ${i}`} className="w-full h-full object-cover rounded-md border" />

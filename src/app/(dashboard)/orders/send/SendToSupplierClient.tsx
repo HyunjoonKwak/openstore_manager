@@ -20,19 +20,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ResponsiveTable } from '@/components/ui/responsive-table'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogTrigger,
+} from '@/components/ui/responsive-dialog'
 import { toast } from 'sonner'
 import {
   generateOrderMessage,
@@ -372,32 +373,32 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
       <Header title="공급업체 전송" subtitle="Send to Supplier" />
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
-        <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <Button variant="ghost" size="sm" className="self-start sm:self-auto" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             뒤로가기
           </Button>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="h-4 w-4" />
+
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0 whitespace-nowrap">
+              <Users className="h-4 w-4 shrink-0" />
               <span>{totalSupplierCount}개 업체</span>
               <span>•</span>
-              <Package className="h-4 w-4" />
+              <Package className="h-4 w-4 shrink-0" />
               <span>{totalOrderCount}건</span>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-muted-foreground" />
+
+            <div className="flex items-center gap-2 min-w-0">
+              <Bell className="h-4 w-4 text-muted-foreground shrink-0" />
               <Switch
                 checked={sendNotification}
                 onCheckedChange={setSendNotification}
                 disabled={!notificationConfig?.smsConfigured && !notificationConfig?.kakaoConfigured}
               />
-              <span className="text-sm">알림 발송</span>
+              <span className="text-sm whitespace-nowrap">알림 발송</span>
             </div>
-            
-            <Button onClick={handleSendAll} disabled={isPending}>
+
+            <Button onClick={handleSendAll} disabled={isPending} className="w-full sm:w-auto">
               <Send className="h-4 w-4 mr-2" />
               전체 전송
             </Button>
@@ -410,19 +411,19 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
               <Collapsible open={group.isOpen} onOpenChange={() => toggleGroup(supplierId)}>
                 <CollapsibleTrigger asChild>
                   <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         {group.isOpen ? (
-                          <ChevronDown className="h-5 w-5" />
+                          <ChevronDown className="h-5 w-5 shrink-0" />
                         ) : (
-                          <ChevronRight className="h-5 w-5" />
+                          <ChevronRight className="h-5 w-5 shrink-0" />
                         )}
-                        <div>
-                          <CardTitle className="text-base font-semibold">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base font-semibold truncate">
                             {group.supplier?.name || '미지정 주문'}
                           </CardTitle>
                           {group.supplier && (
-                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
                               <Badge variant="outline" className="text-xs">
                                 {group.supplier.contactMethod}
                               </Badge>
@@ -438,14 +439,14 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Badge variant="secondary">
+                      <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Badge variant="secondary" className="whitespace-nowrap">
                           {group.selectedIds.size}/{group.orders.length}건 선택
                         </Badge>
                         
                         {group.supplier && (
-                          <Dialog open={editingTemplate === supplierId} onOpenChange={(open) => !open && setEditingTemplate(null)}>
-                            <DialogTrigger asChild>
+                          <ResponsiveDialog open={editingTemplate === supplierId} onOpenChange={(open) => !open && setEditingTemplate(null)}>
+                            <ResponsiveDialogTrigger asChild>
                               <Button 
                                 variant="ghost" 
                                 size="sm"
@@ -453,14 +454,14 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
                               >
                                 <Settings className="h-4 w-4" />
                               </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>{group.supplier.name} 설정</DialogTitle>
-                                <DialogDescription>
+                            </ResponsiveDialogTrigger>
+                            <ResponsiveDialogContent className="max-w-2xl">
+                              <ResponsiveDialogHeader>
+                                <ResponsiveDialogTitle>{group.supplier.name} 설정</ResponsiveDialogTitle>
+                                <ResponsiveDialogDescription>
                                   이 공급업체의 발주 메시지 템플릿을 설정하세요.
-                                </DialogDescription>
-                              </DialogHeader>
+                                </ResponsiveDialogDescription>
+                              </ResponsiveDialogHeader>
                               <div className="space-y-4 pt-4">
                                 <div className="space-y-2">
                                   <Label>메시지 템플릿</Label>
@@ -497,8 +498,8 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
                                   저장
                                 </Button>
                               </div>
-                            </DialogContent>
-                          </Dialog>
+                            </ResponsiveDialogContent>
+                          </ResponsiveDialog>
                         )}
                         
                         {group.supplier && group.orders.length > 0 && (
@@ -534,56 +535,58 @@ export default function SendToSupplierClient({ orders, suppliers }: Props) {
                       </div>
                     ) : (
                       <>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-10">
-                                <Checkbox
-                                  checked={group.selectedIds.size === group.orders.length}
-                                  onCheckedChange={(checked) => toggleAllInGroup(supplierId, checked as boolean)}
-                                />
-                              </TableHead>
-                              <TableHead className="text-xs font-semibold uppercase">주문번호</TableHead>
-                              <TableHead className="text-xs font-semibold uppercase">상품</TableHead>
-                              <TableHead className="text-xs font-semibold uppercase">옵션</TableHead>
-                              <TableHead className="text-xs font-semibold uppercase text-center">수량</TableHead>
-                              <TableHead className="text-xs font-semibold uppercase">수령인</TableHead>
-                              <TableHead className="text-xs font-semibold uppercase">주문일</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {group.orders.map((order) => (
-                              <TableRow key={order.id}>
-                                <TableCell>
+                        <ResponsiveTable>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-10">
                                   <Checkbox
-                                    checked={group.selectedIds.has(order.id)}
-                                    onCheckedChange={(checked) =>
-                                      toggleOrderSelection(supplierId, order.id, checked as boolean)
-                                    }
+                                    checked={group.selectedIds.size === group.orders.length}
+                                    onCheckedChange={(checked) => toggleAllInGroup(supplierId, checked as boolean)}
                                   />
-                                </TableCell>
-                                <TableCell className="font-mono text-sm text-primary">
-                                  #{order.platformOrderId?.slice(-8)}
-                                </TableCell>
-                                <TableCell>
-                                  <span className="text-sm truncate max-w-[200px] block">
-                                    {order.productName}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                  {order.productOption || '-'}
-                                </TableCell>
-                                <TableCell className="text-center font-medium">x{order.quantity}</TableCell>
-                                <TableCell className="text-sm">
-                                  {order.receiverName || order.customerName}
-                                </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                  {formatDate(order.orderDate)}
-                                </TableCell>
+                                </TableHead>
+                                <TableHead className="text-xs font-semibold uppercase">주문번호</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase">상품</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase">옵션</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase text-center">수량</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase">수령인</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase">주문일</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                            </TableHeader>
+                            <TableBody>
+                              {group.orders.map((order) => (
+                                <TableRow key={order.id}>
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={group.selectedIds.has(order.id)}
+                                      onCheckedChange={(checked) =>
+                                        toggleOrderSelection(supplierId, order.id, checked as boolean)
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="font-mono text-sm text-primary">
+                                    #{order.platformOrderId?.slice(-8)}
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="text-sm truncate max-w-[200px] block">
+                                      {order.productName}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {order.productOption || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-center font-medium">x{order.quantity}</TableCell>
+                                  <TableCell className="text-sm">
+                                    {order.receiverName || order.customerName}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {formatDate(order.orderDate)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ResponsiveTable>
                         
                         {activeSupplier === supplierId && generatedMessages.has(supplierId) && (
                           <div className="p-4 border-t bg-muted/30">

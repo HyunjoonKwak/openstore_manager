@@ -290,11 +290,12 @@ export default function TrackingPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
+            {/* gap-2 on phones keeps the expanded tap areas from overlapping each other */}
+            <div className="flex items-center gap-2 sm:gap-1 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 onClick={(e) => {
                   e.stopPropagation()
                   handleRefresh(tracking)
@@ -306,7 +307,7 @@ export default function TrackingPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
+                className="h-9 w-9 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation()
                   handleDelete(tracking.id)
@@ -400,7 +401,7 @@ export default function TrackingPage() {
                               key={carrier.id}
                               variant={carrierId === carrier.id ? 'default' : 'outline'}
                               size="sm"
-                              className="h-7 text-xs"
+                              className="h-9 text-xs sm:h-7"
                               onClick={() => setCarrierId(carrier.id)}
                             >
                               {carrier.displayName}

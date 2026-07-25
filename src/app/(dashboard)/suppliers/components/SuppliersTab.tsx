@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ResponsiveTable } from '@/components/ui/responsive-table'
 import {
   Dialog,
   DialogContent,
@@ -199,7 +200,7 @@ export function SuppliersTab({
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <ResponsiveTable>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -288,7 +289,7 @@ export function SuppliersTab({
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </ResponsiveTable>
           )}
         </CardContent>
       </Card>

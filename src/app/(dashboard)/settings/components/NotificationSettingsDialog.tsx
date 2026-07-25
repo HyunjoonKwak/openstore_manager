@@ -7,13 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+} from '@/components/ui/responsive-dialog'
 import {
   Alert,
   AlertDescription,
@@ -35,14 +35,14 @@ export function NotificationSettingsDialog({ open, onOpenChange }: NotificationS
   })
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>SMS / 카카오 알림톡 설정</DialogTitle>
-          <DialogDescription>
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent className="max-w-2xl">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>SMS / 카카오 알림톡 설정</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             공급업체에 발주 알림을 발송하려면 아래 설정을 완료하세요.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         <div className="space-y-6 py-4">
           <div className="space-y-4 p-4 border rounded-lg">
@@ -171,15 +171,15 @@ KAKAO_ALIMTALK_TEMPLATE_ID=${notificationApiKeys.kakaoTemplateId || 'your_templa
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <ResponsiveDialogFooter className="flex-col sm:flex-row gap-2">
           <p className="text-xs text-muted-foreground flex-1">
             * 환경변수 설정 후 서버 재시작이 필요합니다.
           </p>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             닫기
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ResponsiveTable } from '@/components/ui/responsive-table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -468,7 +469,7 @@ export function OrdersTable({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="flex-1 overflow-auto">
+      <ResponsiveTable className="flex-1 min-h-0" scrollClassName="h-full overflow-y-auto">
         <Table>
           <TableHeader className="bg-background sticky top-0 z-10">
             <TableRow>
@@ -639,28 +640,29 @@ export function OrdersTable({
             })}
           </TableBody>
         </Table>
-      </div>
+      </ResponsiveTable>
 
-      <div className="flex items-center justify-between border-t border-border px-3 py-2 bg-background">
+      {/* Wraps into two rows on phones; sm+ restores the single desktop row. */}
+      <div className="flex flex-wrap items-center justify-between gap-y-2 border-t border-border px-3 py-2 bg-background">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">표시</span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="whitespace-nowrap text-xs text-muted-foreground">표시</span>
             <select
               value={pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
             aria-label="페이지당 주문 수"
-            className="h-10 px-2 text-xs border rounded bg-background"
+            className="h-10 shrink-0 px-2 text-xs border rounded bg-background"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>{size}개</option>
               ))}
             </select>
           </div>
-          <span className="text-xs text-muted-foreground">
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
             총 {orders.length}건 중 {startIndex}-{endIndex}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex w-full items-center justify-center gap-1 sm:w-auto sm:justify-end">
           <Button
             variant="ghost"
             size="icon"
