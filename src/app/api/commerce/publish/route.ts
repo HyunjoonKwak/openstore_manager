@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { formatCommerceError, getCurrentNaverClient } from '@/lib/naver/current-client'
 
 const COMMERCE_BASE = 'https://api.commerce.naver.com/external'
@@ -52,6 +53,12 @@ async function uploadProductImage(token: string, imageData: string) {
 }
 
 export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+  }
+
   let input: PublishInput
   try {
     input = await request.json()

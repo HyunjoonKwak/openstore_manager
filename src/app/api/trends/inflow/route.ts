@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { getCurrentNaverClient, formatCommerceError } from '@/lib/naver/current-client'
 
 interface InflowRequest {
@@ -28,6 +29,12 @@ function extractOrder(entry: RawOrder) {
 }
 
 export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+  }
+
   const input = await request.json().catch(() => ({})) as InflowRequest
   const days = Math.min(30, Math.max(7, Number(input.days) || 14))
   const { client, error } = await getCurrentNaverClient()
