@@ -72,8 +72,10 @@ pull_images() {
 deploy() {
     print_header "🚀 Store Manager 배포"
 
-    echo -e "${YELLOW}기존 컨테이너 중지 중...${NC}"
-    GHCR_USERNAME=${GHCR_USERNAME} IMAGE_TAG=${IMAGE_TAG} docker-compose -f ${COMPOSE_FILE} down || true
+    # NOTE: 의도적으로 `down`을 쓰지 않는다 — `up -d`가 변경분만 재생성한다.
+    #  1) pull 실패 시에도 기존 컨테이너가 계속 서비스된다 (무중단).
+    #  2) down의 네트워크 삭제/재생성이 Synology에서 간헐적으로 무관한
+    #     컨테이너들의 광역 재시작을 유발한 사례가 있다 (2026-08-05, car_radio).
 
     echo -e "${YELLOW}컨테이너 시작 중...${NC}"
     GHCR_USERNAME=${GHCR_USERNAME} IMAGE_TAG=${IMAGE_TAG} docker-compose -f ${COMPOSE_FILE} up -d
