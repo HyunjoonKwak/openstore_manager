@@ -2,19 +2,15 @@
 
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
-import { StoreProvider } from '@/contexts/StoreContext'
 import { MarketFilterProvider } from '@/contexts/MarketFilterContext'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
-// StoreProvider remains only for the legacy screens still mounted during
-// the redesign; it goes away with them in the cleanup phase.
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <StoreProvider>
-      <MarketFilterProvider>
+    <MarketFilterProvider>
         <div className="flex h-dvh w-full overflow-hidden">
           <Sidebar className="hidden lg:flex" />
 
@@ -29,7 +25,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           <MobileNav />
         </div>
-      </MarketFilterProvider>
-    </StoreProvider>
+    </MarketFilterProvider>
   )
 }

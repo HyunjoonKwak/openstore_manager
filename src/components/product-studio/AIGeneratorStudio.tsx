@@ -36,7 +36,7 @@ import {
   saveDetailPage,
   type DetailPageItem,
 } from '@/lib/actions/detail-pages'
-import { getProducts, type ProductWithSupplier } from '@/lib/actions/products'
+import { getMasterProducts, type MasterProductWithListings } from '@/lib/actions/master-products'
 import {
   getBenchmarkSession,
   getBenchmarkSessions,
@@ -127,7 +127,7 @@ export function AIGeneratorStudio({
   initialSessionId = '',
 }: AIGeneratorStudioProps) {
   const [activeTab, setActiveTab] = useState('create')
-  const [products, setProducts] = useState<ProductWithSupplier[]>([])
+  const [products, setProducts] = useState<MasterProductWithListings[]>([])
   const [sessions, setSessions] = useState<BenchmarkSession[]>([])
   const [savedPages, setSavedPages] = useState<DetailPageItem[]>([])
   const [selectedProductId, setSelectedProductId] = useState('')
@@ -152,7 +152,7 @@ export function AIGeneratorStudio({
   useEffect(() => {
     async function loadInitialData() {
       const [productsResult, sessionsResult, pagesResult] = await Promise.all([
-        getProducts(),
+        getMasterProducts(),
         getBenchmarkSessions(),
         getDetailPages(),
       ])
@@ -194,12 +194,12 @@ export function AIGeneratorStudio({
     const product = source.find((item) => item.id === productId)
     if (!product) return
     setKeywords(product.name)
-    if (product.category) {
+    if (product.categoryText) {
       const categoryMap: Array<[string, string]> = [
         ['전자', 'electronics'], ['패션', 'fashion'], ['홈', 'home'],
         ['리빙', 'home'], ['뷰티', 'beauty'], ['식품', 'food'],
       ]
-      const match = categoryMap.find(([label]) => product.category?.includes(label))
+      const match = categoryMap.find(([label]) => product.categoryText?.includes(label))
       if (match) setCategory(match[1])
     }
   }
@@ -242,8 +242,8 @@ export function AIGeneratorStudio({
           proof,
           product: selectedProduct ? {
             name: selectedProduct.name,
-            price: selectedProduct.price,
-            category: selectedProduct.category,
+            price: selectedProduct.basePrice,
+            category: selectedProduct.categoryText,
           } : null,
           benchmarkContext: benchmarkBrief,
           options: { seo: seoEnabled },
@@ -278,7 +278,7 @@ export function AIGeneratorStudio({
           currentTitle: selectedProduct.name,
           currentFeatures: [],
           imageUrl: selectedProduct.imageUrl,
-          category: selectedProduct.category,
+          category: selectedProduct.categoryText,
           benchmarkContext: benchmarkBrief,
         }),
       })
@@ -386,7 +386,7 @@ export function AIGeneratorStudio({
         <p contentEditable suppressContentEditableWarning onBlur={(event) => updateText('heroKicker', event.currentTarget.textContent || '')} className="text-xs font-bold uppercase tracking-[0.2em] text-primary outline-none">{generated.heroKicker}</p>
         <h1 contentEditable suppressContentEditableWarning onBlur={(event) => updateText('title', event.currentTarget.textContent || '')} className="mt-3 text-3xl font-black leading-tight outline-none sm:text-4xl">{generated.title}</h1>
         <p contentEditable suppressContentEditableWarning onBlur={(event) => updateText('targetAudience', event.currentTarget.textContent || '')} className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground outline-none">{generated.targetAudience}</p>
-        {selectedProduct && <p className="mt-5 text-2xl font-bold">{selectedProduct.price.toLocaleString('ko-KR')}원</p>}
+        {selectedProduct && <p className="mt-5 text-2xl font-bold">{selectedProduct.basePrice.toLocaleString('ko-KR')}원</p>}
       </section>
     )
     if (section === 'problem') return (
@@ -516,7 +516,7 @@ export function AIGeneratorStudio({
 
           <TabsContent value="analyze">
             <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-              <Card><CardHeader className="border-b py-4"><CardTitle className="text-base">진단할 상품</CardTitle></CardHeader><CardContent className="space-y-5 pt-5"><div className="space-y-2"><Label>내 상품</Label><Select value={selectedProductId} onValueChange={(value) => applyProduct(value)}><SelectTrigger><SelectValue placeholder="상품을 선택하세요" /></SelectTrigger><SelectContent>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>)}</SelectContent></Select></div>{selectedProduct && <div className="flex gap-3 rounded-xl border bg-muted/30 p-3">{selectedProduct.imageUrl ? <img src={selectedProduct.imageUrl} alt={selectedProduct.name} className="h-16 w-16 rounded-lg object-cover" /> : <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-muted"><Package className="h-6 w-6 text-muted-foreground" /></div>}<div className="min-w-0"><p className="line-clamp-2 text-sm font-medium">{selectedProduct.name}</p><p className="mt-1 text-xs text-muted-foreground">{selectedProduct.category || '카테고리 없음'}</p><p className="mt-1 text-sm font-semibold">{selectedProduct.price.toLocaleString('ko-KR')}원</p></div></div>}<Button className="h-11 w-full" onClick={() => void handleAnalyze()} disabled={!selectedProduct || isAnalyzing}>{isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}{isAnalyzing ? '진단 중...' : '페이지 진단 시작'}</Button></CardContent></Card>
+              <Card><CardHeader className="border-b py-4"><CardTitle className="text-base">진단할 상품</CardTitle></CardHeader><CardContent className="space-y-5 pt-5"><div className="space-y-2"><Label>내 상품</Label><Select value={selectedProductId} onValueChange={(value) => applyProduct(value)}><SelectTrigger><SelectValue placeholder="상품을 선택하세요" /></SelectTrigger><SelectContent>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>)}</SelectContent></Select></div>{selectedProduct && <div className="flex gap-3 rounded-xl border bg-muted/30 p-3">{selectedProduct.imageUrl ? <img src={selectedProduct.imageUrl} alt={selectedProduct.name} className="h-16 w-16 rounded-lg object-cover" /> : <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-muted"><Package className="h-6 w-6 text-muted-foreground" /></div>}<div className="min-w-0"><p className="line-clamp-2 text-sm font-medium">{selectedProduct.name}</p><p className="mt-1 text-xs text-muted-foreground">{selectedProduct.categoryText || '카테고리 없음'}</p><p className="mt-1 text-sm font-semibold">{selectedProduct.basePrice.toLocaleString('ko-KR')}원</p></div></div>}<Button className="h-11 w-full" onClick={() => void handleAnalyze()} disabled={!selectedProduct || isAnalyzing}>{isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}{isAnalyzing ? '진단 중...' : '페이지 진단 시작'}</Button></CardContent></Card>
               <Card><CardHeader className="border-b py-4"><CardTitle className="text-base">진단 결과</CardTitle></CardHeader><CardContent className="pt-6">{!analysisResult ? <div className="flex min-h-[440px] flex-col items-center justify-center text-center"><Search className="mb-4 h-12 w-12 text-muted-foreground/30" /><p className="text-sm text-muted-foreground">상품을 선택하면 SEO·전환·가독성을 진단합니다.</p></div> : <div className="space-y-6"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><ScoreCircle score={analysisResult.overallScore} label="종합" /><ScoreCircle score={analysisResult.seoScore} label="SEO" /><ScoreCircle score={analysisResult.conversionScore} label="전환" /><ScoreCircle score={analysisResult.readabilityScore} label="가독성" /></div><div className="grid gap-3 md:grid-cols-2">{analysisResult.improvements.map((item, index) => <div key={index} className="rounded-xl border p-4"><div className="flex items-center justify-between"><Badge variant="outline">{item.category}</Badge><Badge variant={item.priority === 'high' ? 'destructive' : 'secondary'}>{item.priority === 'high' ? '우선' : item.priority === 'medium' ? '중요' : '참고'}</Badge></div><p className="mt-3 text-sm font-semibold">{item.issue}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.suggestion}</p></div>)}</div><div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4"><p className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4 text-emerald-600" />추천 제목</p><p className="mt-2 text-sm">{analysisResult.suggestedTitle}</p></div><Button onClick={applyAnalysis}><Sparkles className="mr-2 h-4 w-4" />추천안으로 판매페이지 만들기</Button></div>}</CardContent></Card>
             </div>
           </TabsContent>

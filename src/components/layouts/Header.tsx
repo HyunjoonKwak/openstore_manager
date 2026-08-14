@@ -1,13 +1,12 @@
 'use client'
 
-import { Bell, Search, Menu, Store, ChevronDown, Check, Plus, Settings, MoreVertical } from 'lucide-react'
+import { Bell, Search, Menu, Settings, MoreVertical } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sidebar } from './Sidebar'
-import { useStore } from '@/contexts/StoreContext'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -18,7 +17,6 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
-  const { stores, currentStore, switchStore, isLoading } = useStore()
   const router = useRouter()
   const [globalSearch, setGlobalSearch] = useState('')
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
@@ -105,44 +103,6 @@ export function Header({ title, subtitle }: HeaderProps) {
             </form>
           </SheetContent>
         </Sheet>
-
-        {!isLoading && stores.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-10 text-xs">
-                <Store className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline max-w-[100px] truncate">
-                  {currentStore?.storeName || '스토어'}
-                </span>
-                <ChevronDown className="h-3 w-3 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              {stores.map((store) => (
-                <DropdownMenuItem
-                  key={store.id}
-                  onClick={() => switchStore(store.id)}
-                  className="flex items-center justify-between cursor-pointer"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium text-sm">{store.storeName}</span>
-                    <span className="text-xs text-muted-foreground">{store.platform}</span>
-                  </div>
-                  {currentStore?.id === store.id && (
-                    <Check className="h-3.5 w-3.5 text-primary" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center gap-2 cursor-pointer text-sm">
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>스토어 추가</span>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
 
         <ThemeToggle />
 

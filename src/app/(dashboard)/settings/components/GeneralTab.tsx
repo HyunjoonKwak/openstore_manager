@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { StoreManagement } from '@/components/settings/StoreManagement'
 import { ThemeSelector } from '@/components/ui/ThemeToggle'
 import type { Platform } from '@/types/database.types'
 
@@ -195,7 +194,6 @@ export function GeneralTab({
         </CardContent>
       </Card>
 
-      <StoreManagement />
 
       <Card>
         <CardHeader>

@@ -1,7 +1,9 @@
-// Supplier purchase orders — the rebuilt /orders/send. Until the screen
-// lands, keep the flow reachable through the legacy page.
-import { redirect } from 'next/navigation'
+import { getSupplierOrderGroups } from '@/lib/actions/market-supplier-orders'
+import { PurchaseClient } from './PurchaseClient'
 
-export default function PurchasePage() {
-  redirect('/orders/send')
+export const dynamic = 'force-dynamic'
+
+export default async function PurchasePage() {
+  const { data } = await getSupplierOrderGroups()
+  return <PurchaseClient initialGroups={data || []} />
 }
