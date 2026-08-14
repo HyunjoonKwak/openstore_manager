@@ -1,4 +1,6 @@
 import type {
+  ClaimAction,
+  ClaimResult,
   DateRange,
   ListingDraft,
   ListingSnapshot,
@@ -6,6 +8,7 @@ import type {
   NormalizedOrder,
   NormalizedSettlement,
   PublishResult,
+  RemoteListingSummary,
   ShipmentInput,
   ShipmentResult,
   ValidationIssue,
@@ -98,6 +101,21 @@ export class CoupangAdapter implements MarketAdapter {
     void _remoteRef
     void _stockQuantity
     throw new MarketNotImplementedError('coupang', 'updateStock')
+  }
+
+  async fetchAllListings(): Promise<RemoteListingSummary[]> {
+    throw new MarketNotImplementedError('coupang', 'fetchAllListings')
+  }
+
+  async processClaim(
+    _marketItemRef: string,
+    _action: ClaimAction,
+    _reason?: string
+  ): Promise<ClaimResult> {
+    void _marketItemRef
+    void _action
+    void _reason
+    throw new MarketNotImplementedError('coupang', 'processClaim')
   }
 
   async fetchOrders(_range: DateRange): Promise<NormalizedOrder[]> {

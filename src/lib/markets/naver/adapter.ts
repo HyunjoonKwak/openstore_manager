@@ -1,5 +1,7 @@
 import { NaverCommerceClient, type NaverOrder } from '../../naver/client.ts'
 import type {
+  ClaimAction,
+  ClaimResult,
   DateRange,
   ListingDraft,
   ListingSnapshot,
@@ -7,6 +9,7 @@ import type {
   NormalizedOrder,
   NormalizedSettlement,
   PublishResult,
+  RemoteListingSummary,
   ShipmentInput,
   ShipmentResult,
   ValidationIssue,
@@ -254,6 +257,95 @@ export class NaverAdapter implements MarketAdapter {
       }
     } catch (error) {
       return toPublishError(error)
+    }
+  }
+
+  async fetchAllListings(): Promise<RemoteListingSummary[]> {
+    const listings: RemoteListingSummary[] = []
+    const pageSize = 100
+
+    for (let page = 1; ; page++) {
+      const response = await this.client.searchProducts({
+        pageSize,
+        page,
+        productStatusTypes: [
+          'SALE', 'OUTOFSTOCK', 'SUSPENSION', 'WAIT',
+          'UNADMISSION', 'REJECTION', 'PROHIBITION',
+        ],
+      })
+
+      const products = response.contents || []
+      for (const product of products) {
+        const channel = product.channelProducts?.[0]
+        if (!channel) continue
+
+        listings.push({
+          remoteRef: String(channel.channelProductNo),
+          remoteRefs: { originProductNo: String(product.originProductNo) },
+          name: channel.name,
+          price: channel.discountedPrice || channel.salePrice,
+          // OUTOFSTOCK products report stale product-level stock for
+          // option products — always record 0 locally
+          stockQuantity: channel.statusType === 'OUTOFSTOCK' ? 0 : channel.stockQuantity,
+          remoteStatus: channel.statusType,
+          imageUrl: channel.representativeImage?.url || null,
+          category: channel.wholeCategoryName || null,
+          brand: channel.brandName || null,
+          sku: channel.sellerManagementCode || null,
+          raw: product,
+        })
+      }
+
+      if (products.length < pageSize) break
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+
+    return listings
+  }
+
+  async processClaim(
+    marketItemRef: string,
+    action: ClaimAction,
+    reason?: string
+  ): Promise<ClaimResult> {
+    try {
+      const productOrderId = marketItemRef
+      let raw: unknown
+
+      switch (action) {
+        case 'confirm_order':
+          raw = await this.client.confirmOrders([productOrderId])
+          break
+        case 'approve_cancel':
+          raw = await this.client.approveCancelRequest({ productOrderId })
+          break
+        case 'reject_cancel':
+          if (!reason) return { ok: false, error: '거부 사유가 필요합니다.', raw: null }
+          raw = await this.client.rejectCancelRequest({ productOrderId, rejectReason: reason })
+          break
+        case 'approve_return':
+          raw = await this.client.approveReturnRequest({ productOrderId })
+          break
+        case 'reject_return':
+          if (!reason) return { ok: false, error: '거부 사유가 필요합니다.', raw: null }
+          raw = await this.client.rejectReturnRequest({ productOrderId, rejectReason: reason })
+          break
+        case 'approve_exchange':
+          raw = await this.client.approveExchangeRequest({ productOrderId })
+          break
+        case 'reject_exchange':
+          if (!reason) return { ok: false, error: '거부 사유가 필요합니다.', raw: null }
+          raw = await this.client.rejectExchangeRequest({ productOrderId, rejectReason: reason })
+          break
+      }
+
+      return { ok: true, error: null, raw }
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : '클레임 처리 중 오류',
+        raw: null,
+      }
     }
   }
 

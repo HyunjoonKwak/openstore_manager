@@ -111,6 +111,7 @@ test('encryptApiConfigSecrets only touches secret fields and never mutates input
     openaiApiKey: 'sk-openai',
     hanjinApiKey: 'hanjin-key',
     hanjinApiSecret: 'hanjin-secret',
+    coupangSecretKey: 'coupang-secret',
     storeUrl: 'https://smartstore.naver.com/my-store',
     deliveryCheckTimes: [9, 15, 21],
     deliveryCheckEnabled: true,

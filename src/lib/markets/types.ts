@@ -149,6 +149,41 @@ export interface ShipmentResult {
 }
 
 // ------------------------------------------------------------------
+// Full listing pull (initial migration + periodic product sync)
+// ------------------------------------------------------------------
+export interface RemoteListingSummary {
+  remoteRef: string
+  remoteRefs: Record<string, string>
+  name: string
+  price: number
+  stockQuantity: number
+  remoteStatus: string
+  imageUrl: string | null
+  category: string | null
+  brand: string | null
+  sku: string | null
+  raw: unknown
+}
+
+// ------------------------------------------------------------------
+// Claim handling (cancel / return / exchange, plus order confirm)
+// ------------------------------------------------------------------
+export type ClaimAction =
+  | 'confirm_order'
+  | 'approve_cancel'
+  | 'reject_cancel'
+  | 'approve_return'
+  | 'reject_return'
+  | 'approve_exchange'
+  | 'reject_exchange'
+
+export interface ClaimResult {
+  ok: boolean
+  error: string | null
+  raw: unknown
+}
+
+// ------------------------------------------------------------------
 // Settlements
 // ------------------------------------------------------------------
 export interface NormalizedSettlement {
@@ -177,8 +212,12 @@ export interface MarketAdapter {
   fetchListing(remoteRef: string): Promise<ListingSnapshot>
   updateStock(remoteRef: string, stockQuantity: number): Promise<PublishResult>
 
+  /** Pull every product on the market account (initial migration + sync). */
+  fetchAllListings(): Promise<RemoteListingSummary[]>
+
   fetchOrders(range: DateRange): Promise<NormalizedOrder[]>
   registerShipments(inputs: ShipmentInput[]): Promise<ShipmentResult>
+  processClaim(marketItemRef: string, action: ClaimAction, reason?: string): Promise<ClaimResult>
 
   fetchSettlements(range: DateRange): Promise<NormalizedSettlement[]>
 

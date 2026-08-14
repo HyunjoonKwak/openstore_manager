@@ -32,6 +32,7 @@ export const SECRET_API_CONFIG_FIELDS = [
   'openaiApiKey',
   'hanjinApiKey',
   'hanjinApiSecret',
+  'coupangSecretKey',
 ] as const
 
 export type SecretApiConfigField = (typeof SECRET_API_CONFIG_FIELDS)[number]
