@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Save, LogOut, User, Key, Bell, Loader2, RefreshCw } from 'lucide-react'
+import { Save, LogOut, User, Key, Bell, Loader2, RefreshCw, Store } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layouts/Header'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,8 @@ import { IntegrationsTab } from './components/IntegrationsTab'
 import { AutomationTab } from './components/AutomationTab'
 import { NotificationsTab } from './components/NotificationsTab'
 import { NotificationSettingsDialog } from './components/NotificationSettingsDialog'
+import { MarketAccountsTab } from './components/MarketAccountsTab'
+import { getMarketAccounts, type MarketAccountInfo } from '@/lib/actions/market-accounts'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -39,6 +41,14 @@ export default function SettingsPage() {
   const [isTestingOpenAI, setIsTestingOpenAI] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false)
+  const [marketAccounts, setMarketAccounts] = useState<MarketAccountInfo[]>([])
+
+  useEffect(() => {
+    getMarketAccounts().then((result) => {
+      if (result.data) setMarketAccounts(result.data)
+    })
+  }, [])
+
   const [notificationStatus, setNotificationStatus] = useState({
     smsConfigured: false,
     kakaoConfigured: false,
@@ -467,7 +477,11 @@ export default function SettingsPage() {
             defaultValue="general"
             className="gap-4 [&_[data-slot=card]]:gap-4 [&_[data-slot=card]]:py-5 [&_[data-slot=card-content]]:px-5 [&_[data-slot=card-header]]:px-5"
           >
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-5">
+              <TabsTrigger value="markets" className="py-2.5">
+                <Store className="h-4 w-4" />
+                마켓 계정
+              </TabsTrigger>
               <TabsTrigger value="general" className="py-2.5">
                 <User className="h-4 w-4" />
                 기본 설정
@@ -485,6 +499,17 @@ export default function SettingsPage() {
                 알림
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="markets" className="mt-0">
+              <MarketAccountsTab
+                accounts={marketAccounts}
+                onChanged={() => {
+                  getMarketAccounts().then((result) => {
+                    if (result.data) setMarketAccounts(result.data)
+                  })
+                }}
+              />
+            </TabsContent>
 
             <TabsContent value="general" className="mt-0">
               <GeneralTab
