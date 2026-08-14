@@ -95,3 +95,12 @@ test('grouping does not mutate prior results (immutability)', () => {
   assert.equal(orders[0].items.length, 2)
   assert.equal(again[0].items.length, 1)
 })
+
+test('PAYED splits on placeOrderStatusType (withus port)', () => {
+  assert.equal(resolveNaverStatus('PAYED', undefined, undefined, 'OK'), 'PAYED_CONFIRMED')
+  assert.equal(mapNaverStatus('PAYED_CONFIRMED'), 'Ordered')
+  assert.equal(resolveNaverStatus('PAYED', undefined, undefined, 'NOT_YET'), 'PAYED')
+  assert.equal(mapNaverStatus('PAYED'), 'New')
+  // claim still wins over place-order confirmation
+  assert.equal(resolveNaverStatus('PAYED', 'CANCEL_REQUEST', undefined, 'OK'), 'CANCEL_REQUEST')
+})

@@ -1,5 +1,9 @@
-import { ComingSoon } from '@/components/layouts/ComingSoon'
+import { getStudioTemplates } from '@/lib/actions/interview'
+import { TemplatesClient } from './TemplatesClient'
 
-export default function TemplatesPage() {
-  return <ComingSoon title="템플릿" subtitle="Templates" />
+export const dynamic = 'force-dynamic'
+
+export default async function TemplatesPage() {
+  const { data } = await getStudioTemplates()
+  return <TemplatesClient templates={data || []} />
 }

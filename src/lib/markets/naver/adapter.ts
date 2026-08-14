@@ -380,32 +380,52 @@ export class NaverAdapter implements MarketAdapter {
     const failed: Array<{ marketItemRef: string; error: string }> = []
     const raws: unknown[] = []
 
-    for (const input of inputs) {
+    // Naver's dispatch endpoint accepts up to 30 orders per call
+    // (batch pattern absorbed from withus_manager's bulk shipping)
+    const BATCH_SIZE = 30
+    for (let start = 0; start < inputs.length; start += BATCH_SIZE) {
+      const batch = inputs.slice(start, start + BATCH_SIZE)
       try {
-        const response = await this.client.registerShipment({
-          productOrderId: input.marketItemRef,
-          deliveryCompanyCode: input.courierCode,
-          trackingNumber: input.trackingNumber,
-        })
+        const response = await this.client.registerShipmentsBatch(
+          batch.map((input) => ({
+            productOrderId: input.marketItemRef,
+            deliveryCompanyCode: input.courierCode,
+            trackingNumber: input.trackingNumber,
+          }))
+        )
         raws.push(response)
 
-        const fail = response.data.failProductOrderInfos.find(
-          (info) => info.productOrderId === input.marketItemRef
+        const failsByRef = new Map(
+          response.data.failProductOrderInfos.map((info) => [info.productOrderId, info.message])
         )
-        if (fail) {
-          failed.push({ marketItemRef: input.marketItemRef, error: fail.message })
-        } else {
-          succeeded.push(input.marketItemRef)
+        const successRefs = new Set(
+          response.data.successProductOrderInfos.map((info) => info.productOrderId)
+        )
+        for (const input of batch) {
+          const failMessage = failsByRef.get(input.marketItemRef)
+          if (failMessage) {
+            failed.push({ marketItemRef: input.marketItemRef, error: failMessage })
+          } else if (successRefs.has(input.marketItemRef)) {
+            succeeded.push(input.marketItemRef)
+          } else {
+            // Absent from both lists — never assume success
+            failed.push({
+              marketItemRef: input.marketItemRef,
+              error: '마켓 응답에서 확인되지 않았습니다.',
+            })
+          }
         }
       } catch (error) {
-        failed.push({
-          marketItemRef: input.marketItemRef,
-          error: error instanceof Error ? error.message : '발송 처리 중 오류',
-        })
+        for (const input of batch) {
+          failed.push({
+            marketItemRef: input.marketItemRef,
+            error: error instanceof Error ? error.message : '발송 처리 중 오류',
+          })
+        }
       }
 
-      if (inputs.length > 1) {
-        await new Promise((resolve) => setTimeout(resolve, 200))
+      if (start + BATCH_SIZE < inputs.length) {
+        await new Promise((resolve) => setTimeout(resolve, 300))
       }
     }
 

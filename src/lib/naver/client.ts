@@ -172,18 +172,30 @@ export class NaverCommerceClient {
     deliveryCompanyCode: string
     trackingNumber: string
   }): Promise<NaverShipmentResponse> {
+    return this.registerShipmentsBatch([params])
+  }
+
+  /**
+   * Register up to 30 shipments in one dispatch call (Naver's batch
+   * limit). Per-item failures come back in failProductOrderInfos.
+   */
+  async registerShipmentsBatch(
+    shipments: Array<{
+      productOrderId: string
+      deliveryCompanyCode: string
+      trackingNumber: string
+    }>
+  ): Promise<NaverShipmentResponse> {
     return this.request<NaverShipmentResponse>(
       'POST',
       '/external/v1/pay-order/seller/product-orders/dispatch',
       {
-        dispatchProductOrders: [
-          {
-            productOrderId: params.productOrderId,
-            deliveryMethod: 'DELIVERY',
-            deliveryCompanyCode: params.deliveryCompanyCode,
-            trackingNumber: params.trackingNumber,
-          },
-        ],
+        dispatchProductOrders: shipments.map((shipment) => ({
+          productOrderId: shipment.productOrderId,
+          deliveryMethod: 'DELIVERY',
+          deliveryCompanyCode: shipment.deliveryCompanyCode,
+          trackingNumber: shipment.trackingNumber,
+        })),
       }
     )
   }

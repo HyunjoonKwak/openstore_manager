@@ -1,5 +1,7 @@
-import { ComingSoon } from '@/components/layouts/ComingSoon'
+import { InterviewClient } from './InterviewClient'
+
+export const dynamic = 'force-dynamic'
 
 export default function InterviewPage() {
-  return <ComingSoon title="AI 인터뷰" subtitle="Interview" />
+  return <InterviewClient />
 }

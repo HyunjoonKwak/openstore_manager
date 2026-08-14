@@ -8,11 +8,14 @@ import type { NaverOrder } from '../../naver/client'
 // Status normalization ported from actions/naver-sync.ts. Claim status
 // wins over product order status — a cancel request must surface even
 // while the line still reads DELIVERING on the Naver side.
+// PAYED splits on placeOrderStatusType (ported from withus_manager):
+// NOT_YET = 신규, OK = 발주확인 완료 → dispatch-ready.
 
 export function resolveNaverStatus(
   productOrderStatus?: string,
   claimStatus?: string,
-  claimType?: string
+  claimType?: string,
+  placeOrderStatus?: string
 ): string {
   if (claimStatus === 'CANCEL_REQUEST' || claimStatus === 'CANCEL_REQUESTED') return 'CANCEL_REQUEST'
   if (claimStatus === 'RETURN_REQUEST' || claimStatus === 'RETURN_REQUESTED') return 'RETURN_REQUEST'
@@ -29,12 +32,16 @@ export function resolveNaverStatus(
   if (claimType === 'EXCHANGE' && claimStatus) {
     return claimStatus.includes('REQUEST') ? 'EXCHANGE_REQUEST' : 'EXCHANGED'
   }
+  if (productOrderStatus === 'PAYED' && placeOrderStatus === 'OK') {
+    return 'PAYED_CONFIRMED'
+  }
   return productOrderStatus || 'PAYED'
 }
 
 const STATUS_MAP: Record<string, OrderItemStatus> = {
   PAYMENT_WAITING: 'New',
   PAYED: 'New',
+  PAYED_CONFIRMED: 'Ordered',
   DELIVERING: 'Delivering',
   DELIVERED: 'Delivered',
   PURCHASE_DECIDED: 'Confirmed',
@@ -99,8 +106,9 @@ export function mapNaverOrderRow(naverOrder: NaverOrder): {
   const productOrderStatus = productOrder?.productOrderStatus as string | undefined
   const claimStatus = productOrder?.claimStatus as string | undefined
   const claimType = productOrder?.claimType as string | undefined
+  const placeOrderStatus = productOrder?.placeOrderStatusType as string | undefined
   const effectiveStatus =
-    resolveNaverStatus(productOrderStatus, claimStatus, claimType) ||
+    resolveNaverStatus(productOrderStatus, claimStatus, claimType, placeOrderStatus) ||
     naverOrder.orderStatus ||
     'PAYED'
 
