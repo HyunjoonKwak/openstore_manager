@@ -1,7 +1,7 @@
 # 재설계 이행 상태 — 마켓 중립 아키텍처
 
-> **Date:** 2026-08-14
-> **Branch:** `redesign` (main 미병합)
+> **Date:** 2026-08-14 (당일 이관·배포 완료)
+> **Branch:** main 병합·배포 완료
 > **계획 문서:** 8_Architecture_and_Benchmark.md(결정 배경) + 승인된 재설계 계획
 
 ## 완료된 것
@@ -18,7 +18,13 @@
 | 7 | detailpage_maker 이식(/studio/interview·templates) + withus 흡수(placeOrderStatusType 구분, 30건 배치 발송) | |
 | 8 | 구 코드 삭제(inventory·구 주문/발송/대시보드 화면, 구 액션 6종, StoreContext), E2E 갱신 | |
 
-## DB 복원 후 해야 하는 것 (순서대로)
+## ~~DB 복원 후 해야 하는 것~~ → 2026-08-14 전부 완료
+
+복원이 **새 프로젝트**(`efvooqeffcnuhhaubvjk`)로 이루어져 URL·API 키가 전부 교체됐다.
+로컬 `.env.local`·NAS `.env` 갱신 완료(NAS는 `.env.bak-20260814` 백업).
+네이버 커머스 API 앱도 새 앱(`1YczNCuXVOy1LJHQrP8aXT`)으로 키 교체.
+백업 → 마이그레이션 → 시드 → 계정 이관 → initial 동기화(상품 9, supplier 1) →
+E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크리스트:
 
 1. Supabase 대시보드에서 프로젝트 **Restore** (pause 상태 — DNS NXDOMAIN 확인됨)
 2. `node scripts/backup-db.mjs` — 전 테이블 JSON 백업
@@ -28,7 +34,7 @@
 6. 주문 화면에서 "주문 동기화" 실행, 데이터 검증
 7. `npm run test:e2e` — 갱신된 여정 검증
 8. 검증 후 `redesign` → `main` 병합, ship 배포
-9. Supabase typegen으로 `src/types/redesign.types.ts` 대체, `199_drop_legacy.sql` 작성(legacy_* 테이블 제거)
+9. Supabase typegen으로 `src/types/redesign.types.ts` 대체, `199_drop_legacy.sql` 작성(legacy_* 테이블 제거) ← **유일하게 남은 항목 (충분히 운영 후)**
 
 ## 알려진 잔여 (이번 재설계 범위 밖)
 
