@@ -1,5 +1,20 @@
-import { ComingSoon } from '@/components/layouts/ComingSoon'
+import { getMasterProducts } from '@/lib/actions/master-products'
+import { getMarketAccounts } from '@/lib/actions/market-accounts'
+import { ProductsClient } from './ProductsClient'
 
-export default function ProductsPage() {
-  return <ComingSoon title="원본상품" subtitle="Master Products" />
+export const dynamic = 'force-dynamic'
+
+export default async function ProductsPage() {
+  const [productsResult, accountsResult] = await Promise.all([
+    getMasterProducts(),
+    getMarketAccounts(),
+  ])
+
+  return (
+    <ProductsClient
+      initialProducts={productsResult.data || []}
+      accounts={accountsResult.data || []}
+      loadError={productsResult.error}
+    />
+  )
 }

@@ -1,5 +1,9 @@
-import { ComingSoon } from '@/components/layouts/ComingSoon'
+import { getMasterProducts } from '@/lib/actions/master-products'
+import { StockClient } from './StockClient'
 
-export default function StockPage() {
-  return <ComingSoon title="재고" subtitle="Stock" />
+export const dynamic = 'force-dynamic'
+
+export default async function StockPage() {
+  const result = await getMasterProducts()
+  return <StockClient initialProducts={result.data || []} />
 }
