@@ -1,365 +1,135 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { SyncType as SyncTypeDB } from '@/types/database.types'
-import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { createRedesignClient } from '@/lib/supabase/redesign-server'
 import { requireUser } from '@/lib/actions/auth-guard'
-import {
-  validateInput,
-  idSchema,
-  createOrUpdateSyncScheduleSchema,
-  toggleSyncScheduleSchema,
-  getSyncLogsSchema,
-  createSyncLogSchema,
-  completeSyncLogSchema,
-} from '@/lib/validation'
+import { validateInput, idSchema } from '@/lib/validation'
+import { z } from 'zod'
+import type { MarketPlatformDb, SyncRunRow, SyncScheduleRow } from '@/types/redesign.types'
 
-export type SyncType = SyncTypeDB
+// Schedules are per market account. Execution is driven by an external
+// cron hitting /api/cron/sync, which evaluates due-ness; these actions
+// only own the definitions and the run history.
 
-export interface SyncSchedule {
+export type SyncType = 'orders' | 'products' | 'both'
+
+export interface SyncScheduleView {
   id: string
-  storeId: string
+  marketAccountId: string
+  marketAccountName: string
+  platform: MarketPlatformDb
   syncType: SyncType
   intervalMinutes: number
+  syncTime: string | null
   isEnabled: boolean
   lastSyncAt: string | null
-  nextSyncAt: string | null
-  syncAtMinute: 0 | 30
-  syncTime: string | null
-  createdAt: string
 }
 
-export interface SyncLog {
+export interface SyncRunView {
   id: string
-  scheduleId: string
+  marketAccountName: string
   syncType: string
-  status: 'success' | 'failed' | 'running'
-  itemsSynced: number
+  status: string
+  itemsProcessed: number
+  itemsFailed: number
   errorMessage: string | null
   startedAt: string
   completedAt: string | null
 }
 
-interface SyncScheduleRow {
-  id: string
-  store_id: string
-  sync_type: string
-  interval_minutes: number
-  is_enabled: boolean
-  last_sync_at: string | null
-  next_sync_at: string | null
-  sync_at_minute: number | null
-  sync_time: string | null
-  created_at: string
-}
-
-interface SyncLogRow {
-  id: string
-  schedule_id: string
-  sync_type: string
-  status: string
-  items_synced: number
-  error_message: string | null
-  started_at: string
-  completed_at: string | null
-}
+const upsertScheduleSchema = z.object({
+  marketAccountId: idSchema,
+  syncType: z.enum(['orders', 'products', 'both']),
+  intervalMinutes: z.number().int().min(5).max(10080),
+  syncTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .nullable()
+    .optional(),
+  isEnabled: z.boolean().optional(),
+})
 
 export async function getSyncSchedules(): Promise<{
-  data: SyncSchedule[] | null
+  data: SyncScheduleView[] | null
   error: string | null
 }> {
-  const supabase = await createClient()
-
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { data: null, error: 'Unauthorized' }
+  const supabase = await createRedesignClient()
+  try {
+    await requireUser(supabase)
+  } catch {
+    return { data: null, error: '로그인이 필요합니다.' }
   }
 
-  const { data: schedules, error } = await supabase
+  const { data, error } = await supabase
     .from('sync_schedules')
-    .select('*')
-    .eq('user_id', userData.user.id)
-    .order('created_at', { ascending: false })
+    .select('*, market_accounts (name, platform)')
+    .order('created_at', { ascending: true })
 
-  if (error) {
-    return { data: null, error: error.message }
-  }
+  if (error) return { data: null, error: error.message }
 
-  const typedSchedules = schedules as unknown as SyncScheduleRow[]
+  const rows = (data || []) as unknown as Array<
+    SyncScheduleRow & { market_accounts: { name: string; platform: MarketPlatformDb } | null }
+  >
 
   return {
-    data: typedSchedules.map((s) => ({
-      id: s.id,
-      storeId: s.store_id,
-      syncType: s.sync_type as SyncType,
-      intervalMinutes: s.interval_minutes,
-      isEnabled: s.is_enabled,
-      lastSyncAt: s.last_sync_at,
-      nextSyncAt: s.next_sync_at,
-      syncAtMinute: (s.sync_at_minute ?? 0) as 0 | 30,
-      syncTime: s.sync_time,
-      createdAt: s.created_at,
+    data: rows.map((row) => ({
+      id: row.id,
+      marketAccountId: row.market_account_id,
+      marketAccountName: row.market_accounts?.name || '(삭제된 계정)',
+      platform: row.market_accounts?.platform || 'naver',
+      syncType: row.sync_type as SyncType,
+      intervalMinutes: row.interval_minutes,
+      syncTime: row.sync_time,
+      isEnabled: row.is_enabled,
+      lastSyncAt: row.last_sync_at,
     })),
     error: null,
   }
 }
 
-export async function getLastSyncTime(): Promise<{
-  data: string | null
-  error: string | null
-}> {
-  const supabase = await createClient()
-
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { data: null, error: 'Unauthorized' }
-  }
-
-  const { data: schedule } = await supabase
-    .from('sync_schedules')
-    .select('last_sync_at')
-    .eq('user_id', userData.user.id)
-    .eq('store_id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
-    .not('last_sync_at', 'is', null)
-    .order('last_sync_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  return {
-    data: schedule?.last_sync_at || null,
-    error: null,
-  }
-}
-
-export async function getSyncScheduleByStore(storeId: string): Promise<{
-  data: SyncSchedule | null
-  error: string | null
-}> {
-  const supabase = await createClient()
-
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { data: null, error: 'Unauthorized' }
-  }
-
-  const validation = validateInput(idSchema, storeId)
-  if (validation.error !== null) {
-    return { data: null, error: validation.error }
-  }
-
-  const { data: schedule, error } = await supabase
-    .from('sync_schedules')
-    .select('*')
-    .eq('user_id', userData.user.id)
-    .eq('store_id', storeId)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return { data: null, error: null }
-    }
-    return { data: null, error: error.message }
-  }
-
-  const typedSchedule = schedule as unknown as SyncScheduleRow
-
-  return {
-    data: {
-      id: typedSchedule.id,
-      storeId: typedSchedule.store_id,
-      syncType: typedSchedule.sync_type as SyncType,
-      intervalMinutes: typedSchedule.interval_minutes,
-      isEnabled: typedSchedule.is_enabled,
-      lastSyncAt: typedSchedule.last_sync_at,
-      nextSyncAt: typedSchedule.next_sync_at,
-      syncAtMinute: (typedSchedule.sync_at_minute ?? 0) as 0 | 30,
-      syncTime: typedSchedule.sync_time,
-      createdAt: typedSchedule.created_at,
-    },
-    error: null,
-  }
-}
-
-interface CreateOrUpdateSyncScheduleInput {
-  storeId: string
+export async function upsertSyncSchedule(input: {
+  marketAccountId: string
   syncType: SyncType
   intervalMinutes: number
-  isEnabled: boolean
-  syncAtMinute?: 0 | 30
-  syncTime?: string
-}
-
-function calculateNextSyncAt(
-  intervalMinutes: number,
-  syncAtMinute: 0 | 30 = 0,
-  syncTime?: string
-): string {
-  const now = new Date()
-
-  if (intervalMinutes === 1440 && syncTime) {
-    const [hours, minutes] = syncTime.split(':').map(Number)
-    const next = new Date(now)
-    next.setHours(hours, minutes, 0, 0)
-
-    if (next <= now) {
-      next.setDate(next.getDate() + 1)
-    }
-    return next.toISOString()
+  syncTime?: string | null
+  isEnabled?: boolean
+}): Promise<{ success: boolean; error: string | null }> {
+  const supabase = await createRedesignClient()
+  let userId: string
+  try {
+    userId = (await requireUser(supabase)).id
+  } catch {
+    return { success: false, error: '로그인이 필요합니다.' }
   }
 
-  const currentMinute = now.getMinutes()
-  const currentHour = now.getHours()
+  const validation = validateInput(upsertScheduleSchema, input)
+  if (validation.error !== null) return { success: false, error: validation.error }
+  const parsed = validation.data
 
-  let nextMinute: number
-  let nextHour = currentHour
-
-  if (intervalMinutes === 60) {
-    nextMinute = syncAtMinute
-    if (currentMinute >= syncAtMinute) {
-      nextHour = currentHour + 1
-    }
-  } else if (intervalMinutes === 120) {
-    nextMinute = syncAtMinute
-    const hoursUntilNext = currentMinute >= syncAtMinute ? 1 : 0
-    nextHour = currentHour + hoursUntilNext
-    if (nextHour % 2 !== 0) {
-      nextHour += 1
-    }
-  } else if (intervalMinutes === 360) {
-    nextMinute = syncAtMinute
-    const targetHours = [0, 6, 12, 18]
-    const currentTotalMinutes = currentHour * 60 + currentMinute
-    const syncMinuteOffset = syncAtMinute
-
-    for (const h of targetHours) {
-      if (h * 60 + syncMinuteOffset > currentTotalMinutes) {
-        nextHour = h
-        break
-      }
-    }
-    if (nextHour <= currentHour && currentMinute >= syncAtMinute) {
-      nextHour = targetHours[0]
-      const next = new Date(now)
-      next.setDate(next.getDate() + 1)
-      next.setHours(nextHour, nextMinute, 0, 0)
-      return next.toISOString()
-    }
-  } else if (intervalMinutes === 720) {
-    nextMinute = syncAtMinute
-    const targetHours = [0, 12]
-    const currentTotalMinutes = currentHour * 60 + currentMinute
-    const syncMinuteOffset = syncAtMinute
-
-    for (const h of targetHours) {
-      if (h * 60 + syncMinuteOffset > currentTotalMinutes) {
-        nextHour = h
-        break
-      }
-    }
-    if (nextHour <= currentHour && currentMinute >= syncAtMinute) {
-      nextHour = targetHours[0]
-      const next = new Date(now)
-      next.setDate(next.getDate() + 1)
-      next.setHours(nextHour, nextMinute, 0, 0)
-      return next.toISOString()
-    }
-  } else {
-    const next = new Date(now.getTime() + intervalMinutes * 60 * 1000)
-    return next.toISOString()
+  const patch = {
+    sync_type: parsed.syncType,
+    interval_minutes: parsed.intervalMinutes,
+    // Wall-clock time only applies to daily schedules
+    sync_time: parsed.intervalMinutes >= 1440 ? parsed.syncTime || '09:00' : null,
+    is_enabled: parsed.isEnabled ?? true,
   }
 
-  const next = new Date(now)
-  next.setHours(nextHour, nextMinute, 0, 0)
-
-  if (next <= now) {
-    next.setHours(next.getHours() + Math.floor(intervalMinutes / 60))
-  }
-
-  return next.toISOString()
-}
-
-export async function createOrUpdateSyncSchedule(
-  input: CreateOrUpdateSyncScheduleInput
-): Promise<{ success: boolean; error: string | null }> {
-  const supabase = await createClient()
-
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { success: false, error: 'Unauthorized' }
-  }
-
-  const validation = validateInput(createOrUpdateSyncScheduleSchema, input)
-  if (validation.error !== null) {
-    return { success: false, error: validation.error }
-  }
-
-  const nextSyncAt = input.isEnabled
-    ? calculateNextSyncAt(input.intervalMinutes, input.syncAtMinute, input.syncTime)
-    : null
-
+  // One schedule per account keeps the UI (and due evaluation) simple
   const { data: existing } = await supabase
     .from('sync_schedules')
     .select('id')
-    .eq('user_id', userData.user.id)
-    .eq('store_id', input.storeId)
-    .single()
+    .eq('market_account_id', parsed.marketAccountId)
+    .maybeSingle()
 
-  let scheduleId: string | null = null
-
-  if (existing) {
-    scheduleId = existing.id
-    const { error } = await supabase
-      .from('sync_schedules')
-      .update({
-        sync_type: input.syncType,
-        interval_minutes: input.intervalMinutes,
-        is_enabled: input.isEnabled,
-        sync_at_minute: input.syncAtMinute ?? 0,
-        sync_time: input.syncTime ?? null,
-        next_sync_at: nextSyncAt,
+  const { error } = existing
+    ? await supabase.from('sync_schedules').update(patch).eq('id', existing.id)
+    : await supabase.from('sync_schedules').insert({
+        user_id: userId,
+        market_account_id: parsed.marketAccountId,
+        ...patch,
       })
-      .eq('id', existing.id)
 
-    if (error) {
-      return { success: false, error: error.message }
-    }
-  } else {
-    const { data: newSchedule, error } = await supabase.from('sync_schedules').insert({
-      user_id: userData.user.id,
-      store_id: input.storeId,
-      sync_type: input.syncType,
-      interval_minutes: input.intervalMinutes,
-      is_enabled: input.isEnabled,
-      sync_at_minute: input.syncAtMinute ?? 0,
-      sync_time: input.syncTime ?? null,
-      next_sync_at: nextSyncAt,
-    }).select('id').single()
-
-    if (error) {
-      return { success: false, error: error.message }
-    }
-    scheduleId = newSchedule?.id || null
-  }
-
-  if (scheduleId) {
-    try {
-      const schedulerSecret = process.env.SCHEDULER_SECRET || process.env.CRON_SECRET
-      if (!schedulerSecret) {
-        throw new Error('SCHEDULER_SECRET 또는 CRON_SECRET이 설정되지 않았습니다.')
-      }
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/scheduler`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${schedulerSecret}`,
-        },
-        body: JSON.stringify({ action: 'update', scheduleId }),
-      })
-    } catch (e) {
-      console.error('Failed to update scheduler:', e)
-    }
-  }
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/settings')
   return { success: true, error: null }
@@ -369,17 +139,11 @@ export async function toggleSyncSchedule(
   scheduleId: string,
   isEnabled: boolean
 ): Promise<{ success: boolean; error: string | null }> {
-  const supabase = await createClient()
-
+  const supabase = await createRedesignClient()
   try {
     await requireUser(supabase)
   } catch {
-    return { success: false, error: 'Unauthorized' }
-  }
-
-  const validation = validateInput(toggleSyncScheduleSchema, { scheduleId, isEnabled })
-  if (validation.error !== null) {
-    return { success: false, error: validation.error }
+    return { success: false, error: '로그인이 필요합니다.' }
   }
 
   const { error } = await supabase
@@ -387,200 +151,64 @@ export async function toggleSyncSchedule(
     .update({ is_enabled: isEnabled })
     .eq('id', scheduleId)
 
-  if (error) {
-    return { success: false, error: error.message }
-  }
-
-  try {
-    const schedulerSecret = process.env.SCHEDULER_SECRET || process.env.CRON_SECRET
-    if (!schedulerSecret) {
-      throw new Error('SCHEDULER_SECRET 또는 CRON_SECRET이 설정되지 않았습니다.')
-    }
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/scheduler`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${schedulerSecret}`,
-      },
-      body: JSON.stringify({ action: 'update', scheduleId }),
-    })
-  } catch (e) {
-    console.error('Failed to update scheduler:', e)
-  }
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/settings')
   return { success: true, error: null }
 }
 
-export async function updateLastSyncAt(
+export async function deleteSyncSchedule(
   scheduleId: string
 ): Promise<{ success: boolean; error: string | null }> {
-  const supabase = await createClient()
-
+  const supabase = await createRedesignClient()
   try {
     await requireUser(supabase)
   } catch {
-    return { success: false, error: 'Unauthorized' }
+    return { success: false, error: '로그인이 필요합니다.' }
   }
 
-  const validation = validateInput(idSchema, scheduleId)
-  if (validation.error !== null) {
-    return { success: false, error: validation.error }
-  }
+  const { error } = await supabase.from('sync_schedules').delete().eq('id', scheduleId)
+  if (error) return { success: false, error: error.message }
 
-  const { data: schedule } = await supabase
-    .from('sync_schedules')
-    .select('interval_minutes, sync_at_minute, sync_time')
-    .eq('id', scheduleId)
-    .single()
-
-  if (!schedule) {
-    return { success: false, error: 'Schedule not found' }
-  }
-
-  const typedSchedule = schedule as unknown as {
-    interval_minutes: number
-    sync_at_minute: number | null
-    sync_time: string | null
-  }
-
-  const nextSyncAt = calculateNextSyncAt(
-    typedSchedule.interval_minutes,
-    (typedSchedule.sync_at_minute ?? 0) as 0 | 30,
-    typedSchedule.sync_time ?? undefined
-  )
-
-  const { error } = await supabase
-    .from('sync_schedules')
-    .update({
-      last_sync_at: new Date().toISOString(),
-      next_sync_at: nextSyncAt,
-    })
-    .eq('id', scheduleId)
-
-  if (error) {
-    return { success: false, error: error.message }
-  }
-
+  revalidatePath('/settings')
   return { success: true, error: null }
 }
 
-export async function getSyncLogs(
-  scheduleId: string,
-  limit: number = 10
-): Promise<{ data: SyncLog[] | null; error: string | null }> {
-  const supabase = await createClient()
-
+export async function getSyncRuns(limit: number = 20): Promise<{
+  data: SyncRunView[] | null
+  error: string | null
+}> {
+  const supabase = await createRedesignClient()
   try {
     await requireUser(supabase)
   } catch {
-    return { data: null, error: 'Unauthorized' }
-  }
-
-  const validation = validateInput(getSyncLogsSchema, { scheduleId, limit })
-  if (validation.error !== null) {
-    return { data: null, error: validation.error }
-  }
-
-  const { data: logs, error } = await supabase
-    .from('sync_logs')
-    .select('*')
-    .eq('schedule_id', scheduleId)
-    .order('started_at', { ascending: false })
-    .limit(limit)
-
-  if (error) {
-    return { data: null, error: error.message }
-  }
-
-  const typedLogs = logs as unknown as SyncLogRow[]
-
-  return {
-    data: typedLogs.map((l) => ({
-      id: l.id,
-      scheduleId: l.schedule_id,
-      syncType: l.sync_type,
-      status: l.status as SyncLog['status'],
-      itemsSynced: l.items_synced,
-      errorMessage: l.error_message,
-      startedAt: l.started_at,
-      completedAt: l.completed_at,
-    })),
-    error: null,
-  }
-}
-
-export async function createSyncLog(
-  scheduleId: string,
-  syncType: string
-): Promise<{ data: { id: string } | null; error: string | null }> {
-  const supabase = await createClient()
-
-  try {
-    await requireUser(supabase)
-  } catch {
-    return { data: null, error: 'Unauthorized' }
-  }
-
-  const validation = validateInput(createSyncLogSchema, { scheduleId, syncType })
-  if (validation.error !== null) {
-    return { data: null, error: validation.error }
+    return { data: null, error: '로그인이 필요합니다.' }
   }
 
   const { data, error } = await supabase
-    .from('sync_logs')
-    .insert({
-      schedule_id: scheduleId,
-      sync_type: syncType,
-      status: 'running',
-    })
-    .select('id')
-    .single()
+    .from('sync_runs')
+    .select('*, market_accounts (name)')
+    .order('started_at', { ascending: false })
+    .limit(Math.min(limit, 100))
 
-  if (error) {
-    return { data: null, error: error.message }
+  if (error) return { data: null, error: error.message }
+
+  const rows = (data || []) as unknown as Array<
+    SyncRunRow & { market_accounts: { name: string } | null }
+  >
+
+  return {
+    data: rows.map((row) => ({
+      id: row.id,
+      marketAccountName: row.market_accounts?.name || '(삭제된 계정)',
+      syncType: row.sync_type,
+      status: row.status,
+      itemsProcessed: row.items_processed,
+      itemsFailed: row.items_failed,
+      errorMessage: row.error_message,
+      startedAt: row.started_at,
+      completedAt: row.completed_at,
+    })),
+    error: null,
   }
-
-  return { data: { id: data.id }, error: null }
-}
-
-export async function completeSyncLog(
-  logId: string,
-  status: 'success' | 'failed',
-  itemsSynced: number,
-  errorMessage?: string
-): Promise<{ success: boolean; error: string | null }> {
-  const supabase = await createClient()
-
-  try {
-    await requireUser(supabase)
-  } catch {
-    return { success: false, error: 'Unauthorized' }
-  }
-
-  const validation = validateInput(completeSyncLogSchema, {
-    logId,
-    status,
-    itemsSynced,
-    errorMessage,
-  })
-  if (validation.error !== null) {
-    return { success: false, error: validation.error }
-  }
-
-  const { error } = await supabase
-    .from('sync_logs')
-    .update({
-      status,
-      items_synced: itemsSynced,
-      error_message: errorMessage || null,
-      completed_at: new Date().toISOString(),
-    })
-    .eq('id', logId)
-
-  if (error) {
-    return { success: false, error: error.message }
-  }
-
-  return { success: true, error: null }
 }

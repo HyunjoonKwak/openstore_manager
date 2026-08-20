@@ -12,15 +12,9 @@ import {
   getUserProfile,
   getStoreProfile,
   createOrUpdateStore,
-  updateDeliveryCheckSettings,
   updateNotificationSettings,
 } from '@/lib/actions/settings'
 import { testNaverConnection } from '@/lib/actions/naver-sync'
-import {
-  getSyncScheduleByStore,
-  createOrUpdateSyncSchedule,
-  type SyncType,
-} from '@/lib/actions/sync-schedules'
 import { getAiUsageSummary, type UsageSummary } from '@/lib/actions/ai-usage'
 import { useDefaultFolder } from '@/hooks/useDefaultFolder'
 import type { Platform } from '@/types/database.types'
@@ -96,23 +90,7 @@ export default function SettingsPage() {
     aiComplete: false,
   })
 
-  const [syncSettings, setSyncSettings] = useState({
-    storeId: '',
-    syncType: 'both' as SyncType,
-    intervalMinutes: 60,
-    syncTime: '09:00',
-    syncAtMinute: 0 as 0 | 30,
-    isEnabled: false,
-    lastSyncAt: null as string | null,
-    nextSyncAt: null as string | null,
-  })
-
   const [aiUsage, setAiUsage] = useState<UsageSummary | null>(null)
-
-  const [deliveryCheckSettings, setDeliveryCheckSettings] = useState({
-    times: [9, 15, 21] as number[],
-    enabled: true,
-  })
 
   const [discordSettings, setDiscordSettings] = useState({
     webhookUrl: '',
@@ -165,31 +143,8 @@ export default function SettingsPage() {
           openaiApiKey: storeResult.data.apiConfig.openaiApiKey || '',
         })
         setApiConfigured(storeResult.data.apiConfigStatus)
-        if (storeResult.data.deliveryCheckSettings) {
-          setDeliveryCheckSettings(storeResult.data.deliveryCheckSettings)
-        }
         if (storeResult.data.notificationSettings) {
           setDiscordSettings(storeResult.data.notificationSettings)
-        }
-
-        const scheduleResult = await getSyncScheduleByStore(storeResult.data.id)
-        if (scheduleResult.data) {
-          setSyncSettings((prev) => ({
-            ...prev,
-            storeId: storeResult.data!.id,
-            syncType: scheduleResult.data!.syncType,
-            intervalMinutes: scheduleResult.data!.intervalMinutes,
-            isEnabled: scheduleResult.data!.isEnabled,
-            lastSyncAt: scheduleResult.data!.lastSyncAt,
-            nextSyncAt: scheduleResult.data!.nextSyncAt,
-            syncAtMinute: scheduleResult.data!.syncAtMinute,
-            syncTime: scheduleResult.data!.syncTime ?? '09:00',
-          }))
-        } else {
-          setSyncSettings((prev) => ({
-            ...prev,
-            storeId: storeResult.data!.id,
-          }))
         }
       }
 
@@ -342,58 +297,6 @@ export default function SettingsPage() {
     router.refresh()
   }
 
-  const handleSaveSyncSettings = () => {
-    if (!syncSettings.storeId) {
-      toast.error('스토어 설정을 먼저 저장해주세요.')
-      return
-    }
-
-    startTransition(async () => {
-      const result = await createOrUpdateSyncSchedule({
-        storeId: syncSettings.storeId,
-        syncType: syncSettings.syncType,
-        intervalMinutes: syncSettings.intervalMinutes,
-        isEnabled: syncSettings.isEnabled,
-        syncAtMinute: syncSettings.syncAtMinute,
-        syncTime: syncSettings.syncTime,
-      })
-
-      if (result.success) {
-        toast.success('동기화 설정이 저장되었습니다.')
-        const scheduleResult = await getSyncScheduleByStore(syncSettings.storeId)
-        if (scheduleResult.data) {
-          setSyncSettings((prev) => ({
-            ...prev,
-            nextSyncAt: scheduleResult.data!.nextSyncAt,
-          }))
-        }
-      } else {
-        toast.error(result.error || '저장에 실패했습니다.')
-      }
-    })
-  }
-
-  const handleSaveDeliveryCheckSettings = () => {
-    startTransition(async () => {
-      const result = await updateDeliveryCheckSettings(deliveryCheckSettings)
-
-      if (result.success) {
-        toast.success('배송확인 설정이 저장되었습니다.')
-      } else {
-        toast.error(result.error || '저장에 실패했습니다.')
-      }
-    })
-  }
-
-  const toggleDeliveryCheckTime = (hour: number) => {
-    setDeliveryCheckSettings((prev) => {
-      const newTimes = prev.times.includes(hour)
-        ? prev.times.filter((t) => t !== hour)
-        : [...prev.times, hour].sort((a, b) => a - b)
-      return { ...prev, times: newTimes }
-    })
-  }
-
   const handleSaveDiscordSettings = () => {
     startTransition(async () => {
       const result = await updateNotificationSettings({
@@ -543,16 +446,7 @@ export default function SettingsPage() {
             </TabsContent>
 
             <TabsContent value="automation" className="mt-0">
-              <AutomationTab
-                syncSettings={syncSettings}
-                setSyncSettings={setSyncSettings}
-                deliveryCheckSettings={deliveryCheckSettings}
-                setDeliveryCheckSettings={setDeliveryCheckSettings}
-                toggleDeliveryCheckTime={toggleDeliveryCheckTime}
-                handleSaveSyncSettings={handleSaveSyncSettings}
-                handleSaveDeliveryCheckSettings={handleSaveDeliveryCheckSettings}
-                isPending={isPending}
-              />
+              <AutomationTab />
             </TabsContent>
 
             <TabsContent value="notifications" className="mt-0">

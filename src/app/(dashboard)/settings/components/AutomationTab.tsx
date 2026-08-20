@@ -1,12 +1,12 @@
 'use client'
 
-import type { Dispatch, SetStateAction } from 'react'
-import { Save, RefreshCw, Clock, Truck } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { useCallback, useEffect, useState } from 'react'
+import { Clock, Loader2, RefreshCw, Save, Truck } from 'lucide-react'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -14,38 +14,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { SyncType } from '@/lib/actions/sync-schedules'
+import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
+import { PlatformBadge } from '@/components/markets/PlatformBadge'
+import { getMarketAccounts, type MarketAccountInfo } from '@/lib/actions/market-accounts'
+import {
+  getSyncRuns,
+  getSyncSchedules,
+  toggleSyncSchedule,
+  upsertSyncSchedule,
+  type SyncRunView,
+  type SyncScheduleView,
+  type SyncType,
+} from '@/lib/actions/sync-schedules'
 
-export interface SyncSettingsState {
-  storeId: string
-  syncType: SyncType
-  intervalMinutes: number
-  syncTime: string
-  syncAtMinute: 0 | 30
-  isEnabled: boolean
-  lastSyncAt: string | null
-  nextSyncAt: string | null
+// One schedule per market account. Execution is external cron hitting
+// /api/cron/sync, so this tab owns definitions and shows run history.
+
+const INTERVAL_OPTIONS = [
+  { value: 30, label: '30분마다' },
+  { value: 60, label: '1시간마다' },
+  { value: 120, label: '2시간마다' },
+  { value: 360, label: '6시간마다' },
+  { value: 720, label: '12시간마다' },
+  { value: 1440, label: '하루 한 번' },
+]
+
+const SYNC_TYPE_LABELS: Record<SyncType, string> = {
+  orders: '주문만',
+  products: '상품만',
+  both: '주문 + 상품',
 }
 
-export interface DeliveryCheckSettingsState {
-  times: number[]
-  enabled: boolean
-}
-
-interface AutomationTabProps {
-  syncSettings: SyncSettingsState
-  setSyncSettings: Dispatch<SetStateAction<SyncSettingsState>>
-  deliveryCheckSettings: DeliveryCheckSettingsState
-  setDeliveryCheckSettings: Dispatch<SetStateAction<DeliveryCheckSettingsState>>
-  toggleDeliveryCheckTime: (hour: number) => void
-  handleSaveSyncSettings: () => void
-  handleSaveDeliveryCheckSettings: () => void
-  isPending: boolean
-}
-
-const formatDateTime = (dateStr: string | null) => {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleString('ko-KR', {
+function formatDateTime(value: string | null) {
+  if (!value) return '없음'
+  return new Date(value).toLocaleString('ko-KR', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -53,252 +56,288 @@ const formatDateTime = (dateStr: string | null) => {
   })
 }
 
-export function AutomationTab({
-  syncSettings,
-  setSyncSettings,
-  deliveryCheckSettings,
-  setDeliveryCheckSettings,
-  toggleDeliveryCheckTime,
-  handleSaveSyncSettings,
-  handleSaveDeliveryCheckSettings,
-  isPending,
-}: AutomationTabProps) {
+interface DraftState {
+  syncType: SyncType
+  intervalMinutes: number
+  syncTime: string
+  isEnabled: boolean
+}
+
+function AccountScheduleCard({
+  account,
+  schedule,
+  onSaved,
+}: {
+  account: MarketAccountInfo
+  schedule: SyncScheduleView | undefined
+  onSaved: () => void
+}) {
+  const [draft, setDraft] = useState<DraftState>({
+    syncType: schedule?.syncType || 'both',
+    intervalMinutes: schedule?.intervalMinutes || 60,
+    syncTime: schedule?.syncTime || '09:00',
+    isEnabled: schedule?.isEnabled ?? false,
+  })
+  const [isSaving, setIsSaving] = useState(false)
+
+  const save = async (patch?: Partial<DraftState>) => {
+    const next = { ...draft, ...patch }
+    setIsSaving(true)
+    try {
+      const result = await upsertSyncSchedule({
+        marketAccountId: account.id,
+        syncType: next.syncType,
+        intervalMinutes: next.intervalMinutes,
+        syncTime: next.intervalMinutes >= 1440 ? next.syncTime : null,
+        isEnabled: next.isEnabled,
+      })
+      if (result.success) {
+        toast.success(`${account.name} 자동 동기화 설정이 저장되었습니다.`)
+        onSaved()
+      } else {
+        toast.error(result.error || '저장에 실패했습니다.')
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleToggle = async (isEnabled: boolean) => {
+    setDraft((current) => ({ ...current, isEnabled }))
+    if (!schedule) {
+      await save({ isEnabled })
+      return
+    }
+    const result = await toggleSyncSchedule(schedule.id, isEnabled)
+    if (result.success) {
+      toast.success(isEnabled ? '자동 동기화를 켰습니다.' : '자동 동기화를 껐습니다.')
+      onSaved()
+    } else {
+      toast.error(result.error || '변경에 실패했습니다.')
+      setDraft((current) => ({ ...current, isEnabled: !isEnabled }))
+    }
+  }
+
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2 text-primary">
-              <RefreshCw className="h-5 w-5" />
-            </div>
-            <div>
-              <CardTitle>자동 동기화 설정</CardTitle>
-              <CardDescription>주문/상품 자동 동기화 스케줄</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">자동 동기화 활성화</p>
-              <p className="text-sm text-muted-foreground">
-                설정된 간격으로 자동 동기화
-              </p>
-            </div>
-            <Switch
-              checked={syncSettings.isEnabled}
-              onCheckedChange={(checked) =>
-                setSyncSettings((prev) => ({ ...prev, isEnabled: checked }))
+    <Card>
+      <CardHeader className="border-b border-border py-3">
+        <CardTitle className="flex items-center justify-between text-sm">
+          <span className="flex items-center gap-2">
+            <PlatformBadge platform={account.platform} label={account.name} />
+            {schedule?.isEnabled && (
+              <Badge variant="secondary" className="text-[10px]">
+                동작 중
+              </Badge>
+            )}
+          </span>
+          <Switch checked={draft.isEnabled} onCheckedChange={handleToggle} />
+        </CardTitle>
+      </CardHeader>
+      <CardContent className={cn('space-y-3 p-4', !draft.isEnabled && 'opacity-60')}>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">동기화 대상</Label>
+            <Select
+              value={draft.syncType}
+              onValueChange={(value) =>
+                setDraft((current) => ({ ...current, syncType: value as SyncType }))
               }
-            />
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(SYNC_TYPE_LABELS) as SyncType[]).map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {SYNC_TYPE_LABELS[type]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-
-          <Separator />
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>동기화 대상</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs">주기</Label>
+            <Select
+              value={String(draft.intervalMinutes)}
+              onValueChange={(value) =>
+                setDraft((current) => ({ ...current, intervalMinutes: Number(value) }))
+              }
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INTERVAL_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {draft.intervalMinutes >= 1440 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">실행 시각</Label>
               <Select
-                value={syncSettings.syncType}
-                onValueChange={(value) =>
-                  setSyncSettings((prev) => ({
-                    ...prev,
-                    syncType: value as SyncType,
-                  }))
-                }
-                disabled={!syncSettings.isEnabled}
+                value={draft.syncTime}
+                onValueChange={(value) => setDraft((current) => ({ ...current, syncTime: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="orders">주문만</SelectItem>
-                  <SelectItem value="products">상품만</SelectItem>
-                  <SelectItem value="both">주문 + 상품</SelectItem>
+                  {Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`).map(
+                    (time) => (
+                      <SelectItem key={time} value={time}>
+                        {time}
+                      </SelectItem>
+                    )
+                  )}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>동기화 간격</Label>
-              <Select
-                value={String(syncSettings.intervalMinutes)}
-                onValueChange={(value) =>
-                  setSyncSettings((prev) => ({
-                    ...prev,
-                    intervalMinutes: Number(value),
-                  }))
-                }
-                disabled={!syncSettings.isEnabled}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="60">1시간마다</SelectItem>
-                  <SelectItem value="120">2시간마다</SelectItem>
-                  <SelectItem value="360">6시간마다</SelectItem>
-                  <SelectItem value="720">12시간마다</SelectItem>
-                  <SelectItem value="1440">하루 1회</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>동기화 시점</Label>
-              {syncSettings.intervalMinutes === 1440 ? (
-                <Select
-                  value={syncSettings.syncTime}
-                  onValueChange={(value) =>
-                    setSyncSettings((prev) => ({
-                      ...prev,
-                      syncTime: value,
-                    }))
-                  }
-                  disabled={!syncSettings.isEnabled}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 24 }, (_, i) => {
-                      const hour = i.toString().padStart(2, '0')
-                      return (
-                        <SelectItem key={hour} value={`${hour}:00`}>
-                          {hour}:00
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Select
-                  value={String(syncSettings.syncAtMinute)}
-                  onValueChange={(value) =>
-                    setSyncSettings((prev) => ({
-                      ...prev,
-                      syncAtMinute: Number(value) as 0 | 30,
-                    }))
-                  }
-                  disabled={!syncSettings.isEnabled}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">매 정시 (00분)</SelectItem>
-                    <SelectItem value="30">매 30분 (30분)</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {syncSettings.intervalMinutes === 1440
-                  ? `매일 ${syncSettings.syncTime}에 동기화`
-                  : syncSettings.syncAtMinute === 0
-                    ? '매 정시에 동기화 (예: 09:00, 10:00, 11:00...)'
-                    : '매 30분에 동기화 (예: 09:30, 10:30, 11:30...)'}
-              </p>
-            </div>
-          </div>
-
-          {syncSettings.isEnabled && (
-            <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg text-sm">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
-                <div>
-                  <span className="text-muted-foreground">마지막 동기화: </span>
-                  <span className="font-medium">{formatDateTime(syncSettings.lastSyncAt)}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">다음 동기화: </span>
-                  <span className="font-medium">{formatDateTime(syncSettings.nextSyncAt)}</span>
-                </div>
-              </div>
             </div>
           )}
+        </div>
 
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleSaveSyncSettings}
-            disabled={isPending || !syncSettings.storeId}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            동기화 설정 저장
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            마지막 실행: {formatDateTime(schedule?.lastSyncAt || null)}
+          </p>
+          <Button size="sm" onClick={() => save()} disabled={isSaving}>
+            {isSaving ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            저장
           </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function AutomationTab() {
+  const [accounts, setAccounts] = useState<MarketAccountInfo[]>([])
+  const [schedules, setSchedules] = useState<SyncScheduleView[]>([])
+  const [runs, setRuns] = useState<SyncRunView[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const [accountsResult, schedulesResult, runsResult] = await Promise.all([
+        getMarketAccounts(),
+        getSyncSchedules(),
+        getSyncRuns(10),
+      ])
+      if (accountsResult.data) setAccounts(accountsResult.data)
+      if (schedulesResult.data) setSchedules(schedulesResult.data)
+      if (runsResult.data) setRuns(runsResult.data)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-muted-foreground">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        불러오는 중...
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <RefreshCw className="h-4 w-4" />
+            자동 동기화
+          </CardTitle>
+          <CardDescription>
+            마켓 계정별로 주문·상품을 주기적으로 수집합니다. 실제 실행은 서버 크론이 담당하며,
+            여기서는 주기와 대상만 정합니다.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      {accounts.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          연결된 마켓 계정이 없습니다. 마켓 계정 탭에서 먼저 연결해주세요.
+        </p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {accounts.map((account) => (
+            <AccountScheduleCard
+              key={account.id}
+              account={account}
+              schedule={schedules.find((item) => item.marketAccountId === account.id)}
+              onSaved={load}
+            />
+          ))}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader className="border-b border-border py-3">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Clock className="h-4 w-4" />
+            최근 실행 기록
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {runs.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              아직 실행 기록이 없습니다.
+            </p>
+          ) : (
+            <div className="divide-y divide-border">
+              {runs.map((run) => (
+                <div key={run.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+                  <span className="w-28 shrink-0 truncate text-muted-foreground">
+                    {run.marketAccountName}
+                  </span>
+                  <span className="w-16 shrink-0">{run.syncType}</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'shrink-0 text-[10px]',
+                      run.status === 'completed' && 'border-green-500/20 bg-green-500/10 text-green-600',
+                      run.status === 'partial' && 'border-warning/20 bg-warning/10 text-warning',
+                      run.status === 'failed' && 'border-destructive/20 bg-destructive/10 text-destructive'
+                    )}
+                  >
+                    {run.status}
+                  </Badge>
+                  <span className="flex-1 truncate text-xs text-muted-foreground">
+                    {run.errorMessage || `처리 ${run.itemsProcessed}건${run.itemsFailed > 0 ? `, 실패 ${run.itemsFailed}건` : ''}`}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {formatDateTime(run.startedAt)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2 text-primary">
-              <Truck className="h-5 w-5" />
-            </div>
-            <div>
-              <CardTitle>배송 상태 자동 확인</CardTitle>
-              <CardDescription>택배사 API로 배송 상태를 자동 확인합니다</CardDescription>
-            </div>
-          </div>
+        <CardHeader className="py-3">
+          <CardTitle className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Truck className="h-4 w-4" />
+            배송 상태 자동 확인
+          </CardTitle>
+          <CardDescription>
+            배송 추적 기능을 새 구조로 옮기는 작업과 함께 다시 제공될 예정입니다.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">자동 확인 활성화</p>
-              <p className="text-sm text-muted-foreground">
-                설정된 시간에 배송 상태를 자동으로 확인
-              </p>
-            </div>
-            <Switch
-              checked={deliveryCheckSettings.enabled}
-              onCheckedChange={(checked) =>
-                setDeliveryCheckSettings((prev) => ({ ...prev, enabled: checked }))
-              }
-            />
-          </div>
-
-          <Separator />
-
-          <div className="space-y-3">
-            <Label>확인 시간 선택 (KST)</Label>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {[6, 9, 12, 15, 18, 21].map((hour) => (
-                <Button
-                  key={hour}
-                  variant={deliveryCheckSettings.times.includes(hour) ? 'default' : 'outline'}
-                  size="sm"
-                  className="w-full"
-                  onClick={() => toggleDeliveryCheckTime(hour)}
-                  disabled={!deliveryCheckSettings.enabled}
-                >
-                  {hour}:00
-                </Button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              선택한 시간에 발송처리/배송중 상태의 주문들을 자동으로 확인합니다.
-            </p>
-          </div>
-
-          {deliveryCheckSettings.enabled && deliveryCheckSettings.times.length > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg text-sm">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span>
-                매일{' '}
-                {deliveryCheckSettings.times.map((t) => `${t}:00`).join(', ')}
-                에 자동 확인
-              </span>
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleSaveDeliveryCheckSettings}
-            disabled={isPending}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            배송확인 설정 저장
-          </Button>
-        </CardContent>
       </Card>
     </div>
   )

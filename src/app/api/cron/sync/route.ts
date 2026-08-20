@@ -1,359 +1,124 @@
 import { NextResponse } from 'next/server'
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { NaverCommerceClient } from '@/lib/naver/client'
+import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqualString } from '@/lib/timing-safe'
-import { decryptSecret } from '@/lib/secret-crypto'
+import { decryptApiConfigSecrets } from '@/lib/secret-crypto'
+import { createAdapter, type MarketApiConfig } from '@/lib/markets/registry'
+import { runOrderSync, runProductSync } from '@/lib/sync/engine'
+import { isScheduleDue } from '@/lib/sync/due'
+import type {
+  MarketAccountRow,
+  RedesignClient,
+  SyncScheduleRow,
+} from '@/types/redesign.types'
 
-type SupabaseAdminClient = SupabaseClient
+// External cron entry point. Synology's task scheduler calls this every
+// few minutes; the route decides which schedules are due and runs them
+// with the service role. Replaces the former in-process node-cron,
+// which never started under the standalone server.
+
+export const dynamic = 'force-dynamic'
+export const maxDuration = 300
 
 const CRON_SECRET = process.env.CRON_SECRET
 
+function getAdminClient(): RedesignClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error('Supabase service role is not configured')
+  return createClient(url, key, { auth: { persistSession: false } }) as unknown as RedesignClient
+}
+
+interface ScheduleWithAccount extends SyncScheduleRow {
+  market_accounts: MarketAccountRow | null
+}
+
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization')
   if (!CRON_SECRET) {
     return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
   }
+  const authHeader = request.headers.get('authorization')
   if (!timingSafeEqualString(authHeader ?? '', `Bearer ${CRON_SECRET}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const url = new URL(request.url)
+  // ?force=1 runs every enabled schedule regardless of due time
+  const force = url.searchParams.get('force') === '1'
 
-  if (!supabaseUrl || !supabaseServiceKey) {
+  let supabase: RedesignClient
+  try {
+    supabase = getAdminClient()
+  } catch (error) {
     return NextResponse.json(
-      { error: 'Missing Supabase configuration' },
-      { status: 500 }
+      { error: error instanceof Error ? error.message : 'admin client failed' },
+      { status: 503 }
     )
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-  const now = new Date().toISOString()
-  const { data: schedules, error: schedulesError } = await supabase
+  const { data, error } = await supabase
     .from('sync_schedules')
-    .select(`
-      *,
-      stores (
-        id,
-        api_config
-      )
-    `)
+    .select('*, market_accounts (*)')
     .eq('is_enabled', true)
-    .lte('next_sync_at', now)
 
-  if (schedulesError) {
-    console.error('Error fetching schedules:', schedulesError)
-    return NextResponse.json({ error: schedulesError.message }, { status: 500 })
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  if (!schedules || schedules.length === 0) {
-    return NextResponse.json({ message: 'No schedules due', processed: 0 })
-  }
+  const schedules = (data || []) as unknown as ScheduleWithAccount[]
+  const now = new Date()
+  const results: Array<Record<string, unknown>> = []
 
-  interface ScheduleRow {
-    id: string
-    user_id: string
-    store_id: string
-    sync_type: string
-    interval_minutes: number
-    stores: {
-      id: string
-      api_config: {
-        naverClientId?: string
-        naverClientSecret?: string
-      }
-    } | null
-  }
-
-  const results = []
-
-  for (const schedule of schedules as unknown as ScheduleRow[]) {
-    const apiConfig = schedule.stores?.api_config
-    if (!apiConfig?.naverClientId || !apiConfig?.naverClientSecret) {
-      results.push({
-        scheduleId: schedule.id,
-        status: 'skipped',
-        reason: 'Missing API credentials',
-      })
+  for (const schedule of schedules) {
+    const account = schedule.market_accounts
+    if (!account || !account.is_active) {
+      results.push({ scheduleId: schedule.id, skipped: 'inactive account' })
+      continue
+    }
+    if (!force && !isScheduleDue(schedule, { now })) {
+      results.push({ scheduleId: schedule.id, account: account.name, skipped: 'not due' })
       continue
     }
 
-    const { data: logData } = await supabase
-      .from('sync_logs')
-      .insert({
-        schedule_id: schedule.id,
-        sync_type: schedule.sync_type,
-        status: 'running',
-      })
-      .select('id')
-      .single()
-
-    const logId = logData?.id
-
+    let config: MarketApiConfig
     try {
-      const client = new NaverCommerceClient({
-        clientId: apiConfig.naverClientId,
-        // Stored encrypted at rest; legacy plaintext passes through unchanged
-        clientSecret: decryptSecret(apiConfig.naverClientSecret),
-      })
-
-      let itemsSynced = 0
-
-      if (schedule.sync_type === 'orders' || schedule.sync_type === 'both') {
-        const ordersResult = await syncOrders(supabase, client, schedule.store_id)
-        itemsSynced += ordersResult.count
-      }
-
-      if (schedule.sync_type === 'products' || schedule.sync_type === 'both') {
-        const productsResult = await syncProducts(supabase, client, schedule.store_id)
-        itemsSynced += productsResult.count
-      }
-
-      const nextSyncAt = new Date(
-        Date.now() + schedule.interval_minutes * 60 * 1000
-      ).toISOString()
-
-      await supabase
-        .from('sync_schedules')
-        .update({
-          last_sync_at: new Date().toISOString(),
-          next_sync_at: nextSyncAt,
-        })
-        .eq('id', schedule.id)
-
-      if (logId) {
-        await supabase
-          .from('sync_logs')
-          .update({
-            status: 'success',
-            items_synced: itemsSynced,
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', logId)
-      }
-
-      results.push({
-        scheduleId: schedule.id,
-        status: 'success',
-        itemsSynced,
-      })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
-      if (logId) {
-        await supabase
-          .from('sync_logs')
-          .update({
-            status: 'failed',
-            error_message: errorMessage,
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', logId)
-      }
-
-      results.push({
-        scheduleId: schedule.id,
-        status: 'failed',
-        error: errorMessage,
-      })
+      config = decryptApiConfigSecrets((account.api_config || {}) as MarketApiConfig)
+    } catch {
+      results.push({ scheduleId: schedule.id, account: account.name, error: '자격증명 복호화 실패' })
+      continue
     }
+
+    const { adapter, error: adapterError } = createAdapter(account.platform, config)
+    if (!adapter) {
+      results.push({ scheduleId: schedule.id, account: account.name, error: adapterError })
+      continue
+    }
+
+    const ran: Record<string, unknown> = { scheduleId: schedule.id, account: account.name }
+
+    if (schedule.sync_type === 'orders' || schedule.sync_type === 'both') {
+      const outcome = await runOrderSync(supabase, account, adapter, 7)
+      ran.orders = { processed: outcome.processed, failed: outcome.failed, error: outcome.error }
+    }
+    if (schedule.sync_type === 'products' || schedule.sync_type === 'both') {
+      const outcome = await runProductSync(supabase, account, adapter, 'refresh')
+      ran.products = { processed: outcome.processed, failed: outcome.failed, error: outcome.error }
+    }
+
+    // Stamp the run even on failure so a broken account cannot spin the
+    // cron on every tick; sync_runs holds the error detail.
+    await supabase
+      .from('sync_schedules')
+      .update({ last_sync_at: new Date().toISOString() })
+      .eq('id', schedule.id)
+
+    results.push(ran)
   }
 
   return NextResponse.json({
-    message: 'Sync completed',
-    processed: results.length,
+    ok: true,
+    checkedAt: now.toISOString(),
+    scheduleCount: schedules.length,
+    executed: results.filter((r) => !r.skipped).length,
     results,
   })
-}
-
-async function syncOrders(
-  supabase: SupabaseAdminClient,
-  client: NaverCommerceClient,
-  storeId: string
-): Promise<{ count: number }> {
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-  let count = 0
-  const today = new Date()
-
-  for (let d = new Date(sevenDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
-    const fromDate = new Date(d)
-    fromDate.setHours(0, 0, 0, 0)
-    const toDate = new Date(d)
-    toDate.setHours(23, 59, 59, 999)
-
-    try {
-      const response = await client.getOrders({
-        fromDate: fromDate.toISOString(),
-        toDate: toDate.toISOString(),
-      })
-
-
-
-      if (response.data?.contents) {
-        for (const order of response.data.contents) {
-          const { data: existingOrder } = await supabase
-            .from('orders')
-            .select('id')
-            .eq('platform_order_id', order.productOrderId)
-            .single()
-
-          if (existingOrder) {
-            await supabase
-              .from('orders')
-              .update({
-                status: mapNaverOrderStatus(order.orderStatus),
-                tracking_number: order.trackingNumber || null,
-                courier_code: order.deliveryCompanyCode || null,
-              })
-              .eq('id', existingOrder.id)
-          } else {
-            const { data: product } = await supabase
-              .from('products')
-              .select('id')
-              .eq('store_id', storeId)
-              .ilike('name', `%${order.productName.slice(0, 20)}%`)
-              .limit(1)
-              .single()
-
-            await supabase.from('orders').insert({
-              store_id: storeId,
-              platform_order_id: order.productOrderId,
-              product_id: product?.id || null,
-              quantity: order.quantity,
-              customer_name: order.shippingAddress?.name || order.ordererName,
-              customer_address: order.shippingAddress
-                ? `${order.shippingAddress.baseAddress} ${order.shippingAddress.detailAddress}`
-                : null,
-              status: mapNaverOrderStatus(order.orderStatus),
-              tracking_number: order.trackingNumber || null,
-              courier_code: order.deliveryCompanyCode || null,
-              order_date: order.orderDate,
-            })
-          }
-          count++
-        }
-      }
-    } catch (error) {
-      console.error(`Error syncing orders for date ${d.toISOString()}:`, error)
-    }
-  }
-
-  return { count }
-}
-
-async function syncProducts(
-  supabase: SupabaseAdminClient,
-  client: NaverCommerceClient,
-  storeId: string
-): Promise<{ count: number }> {
-  let count = 0
-
-  try {
-    const response = await client.searchProducts({
-      productStatusTypes: ['SALE', 'SUSPENSION', 'WAIT', 'UNADMISSION', 'REJECTION', 'PROHIBITION'],
-      pageSize: 100,
-    })
-
-    if (response.contents) {
-      for (const product of response.contents) {
-        const channelProduct = product.channelProducts?.[0]
-        if (!channelProduct) continue
-
-        const platformProductId = String(channelProduct.channelProductNo)
-
-        const { data: existingByPlatformId } = await supabase
-          .from('products')
-          .select('id')
-          .eq('store_id', storeId)
-          .eq('platform_product_id', platformProductId)
-          .single()
-
-        if (existingByPlatformId) {
-          await supabase
-            .from('products')
-            .update({
-              name: channelProduct.name,
-              price: channelProduct.discountedPrice || channelProduct.salePrice,
-              stock_quantity: channelProduct.stockQuantity,
-              status: channelProduct.statusType,
-              image_url: channelProduct.representativeImage?.url || null,
-              category: channelProduct.wholeCategoryName || null,
-              brand: channelProduct.brandName || null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', existingByPlatformId.id)
-        } else {
-          const sku = channelProduct.sellerManagementCode || null
-
-          const { data: existingBySku } = sku
-            ? await supabase
-                .from('products')
-                .select('id')
-                .eq('store_id', storeId)
-                .eq('sku', sku)
-                .single()
-            : { data: null }
-
-          if (existingBySku) {
-            await supabase
-              .from('products')
-              .update({
-                name: channelProduct.name,
-                price: channelProduct.discountedPrice || channelProduct.salePrice,
-                stock_quantity: channelProduct.stockQuantity,
-                platform_product_id: platformProductId,
-                status: channelProduct.statusType,
-                image_url: channelProduct.representativeImage?.url || null,
-                category: channelProduct.wholeCategoryName || null,
-                brand: channelProduct.brandName || null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', existingBySku.id)
-          } else {
-            await supabase.from('products').insert({
-              store_id: storeId,
-              name: channelProduct.name,
-              price: channelProduct.discountedPrice || channelProduct.salePrice,
-              stock_quantity: channelProduct.stockQuantity,
-              sku,
-              platform_product_id: platformProductId,
-              status: channelProduct.statusType,
-              image_url: channelProduct.representativeImage?.url || null,
-              category: channelProduct.wholeCategoryName || null,
-              brand: channelProduct.brandName || null,
-            })
-          }
-        }
-        count++
-      }
-    }
-  } catch (error) {
-    console.error('Error syncing products:', error)
-  }
-
-  return { count }
-}
-
-function mapNaverOrderStatus(naverStatus: string): 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'CancelRequested' | 'Cancelled' {
-  const statusMap: Record<string, 'New' | 'Ordered' | 'Dispatched' | 'Delivering' | 'Delivered' | 'Confirmed' | 'CancelRequested' | 'Cancelled'> = {
-    PAYED: 'New',
-    PAYMENT_WAITING: 'New',
-    DELIVERING: 'Delivering',
-    DELIVERED: 'Delivered',
-    PURCHASE_DECIDED: 'Confirmed',
-    DISPATCHED: 'Dispatched',
-    CANCELED: 'Cancelled',
-    CANCELLED: 'Cancelled',
-    CANCELED_BY_NOPAYMENT: 'Cancelled',
-    RETURNED: 'Cancelled',
-    EXCHANGED: 'Cancelled',
-    CANCEL_REQUEST: 'CancelRequested',
-    CANCEL_REQUESTED: 'CancelRequested',
-    RETURN_REQUEST: 'CancelRequested',
-    RETURN_REQUESTED: 'CancelRequested',
-  }
-  return statusMap[naverStatus] || 'New'
 }
