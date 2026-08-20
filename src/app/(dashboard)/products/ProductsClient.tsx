@@ -178,20 +178,26 @@ export function ProductsClient({ initialProducts, accounts, loadError }: Product
   }, [filteredProducts])
 
   const handleSync = async () => {
-    const naverAccount = accounts.find((account) => account.platform === 'naver')
-    if (!naverAccount) {
-      toast.error('연결된 스마트스토어 계정이 없습니다. 설정에서 먼저 연결해주세요.')
+    // Sync every connected account (or just the filtered one) — a seller
+    // may run several stores on the same platform.
+    const targets = filterToAccountId(filter)
+      ? accounts.filter((account) => account.id === filter)
+      : accounts
+    if (targets.length === 0) {
+      toast.error('연결된 마켓 계정이 없습니다. 설정에서 먼저 연결해주세요.')
       return
     }
     setIsSyncing(true)
     try {
-      const result = await syncProductsFromMarket(naverAccount.id, 'initial')
-      if (result.success) {
-        toast.success(`${result.syncedCount}개 상품이 동기화되었습니다.`)
-        router.refresh()
-      } else {
-        toast.error(result.error || '동기화에 실패했습니다.')
+      for (const account of targets) {
+        const result = await syncProductsFromMarket(account.id, 'initial')
+        if (result.success) {
+          toast.success(`${account.name}: ${result.syncedCount}개 상품 동기화`)
+        } else {
+          toast.error(`${account.name}: ${result.error || '동기화 실패'}`)
+        }
       }
+      router.refresh()
     } finally {
       setIsSyncing(false)
     }
