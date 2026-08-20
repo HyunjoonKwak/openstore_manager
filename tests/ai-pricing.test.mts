@@ -25,5 +25,12 @@ test('unknown models fall back to the default model rate', () => {
 
 test('krw formatting keeps sub-won amounts visible', () => {
   assert.match(formatKrw(0.0001), /^약 0\.\d+원$/)
-  assert.equal(formatKrw(1 / KRW_PER_USD * 1000), '약 1,000원')
+})
+
+test('the usd→krw rate is a plausible, explicitly pinned value', () => {
+  // Pinned deliberately: an unnoticed drift here silently mis-reports every
+  // spend figure and shifts where the monthly cap bites
+  assert.equal(KRW_PER_USD, 1480)
+  assert.equal(costKrw(1), 1480)
+  assert.equal(formatKrw(1), '약 1,480원')
 })

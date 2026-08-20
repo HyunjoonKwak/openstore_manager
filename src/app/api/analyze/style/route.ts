@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { callClaude } from '@/lib/ai/claude'
+import { callClaude, parseJsonReply, AiJsonParseError } from '@/lib/ai/claude'
 import { AI_MODEL, formatKrw } from '@/lib/ai/pricing'
+import { aiErrorStatus } from '@/lib/ai/http-status'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 interface ColorInfo {
@@ -206,13 +207,15 @@ Respond with a JSON object in this exact format:
   "designRecommendations": ["추천1", "추천2", "추천3"]
 }`,
         },
-      ] as never,
+      ],
       maxTokens: 2000,
+      temperature: 0.3,
+      jsonOnly: true,
     })
     if (!result.ok) {
       return NextResponse.json(
         { error: result.error },
-        { status: result.code === 'limit_exceeded' ? 429 : result.code === 'no_key' ? 503 : 502 }
+        { status: aiErrorStatus(result.code) }
       )
     }
 
@@ -225,7 +228,7 @@ Respond with a JSON object in this exact format:
       )
     }
 
-    const analysisResult: StyleAnalysisResult = JSON.parse(responseContent)
+    const analysisResult = parseJsonReply<StyleAnalysisResult>(responseContent)
 
     const usageInfo = {
       model: AI_MODEL,
@@ -250,6 +253,10 @@ Respond with a JSON object in this exact format:
     })
 
   } catch (error) {
+    if (error instanceof AiJsonParseError) {
+      console.error('Style analysis — AI reply was not JSON:', error.reply)
+      return NextResponse.json({ error: '스타일 분석 응답 형식이 올바르지 않습니다. 다시 시도해주세요.' }, { status: 502 })
+    }
     console.error('Style analysis error:', error)
     return NextResponse.json(
       { error: '스타일 분석에 실패했습니다. 잠시 후 다시 시도해주세요.' },

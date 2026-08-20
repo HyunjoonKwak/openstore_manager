@@ -48,7 +48,7 @@ NAS에서 `/docker/store-manager/` 폴더 생성 후 `.env` 파일 작성:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-OPENAI_API_KEY=sk-your-key
+ANTHROPIC_API_KEY=sk-ant-your-key
 CRON_SECRET=your-cron-secret
 SCHEDULER_SECRET=your-optional-scheduler-secret
 SCRAPER_ALLOWED_HOSTS=

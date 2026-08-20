@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { callClaude, toImageBlock } from '@/lib/ai/claude'
+import { callClaude, toImageBlock, parseJsonReply, AiJsonParseError } from '@/lib/ai/claude'
 import { AI_MODEL, formatKrw } from '@/lib/ai/pricing'
+import { aiErrorStatus } from '@/lib/ai/http-status'
 import type { Json } from '@/types/database.types'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -124,8 +125,14 @@ const ANALYSIS_PROMPT = `당신은 이커머스 가격 분석 전문가입니다
 }`
 
 export async function POST(request: NextRequest) {
+  // Hoisted so the outer catch can still close out the row — otherwise any
+  // throw after the insert leaves the log stuck on 'pending' forever
+  let logId: string | null = null
+  let supabaseRef: Awaited<ReturnType<typeof createClient>> | null = null
+
   try {
     const supabase = await createClient()
+    supabaseRef = supabase
     const { data: userData } = await supabase.auth.getUser()
 
     if (!userData.user) {
@@ -175,6 +182,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    logId = logData.id
+
     const productContext = `
 상품 정보:
 - 상품명: ${payload.product.title || 'N/A'}
@@ -211,6 +220,13 @@ ${payload.page.detailText?.slice(0, 3000) || 'N/A'}
       system: 'You are an expert Korean e-commerce analyst. Always respond with valid JSON in Korean.',
       messages: [{ role: 'user', content: userContent }],
       maxTokens: 4000,
+      temperature: 0.3,
+      jsonOnly: true,
+      metadata: {
+        url: payload.url,
+        hasScreenshot: !!payload.screenshot,
+        source: 'extension',
+      },
     })
 
     if (!result.ok) {
@@ -221,27 +237,12 @@ ${payload.page.detailText?.slice(0, 3000) || 'N/A'}
 
       return NextResponse.json(
         { error: result.error },
-        {
-          status: result.code === 'limit_exceeded' ? 429 : result.code === 'no_key' ? 503 : 502,
-          headers: corsHeaders(),
-        }
+        { status: aiErrorStatus(result.code), headers: corsHeaders() }
       )
     }
 
     const responseContent = result.text
-
-
-    let analysisResult
-    try {
-      const jsonMatch = responseContent.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        analysisResult = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('No JSON found in response')
-      }
-    } catch {
-      analysisResult = { rawResponse: responseContent }
-    }
+    const analysisResult = parseJsonReply<Record<string, unknown>>(responseContent)
 
     const fullResult = {
       analysis: analysisResult,
@@ -256,13 +257,19 @@ ${payload.page.detailText?.slice(0, 3000) || 'N/A'}
       hasScreenshot: !!payload.screenshot,
     }
 
-    await supabase
+    const { error: completeError } = await supabase
       .from('analysis_logs')
       .update({
         status: 'completed',
         analysis_result: fullResult as unknown as Json,
       })
       .eq('id', logData.id)
+
+    if (completeError) {
+      // The analysis itself succeeded, so still return it — but do not let
+      // the row claim 'pending' while the caller was told success
+      console.error('Failed to mark analysis log completed:', completeError.message)
+    }
 
     return NextResponse.json({
       success: true,
@@ -276,6 +283,18 @@ ${payload.page.detailText?.slice(0, 3000) || 'N/A'}
     }, { headers: corsHeaders() })
 
   } catch (error) {
+    if (logId && supabaseRef) {
+      await supabaseRef.from('analysis_logs').update({ status: 'failed' }).eq('id', logId)
+    }
+
+    if (error instanceof AiJsonParseError) {
+      console.error('Extension analysis — AI reply was not JSON:', error.reply)
+      return NextResponse.json(
+        { error: '분석 응답 형식이 올바르지 않습니다. 다시 시도해주세요.' },
+        { status: 502, headers: corsHeaders() }
+      )
+    }
+
     console.error('Extension analysis error:', error)
     return NextResponse.json(
       { error: '분석에 실패했습니다. 잠시 후 다시 시도해주세요.' },

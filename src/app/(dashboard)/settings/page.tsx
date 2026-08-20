@@ -192,7 +192,7 @@ export default function SettingsPage() {
           naverClientSecret: '',
           naverApiHubClientId: '',
           naverApiHubClientSecret: '',
-              })
+        })
         setEditingApi({ naverCommerce: false, naverApiHub: false })
         setApiConnectionState({ naverCommerce: 'idle', naverApiHub: 'idle' })
         toast.success('설정이 저장되었습니다.')

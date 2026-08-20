@@ -60,7 +60,7 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase 프로젝트 URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase Anonymous Key |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase Service Role Key (CRON용) |
-| `OPENAI_API_KEY` | ❌ | OpenAI API Key (AI 기능 사용시) |
+| `ANTHROPIC_API_KEY` | ❌ | Claude API Key (개인 키 미설정 시 서버 폴백) |
 | `CRON_SECRET` | ✅ | 자동 동기화 및 배송 점검 API 인증 키 |
 | `SCHEDULER_SECRET` | ❌ | 스케줄러 관리 API 전용 인증 키 (미설정 시 `CRON_SECRET` 사용) |
 | `SCRAPER_ALLOWED_HOSTS` | ❌ | 추가로 허용할 HTTPS 상품 호스트 목록 (쉼표 구분) |

@@ -15,6 +15,7 @@ import {
   type AiSettingsView,
 } from '@/lib/actions/ai-settings'
 import { getAiUsageSummary, type UsageSummary } from '@/lib/actions/ai-usage'
+import { LIMIT_PRESETS, MAX_LIMIT_KRW } from '@/lib/ai/limits'
 
 const USAGE_TYPE_LABELS: Record<string, string> = {
   benchmarking_structure: '벤치마킹 (구조)',
@@ -27,7 +28,6 @@ const USAGE_TYPE_LABELS: Record<string, string> = {
 // AI settings — Anthropic key + monthly spend cap. The cap is enforced
 // server-side in callClaude(); this tab only reads and writes it.
 
-const LIMIT_PRESETS = [0, 3000, 10000, 30000]
 
 function formatKrw(value: number) {
   return `${Math.round(value).toLocaleString()}원`
@@ -60,9 +60,18 @@ export function AiTab() {
   }, [load])
 
   const handleSave = async () => {
+    // Number('') is 0, which would silently disable AI on an empty field
+    if (limit.trim() === '') {
+      toast.error('월 한도를 입력해주세요. AI를 끄려면 0을 입력하세요.')
+      return
+    }
     const parsedLimit = Number(limit)
     if (!Number.isInteger(parsedLimit) || parsedLimit < 0) {
       toast.error('월 한도는 0 이상의 정수로 입력해주세요.')
+      return
+    }
+    if (parsedLimit > MAX_LIMIT_KRW) {
+      toast.error(`월 한도는 ${MAX_LIMIT_KRW.toLocaleString()}원을 넘을 수 없습니다.`)
       return
     }
 
@@ -200,6 +209,7 @@ export function AiTab() {
               type="number"
               inputMode="numeric"
               min={0}
+              max={MAX_LIMIT_KRW}
               step={1000}
               value={limit}
               onChange={(event) => setLimit(event.target.value)}

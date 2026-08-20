@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { callClaude } from '@/lib/ai/claude'
+import { callClaude, parseJsonReply, AiJsonParseError } from '@/lib/ai/claude'
 import { AI_MODEL, formatKrw } from '@/lib/ai/pricing'
+import { aiErrorStatus } from '@/lib/ai/http-status'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
@@ -91,13 +92,15 @@ Return JSON only.`
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
-      ] as never,
+      ],
       maxTokens: 4000,
+      temperature: 0.7,
+      jsonOnly: true,
     })
     if (!result.ok) {
       return NextResponse.json(
         { error: result.error },
-        { status: result.code === 'limit_exceeded' ? 429 : result.code === 'no_key' ? 503 : 502 }
+        { status: aiErrorStatus(result.code) }
       )
     }
 
@@ -106,7 +109,7 @@ Return JSON only.`
       throw new Error('No content generated')
     }
 
-    const parsed = JSON.parse(content)
+    const parsed = parseJsonReply<Record<string, unknown>>(content)
 
     const usageInfo = {
       model: AI_MODEL,
@@ -119,6 +122,10 @@ Return JSON only.`
 
     return NextResponse.json({ ...parsed, usage: usageInfo })
   } catch (error) {
+    if (error instanceof AiJsonParseError) {
+      console.error('AI Generation — AI reply was not JSON:', error.reply)
+      return NextResponse.json({ error: 'AI 응답 형식이 올바르지 않습니다. 다시 시도해주세요.' }, { status: 502 })
+    }
     console.error('AI Generation error:', error)
     return NextResponse.json(
       { error: 'Failed to generate content' },

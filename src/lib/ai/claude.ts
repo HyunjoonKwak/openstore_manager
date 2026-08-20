@@ -1,6 +1,7 @@
 import 'server-only'
 
 import Anthropic from '@anthropic-ai/sdk'
+import { JSON_ONLY_INSTRUCTION } from './json'
 import { createRedesignClient } from '@/lib/supabase/redesign-server'
 import { decryptSecret } from '@/lib/secret-crypto'
 import { AI_MODEL, costKrw, costUsd } from './pricing'
@@ -9,25 +10,14 @@ import { AI_MODEL, costKrw, costUsd } from './pricing'
 // the monthly spend cap before spending anything, calls Claude, then
 // records usage. Callers never construct an Anthropic client themselves.
 
-const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
-type SupportedImageType = (typeof SUPPORTED_IMAGE_TYPES)[number]
-
-/**
- * Convert a data: URL or an http(s) URL into a Claude image block.
- * OpenAI accepted either shape under one `image_url` field; Claude needs
- * the base64 payload and media type split out.
- */
-export function toImageBlock(source: string): Anthropic.ImageBlockParam {
-  const dataUrl = source.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/)
-  if (dataUrl) {
-    const mediaType = dataUrl[1].toLowerCase()
-    const supported = (SUPPORTED_IMAGE_TYPES as readonly string[]).includes(mediaType)
-      ? (mediaType as SupportedImageType)
-      : 'image/png'
-    return { type: 'image', source: { type: 'base64', media_type: supported, data: dataUrl[2] } }
-  }
-  return { type: 'image', source: { type: 'url', url: source } }
-}
+export {
+  toImageBlock,
+  isSupportedImageType,
+  UnsupportedImageTypeError,
+  MAX_IMAGE_BYTES,
+  type SupportedImageType,
+} from './images'
+export { parseJsonReply, AiJsonParseError } from './json'
 
 export interface AiSettings {
   apiKey: string | null
@@ -86,8 +76,8 @@ export interface MonthlySpend {
 }
 
 /** Month-to-date spend against the cap. Callers gate on `exceeded`. */
-export async function getMonthlySpend(): Promise<MonthlySpend> {
-  const { monthlyLimitKrw } = await getAiSettings()
+export async function getMonthlySpend(settings?: AiSettings): Promise<MonthlySpend> {
+  const { monthlyLimitKrw } = settings ?? (await getAiSettings())
   const supabase = await createRedesignClient()
   const { data: userData } = await supabase.auth.getUser()
 
@@ -138,8 +128,13 @@ export interface AiCallInput {
   system?: string
   messages: Anthropic.MessageParam[]
   maxTokens: number
+  temperature?: number
+  /** Recorded alongside usage so a spend spike can be traced to its cause. */
+  metadata?: Record<string, unknown>
   /** Constrains the reply to this JSON schema (structured outputs). */
   jsonSchema?: Record<string, unknown>
+  /** Appends a JSON-only instruction; pair with parseJsonReply(). */
+  jsonOnly?: boolean
 }
 
 export type AiCallResult =
@@ -150,7 +145,8 @@ async function recordUsage(
   usageType: AiUsageType,
   inputTokens: number,
   outputTokens: number,
-  cost: number
+  cost: number,
+  metadata: Record<string, unknown> = {}
 ) {
   try {
     const supabase = await createRedesignClient()
@@ -159,10 +155,10 @@ async function recordUsage(
 
     const client = supabase as unknown as {
       from: (table: string) => {
-        insert: (row: Record<string, unknown>) => PromiseLike<{ error: unknown }>
+        insert: (row: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>
       }
     }
-    await client.from('ai_usage_logs').insert({
+    const { error } = await client.from('ai_usage_logs').insert({
       user_id: userData.user.id,
       usage_type: usageType,
       model: AI_MODEL,
@@ -170,7 +166,16 @@ async function recordUsage(
       completion_tokens: outputTokens,
       total_tokens: inputTokens + outputTokens,
       estimated_cost_usd: cost,
+      metadata,
     })
+
+    // The spend cap is computed from these rows and nothing else, so a
+    // rejected insert silently disables it. Surface it loudly.
+    if (error) {
+      console.error(
+        `[ai] usage insert rejected — the monthly cap is now under-counting: ${error.message}`
+      )
+    }
   } catch (error) {
     // Usage logging must never break the feature it measures
     console.error('Failed to record AI usage:', error)
@@ -182,7 +187,8 @@ async function recordUsage(
  * callers surface `error` rather than catching exceptions.
  */
 export async function callClaude(input: AiCallInput): Promise<AiCallResult> {
-  const { apiKey, monthlyLimitKrw } = await getAiSettings()
+  const settings = await getAiSettings()
+  const { apiKey, monthlyLimitKrw } = settings
   if (!apiKey) {
     return {
       ok: false,
@@ -194,7 +200,7 @@ export async function callClaude(input: AiCallInput): Promise<AiCallResult> {
     return { ok: false, code: 'limit_exceeded', error: 'AI 기능이 꺼져 있습니다 (월 한도 0원).' }
   }
 
-  const spend = await getMonthlySpend()
+  const spend = await getMonthlySpend(settings)
   if (spend.exceeded) {
     return {
       ok: false,
@@ -205,10 +211,15 @@ export async function callClaude(input: AiCallInput): Promise<AiCallResult> {
 
   try {
     const client = new Anthropic({ apiKey })
+    const system = [input.system, input.jsonOnly ? JSON_ONLY_INSTRUCTION : null]
+      .filter(Boolean)
+      .join('\n\n')
+
     const response = await client.messages.create({
       model: AI_MODEL,
       max_tokens: input.maxTokens,
-      ...(input.system ? { system: input.system } : {}),
+      ...(system ? { system } : {}),
+      ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
       messages: input.messages,
       ...(input.jsonSchema
         ? { output_config: { format: { type: 'json_schema' as const, schema: input.jsonSchema } } }
@@ -218,7 +229,7 @@ export async function callClaude(input: AiCallInput): Promise<AiCallResult> {
     const inputTokens = response.usage.input_tokens
     const outputTokens = response.usage.output_tokens
     const cost = costUsd(AI_MODEL, inputTokens, outputTokens)
-    await recordUsage(input.usageType, inputTokens, outputTokens, cost)
+    await recordUsage(input.usageType, inputTokens, outputTokens, cost, input.metadata)
 
     if (response.stop_reason === 'refusal') {
       return { ok: false, code: 'api_error', error: 'AI가 이 요청에 응답할 수 없습니다.' }
@@ -231,9 +242,15 @@ export async function callClaude(input: AiCallInput): Promise<AiCallResult> {
 
     return { ok: true, text, inputTokens, outputTokens, costUsd: cost }
   } catch (error) {
+    // Provider messages can carry request echoes and internal detail —
+    // log them, return a fixed message
     const message = error instanceof Anthropic.APIError ? error.message : String(error)
     console.error('Claude call failed:', message)
-    return { ok: false, code: 'api_error', error: `AI 호출에 실패했습니다: ${message}` }
+    return {
+      ok: false,
+      code: 'api_error',
+      error: 'AI 호출에 실패했습니다. 잠시 후 다시 시도해주세요.',
+    }
   }
 }
 
@@ -267,7 +284,8 @@ export async function callClaudeWithImage(input: {
 
 /**
  * Verify the stored key reaches Anthropic. Deliberately skips the monthly cap
- * gate so a capped user can still confirm their key is valid.
+ * gate so a capped user can still confirm their key is valid — but the ping is
+ * still recorded, so every call that costs money lands in ai_usage_logs.
  */
 export async function testClaudeConnection(): Promise<{ ok: boolean; error: string | null }> {
   const { apiKey } = await getAiSettings()
@@ -277,14 +295,33 @@ export async function testClaudeConnection(): Promise<{ ok: boolean; error: stri
 
   try {
     const client = new Anthropic({ apiKey })
-    await client.messages.create({
+    const response = await client.messages.create({
       model: AI_MODEL,
       max_tokens: 4,
       messages: [{ role: 'user', content: 'ping' }],
     })
+
+    const inputTokens = response.usage.input_tokens
+    const outputTokens = response.usage.output_tokens
+    await recordUsage('ai_analyze', inputTokens, outputTokens, costUsd(AI_MODEL, inputTokens, outputTokens), {
+      source: 'connection_test',
+    })
+
     return { ok: true, error: null }
   } catch (error) {
-    const message = error instanceof Anthropic.APIError ? error.message : String(error)
-    return { ok: false, error: message }
+    const raw = error instanceof Anthropic.APIError ? error.message : String(error)
+    console.error('Claude connection test failed:', raw)
+
+    const status = error instanceof Anthropic.APIError ? error.status : undefined
+    if (status === 401 || status === 403) {
+      return { ok: false, error: 'API 키가 올바르지 않습니다.' }
+    }
+    if (status === 429) {
+      return { ok: false, error: 'Anthropic 사용량 한도에 걸렸습니다.' }
+    }
+    if (status === 400) {
+      return { ok: false, error: '요청이 거부되었습니다. 키의 권한과 크레딧을 확인해주세요.' }
+    }
+    return { ok: false, error: 'Anthropic에 연결하지 못했습니다.' }
   }
 }

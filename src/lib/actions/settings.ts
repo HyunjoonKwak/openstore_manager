@@ -19,14 +19,12 @@ export interface StoreProfile {
   apiConfigStatus: {
     naverCommerce: boolean
     naverApiHub: boolean
-    openai: boolean
   }
   apiConfig: {
     naverClientId?: string
     naverClientSecret?: string
     naverApiHubClientId?: string
     naverApiHubClientSecret?: string
-    openaiApiKey?: string
   }
   deliveryCheckSettings?: {
     times: number[]
@@ -52,7 +50,6 @@ interface ApiConfigJson {
   naverClientSecret?: string
   naverApiHubClientId?: string
   naverApiHubClientSecret?: string
-  openaiApiKey?: string
   deliveryCheckTimes?: number[] // 배송확인 시간 (KST 시간, 예: [9, 15, 21])
   deliveryCheckEnabled?: boolean
 }
@@ -107,14 +104,12 @@ export async function getStoreProfile(): Promise<{ data: StoreProfile | null; er
       apiConfigStatus: {
         naverCommerce: Boolean(apiConfig.naverClientId && apiConfig.naverClientSecret),
         naverApiHub: Boolean(apiConfig.naverApiHubClientId && apiConfig.naverApiHubClientSecret),
-        openai: Boolean(apiConfig.openaiApiKey || process.env.OPENAI_API_KEY),
       },
       apiConfig: {
         naverClientId: '',
         naverClientSecret: '',
         naverApiHubClientId: '',
         naverApiHubClientSecret: '',
-        openaiApiKey: '',
       },
       deliveryCheckSettings: {
         times: apiConfig.deliveryCheckTimes || [9, 15, 21],
@@ -136,7 +131,6 @@ interface CreateOrUpdateStoreInput {
   naverClientSecret?: string
   naverApiHubClientId?: string
   naverApiHubClientSecret?: string
-  openaiApiKey?: string
 }
 
 export async function createOrUpdateStore(
@@ -163,7 +157,6 @@ export async function createOrUpdateStore(
   if (input.naverClientSecret) apiConfig.naverClientSecret = input.naverClientSecret
   if (input.naverApiHubClientId) apiConfig.naverApiHubClientId = input.naverApiHubClientId
   if (input.naverApiHubClientSecret) apiConfig.naverApiHubClientSecret = input.naverApiHubClientSecret
-  if (input.openaiApiKey) apiConfig.openaiApiKey = input.openaiApiKey
 
   // Encrypt secret fields before persisting so the anon client only sees ciphertext
   const storedApiConfig = encryptApiConfigSecrets(apiConfig)

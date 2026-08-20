@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { callClaude, toImageBlock } from '@/lib/ai/claude'
+import { callClaude, parseJsonReply, AiJsonParseError } from '@/lib/ai/claude'
+import { toImageBlock, isSupportedImageType, MAX_IMAGE_BYTES } from '@/lib/ai/images'
 import { AI_MODEL, formatKrw } from '@/lib/ai/pricing'
+import { aiErrorStatus } from '@/lib/ai/http-status'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 const IMAGE_ANALYSIS_PROMPT = `You are an expert e-commerce analyst. Analyze this product detail page screenshot and provide comprehensive insights.
@@ -93,9 +95,24 @@ export async function POST(request: NextRequest) {
     let imageSource: string
 
     if (imageFile) {
+      // Anthropic rejects images over 5MB and unknown media types; catch both
+      // here so the user gets a reason instead of an opaque provider error
+      if (imageFile.size > MAX_IMAGE_BYTES) {
+        return NextResponse.json(
+          { error: `이미지가 너무 큽니다. ${MAX_IMAGE_BYTES / 1_000_000}MB 이하로 올려주세요.` },
+          { status: 413 }
+        )
+      }
+      const mimeType = (imageFile.type || '').toLowerCase()
+      if (!isSupportedImageType(mimeType)) {
+        return NextResponse.json(
+          { error: '지원하지 않는 이미지 형식입니다. JPEG·PNG·GIF·WebP만 가능합니다.' },
+          { status: 415 }
+        )
+      }
+
       const bytes = await imageFile.arrayBuffer()
       const base64 = Buffer.from(bytes).toString('base64')
-      const mimeType = imageFile.type || 'image/png'
       imageSource = `data:${mimeType};base64,${base64}`
     } else {
       imageSource = imageUrl!
@@ -110,28 +127,18 @@ export async function POST(request: NextRequest) {
         },
       ],
       maxTokens: 4000,
+      temperature: 0.3,
+      jsonOnly: true,
+      metadata: { type: 'image_analysis', source: imageFile ? 'upload' : 'url' },
     })
 
     if (!result.ok) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: result.code === 'limit_exceeded' ? 429 : result.code === 'no_key' ? 503 : 502 }
-      )
+      return NextResponse.json({ error: result.error }, { status: aiErrorStatus(result.code) })
     }
 
     const responseContent = result.text
 
-    let analysisResult
-    try {
-      const jsonMatch = responseContent.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        analysisResult = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('No JSON found in response')
-      }
-    } catch {
-      analysisResult = { rawResponse: responseContent }
-    }
+    const analysisResult = parseJsonReply<Record<string, unknown>>(responseContent)
 
     const usageInfo = {
       model: AI_MODEL,
@@ -149,6 +156,13 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof AiJsonParseError) {
+      console.error('Image analysis — AI reply was not JSON:', error.reply)
+      return NextResponse.json(
+        { error: '이미지 분석 응답 형식이 올바르지 않습니다. 다시 시도해주세요.' },
+        { status: 502 }
+      )
+    }
     console.error('Image analysis error:', error)
     return NextResponse.json(
       { error: '이미지 분석에 실패했습니다. 잠시 후 다시 시도해주세요.' },

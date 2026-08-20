@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { AiUsageType, AiUsageLog, Json } from '@/types/database.types'
+import { costKrw } from '@/lib/ai/pricing'
 
 // OpenAI pricing (2024 Q4, USD per 1K tokens) - update when pricing changes
 const PRICING: Record<string, { input: number; output: number }> = {
@@ -24,9 +25,10 @@ export async function calculateCost(
 }
 
 export async function formatCostKRW(usdCost: number): Promise<string> {
-  const krwRate = 1350
-  const krwCost = usdCost * krwRate
-  if (krwCost < 1) {
+  // Single rate with lib/ai/pricing — the AI tab renders the cap bar and this
+  // summary side by side, so two rates showed one spend as two numbers
+  const krwCost = costKrw(usdCost)
+  if (krwCost > 0 && krwCost < 1) {
     return `약 ${krwCost.toFixed(2)}원`
   }
   return `약 ${Math.round(krwCost).toLocaleString()}원`

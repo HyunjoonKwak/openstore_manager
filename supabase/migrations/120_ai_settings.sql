@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
   user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
   -- App-level encrypted secrets: { anthropicApiKey, ... }
   ai_config JSONB NOT NULL DEFAULT '{}'::jsonb,
-  -- 0 disables AI entirely; NULL means no cap (not recommended)
-  ai_monthly_limit_krw INTEGER NOT NULL DEFAULT 3000 CHECK (ai_monthly_limit_krw >= 0),
+  -- 0 disables AI entirely. The upper bound is enforced here too, not only in
+  -- the server action, because RLS lets the browser client UPDATE this row.
+  ai_monthly_limit_krw INTEGER NOT NULL DEFAULT 3000
+    CHECK (ai_monthly_limit_krw >= 0 AND ai_monthly_limit_krw <= 100000),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
