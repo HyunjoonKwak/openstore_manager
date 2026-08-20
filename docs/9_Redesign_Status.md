@@ -38,8 +38,13 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
 
 ## 알려진 잔여 (이번 재설계 범위 밖)
 
-- **스케줄러/cron 자동화**: `src/lib/scheduler.ts` + `/api/cron/*`가 아직 legacy 테이블 기준. 새 `sync_schedules`(market_account_id) 기준으로 재배선 필요 — market-sync 로직을 서비스-롤 컨텍스트로 분리해야 함
-- **설정 legacy 탭**: 서비스 연동(IntegrationsTab)·자동화·알림 탭이 legacy stores.api_config 기준. 마켓 계정 탭이 새 경로이며, OpenAI 키 등 공용 키의 이관 위치 결정 필요
+- ~~**스케줄러/cron 자동화**~~ → **2026-08-20 복구 완료**. in-process node-cron은 standalone 빌드에서 아예 기동하지 않았고 legacy 테이블을 참조했다. 이제:
+  `lib/sync/engine.ts`(세션 무관 코어) + `lib/sync/due.ts`(순수 due 규칙, 유닛 8개) +
+  `/api/cron/sync`(service role, CRON_SECRET 인증, 계정별 due 평가) 구조이고,
+  tick은 compose의 `store-manager-cron` 사이드카가 5분 간격으로 내부망에서 호출한다
+  (DSM 크론은 업데이트 시 초기화되므로 사용하지 않음). 설정 > 자동화 탭에서 계정별
+  주기·대상을 관리하고 최근 실행 기록을 본다. 운영에서 자동 실행 검증 완료.
+- **설정 legacy 탭**: 서비스 연동(IntegrationsTab)·알림 탭이 legacy stores.api_config 기준(자동화 탭은 재작성 완료). 마켓 계정 탭이 새 경로이며, OpenAI 키 등 공용 키의 이관 위치 결정 필요
 - **네이버 상세편집기(11탭)**: 구 inventory 상세편집기 삭제됨. 옵션·이미지·SEO 등 심화 편집은 새 리스팅 편집기 미지원 — 필요 시 remote_ref 기준으로 이식(네이버 판매자센터로 대체 가능)
 - **엑셀 상품 업로드**: excel-upload 액션 삭제. master_products 기준 재구현 필요 시 별도 작업
 - **tracking / benchmarking / analysis**: legacy 스키마와 무관하거나(carriers) 독립 테이블이라 그대로 동작. benchmark의 상품 연결(SelectProductDialog)만 legacy products 참조 여부 확인 필요
