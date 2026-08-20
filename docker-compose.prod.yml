@@ -28,3 +28,26 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Drives automatic sync: pings the app every 5 minutes over the compose
+  # network (never exposed publicly). The route itself decides which
+  # schedules are actually due, so a frequent tick is cheap.
+  store-manager-cron:
+    image: curlimages/curl:8.11.1
+    container_name: store-manager-cron
+    restart: unless-stopped
+    depends_on:
+      store-manager:
+        condition: service_healthy
+    environment:
+      - CRON_SECRET=${CRON_SECRET}
+      - TZ=Asia/Seoul
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          sleep 300
+          curl -sS -m 240 -o /dev/null \
+            -H "Authorization: Bearer $$CRON_SECRET" \
+            http://store-manager:3000/api/cron/sync || true
+        done
