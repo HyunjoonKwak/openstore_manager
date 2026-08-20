@@ -1,30 +1,22 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { decryptSecret } from '@/lib/secret-crypto'
-
-interface ApiConfigJson {
-  openaiApiKey?: string
-}
+import { testClaudeConnection } from '@/lib/ai/claude'
+import { AI_MODEL } from '@/lib/ai/pricing'
 
 export async function POST() {
   try {
     const supabase = await createClient()
-    
+
     const { data: userData } = await supabase.auth.getUser()
     if (!userData.user) {
-      return NextResponse.json(
-        { success: false, error: '로그인이 필요합니다.' },
-        { status: 401 }
-      )
+      return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 })
     }
 
-    const { allowed, retryAfterSeconds } = checkRateLimit(`ai-test-connection:${userData.user.id}`, {
-      limit: 20,
-      windowMs: 60_000,
-    })
+    const { allowed, retryAfterSeconds } = checkRateLimit(
+      `ai-test-connection:${userData.user.id}`,
+      { limit: 20, windowMs: 60_000 }
+    )
     if (!allowed) {
       return NextResponse.json(
         { success: false, error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
@@ -32,61 +24,28 @@ export async function POST() {
       )
     }
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('api_config')
-      .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
-      .maybeSingle()
+    const { ok, error } = await testClaudeConnection()
 
-    const apiConfig = (store?.api_config || {}) as ApiConfigJson
-    // Stored encrypted at rest; legacy plaintext passes through unchanged
-    const apiKey = apiConfig.openaiApiKey
-      ? decryptSecret(apiConfig.openaiApiKey)
-      : process.env.OPENAI_API_KEY
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { success: false, error: 'OpenAI API 키가 설정되지 않았습니다.' },
-        { status: 400 }
-      )
+    if (!ok) {
+      const message = error ?? 'Unknown error'
+      const status = /api[_ -]?key|authentication|401/i.test(message)
+        ? 401
+        : /rate.?limit|quota|credit/i.test(message)
+          ? 429
+          : 400
+      return NextResponse.json({ success: false, error: message }, { status })
     }
-
-    const openai = new OpenAI({ apiKey })
-    const models = await openai.models.list()
-    
-    const hasGPT4 = models.data.some(m => m.id.includes('gpt-4'))
-    const hasGPT35 = models.data.some(m => m.id.includes('gpt-3.5'))
 
     return NextResponse.json({
       success: true,
-      message: 'OpenAI API 연결 성공!',
-      details: {
-        modelsAvailable: models.data.length,
-        gpt4Available: hasGPT4,
-        gpt35Available: hasGPT35,
-      },
+      message: 'Anthropic API 연결 성공!',
+      details: { model: AI_MODEL },
     })
   } catch (error) {
-    console.error('OpenAI connection test error:', error)
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    
-    if (errorMessage.includes('Incorrect API key') || errorMessage.includes('invalid_api_key')) {
-      return NextResponse.json(
-        { success: false, error: 'API 키가 올바르지 않습니다.' },
-        { status: 401 }
-      )
-    }
-    
-    if (errorMessage.includes('quota') || errorMessage.includes('rate_limit')) {
-      return NextResponse.json(
-        { success: false, error: 'API 사용량 한도에 도달했습니다.' },
-        { status: 429 }
-      )
-    }
-
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Claude connection test error:', message)
     return NextResponse.json(
-      { success: false, error: `연결 테스트 실패: ${errorMessage}` },
+      { success: false, error: `연결 테스트 실패: ${message}` },
       { status: 500 }
     )
   }

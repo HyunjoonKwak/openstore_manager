@@ -1,35 +1,8 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
-import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { callClaude } from '@/lib/ai/claude'
+import { AI_MODEL, formatKrw } from '@/lib/ai/pricing'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { decryptSecret } from '@/lib/secret-crypto'
-
-interface ApiConfigJson {
-  openaiApiKey?: string
-}
-
-async function getOpenAIKey(): Promise<string | null> {
-  const supabase = await createClient()
-  const { data: userData } = await supabase.auth.getUser()
-  
-  if (userData.user) {
-    const { data: store } = await supabase
-      .from('stores')
-      .select('api_config')
-      .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
-      .maybeSingle()
-    
-    const apiConfig = (store?.api_config || {}) as ApiConfigJson
-    if (apiConfig.openaiApiKey) {
-      // Stored encrypted at rest; legacy plaintext passes through unchanged
-      return decryptSecret(apiConfig.openaiApiKey)
-    }
-  }
-  
-  return process.env.OPENAI_API_KEY || null
-}
 
 export async function POST(request: Request) {
   try {
@@ -52,16 +25,6 @@ export async function POST(request: Request) {
 
     const { productName, productDescription, currentTitle, currentFeatures, imageUrl, category, benchmarkContext } =
       await request.json()
-
-    const apiKey = await getOpenAIKey()
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
-        { status: 500 }
-      )
-    }
-
-    const openai = new OpenAI({ apiKey })
 
     const systemPrompt = `You are an expert e-commerce product page analyst specializing in Korean online marketplaces (Naver SmartStore, Coupang, etc.).
 
@@ -109,48 +72,35 @@ ${typeof benchmarkContext === 'string' && benchmarkContext.trim() ? `Benchmark r
 
 Please provide a comprehensive analysis with specific improvement suggestions.`
 
-    const model = 'gpt-4o'
-    const completion = await openai.chat.completions.create({
-      model,
+    const result = await callClaude({
+      usageType: 'ai_analyze',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
+      ] as never,
+      maxTokens: 4000,
     })
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.code === 'limit_exceeded' ? 429 : result.code === 'no_key' ? 503 : 502 }
+      )
+    }
 
-    const content = completion.choices[0].message.content
+    const content = result.text
     if (!content) {
       throw new Error('No content generated')
     }
 
     const parsed = JSON.parse(content)
 
-    const usage = completion.usage
-    let usageInfo = null
-
-    if (usage) {
-      const costUsd = await calculateCost(model, usage.prompt_tokens, usage.completion_tokens)
-      const costKrw = await formatCostKRW(costUsd)
-
-      usageInfo = {
-        model,
-        promptTokens: usage.prompt_tokens,
-        completionTokens: usage.completion_tokens,
-        totalTokens: usage.total_tokens,
-        costUsd,
-        costKrw,
-      }
-
-      await recordAiUsage({
-        usageType: 'ai_analyze',
-        model,
-        promptTokens: usage.prompt_tokens,
-        completionTokens: usage.completion_tokens,
-        totalTokens: usage.total_tokens,
-        metadata: { productName, category },
-      })
+    const usageInfo = {
+      model: AI_MODEL,
+      promptTokens: result.inputTokens,
+      completionTokens: result.outputTokens,
+      totalTokens: result.inputTokens + result.outputTokens,
+      costUsd: result.costUsd,
+      costKrw: formatKrw(result.costUsd),
     }
 
     return NextResponse.json({ ...parsed, usage: usageInfo })

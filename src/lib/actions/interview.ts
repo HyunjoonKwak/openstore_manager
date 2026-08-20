@@ -1,6 +1,6 @@
 'use server'
 
-import OpenAI from 'openai'
+import { callClaude } from '@/lib/ai/claude'
 import { createRedesignClient } from '@/lib/supabase/redesign-server'
 import { requireUser } from '@/lib/actions/auth-guard'
 import {
@@ -115,32 +115,45 @@ export async function submitInterviewAnswer(input: {
 async function generateCopywriting(
   context: Record<string, unknown>
 ): Promise<Partial<RenderSections> | null> {
-  // Server-level key only; per-user OpenAI keys stay on the legacy AI
-  // routes until they move to market_accounts config
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) return null
+  const COPY_SCHEMA = {
+    type: 'object',
+    properties: {
+      hero: { type: 'string' },
+      features: { type: 'string' },
+      benefits: { type: 'string' },
+      details: { type: 'string' },
+      cta: { type: 'string' },
+    },
+    required: ['hero', 'features', 'benefits', 'details', 'cta'],
+    additionalProperties: false,
+  }
 
-  try {
-    const openai = new OpenAI({ apiKey })
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      max_tokens: 600,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'user',
-          content: `다음 상품 정보로 상세페이지 카피 5개를 JSON으로 작성해줘.
+  const result = await callClaude({
+    usageType: 'ai_generate',
+    maxTokens: 600,
+    jsonSchema: COPY_SCHEMA,
+    messages: [
+      {
+        role: 'user',
+        content: `다음 상품 정보로 상세페이지 카피 5개를 JSON으로 작성해줘.
 상품 정보: ${JSON.stringify(context)}
 형식: {"hero": "메인 타이틀", "features": "특징/장점 한 문장", "benefits": "고객 혜택 한 문장", "details": "상세 정보 한 문장", "cta": "구매 유도 한 문장"}
 각 값은 한국어 한 문장, 과장 없이.`,
-        },
-      ],
-    })
-    const text = completion.choices[0]?.message?.content
-    if (!text) return null
-    return JSON.parse(text) as Partial<RenderSections>
+      },
+    ],
+  })
+
+  // Copywriting is optional polish: a failed or capped AI call degrades to
+  // the template defaults rather than blocking generation
+  if (!result.ok) {
+    console.error('Interview copywriting failed:', result.error)
+    return null
+  }
+
+  try {
+    return JSON.parse(result.text) as Partial<RenderSections>
   } catch (error) {
-    console.error('Interview copywriting failed:', error)
+    console.error('Interview copywriting returned invalid JSON:', error)
     return null
   }
 }

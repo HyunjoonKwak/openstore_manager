@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
-import type { Json } from '@/types/database.types'
-import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { callClaude } from '@/lib/ai/claude'
+import { AI_MODEL, formatKrw } from '@/lib/ai/pricing'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { decryptSecret } from '@/lib/secret-crypto'
 
 interface StructureSection {
   type: 'intro' | 'point' | 'proof' | 'offer' | 'cta' | 'other'
@@ -20,39 +17,6 @@ interface StructureAnalysisResult {
   strengths: string[]
   weaknesses: string[]
   recommendations: string[]
-}
-
-interface ApiConfigJson {
-  naverClientId?: string
-  naverClientSecret?: string
-  openaiApiKey?: string
-}
-
-async function getOpenAIClient(): Promise<OpenAI | null> {
-  const supabase = await createClient()
-  const { data: userData } = await supabase.auth.getUser()
-  
-  if (!userData.user) {
-    return null
-  }
-
-  const { data: store } = await supabase
-    .from('stores')
-    .select('api_config')
-    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
-    .maybeSingle()
-
-  const apiConfig = (store?.api_config as Json as ApiConfigJson) || {}
-  // Stored encrypted at rest; legacy plaintext passes through unchanged
-  const apiKey = apiConfig.openaiApiKey
-    ? decryptSecret(apiConfig.openaiApiKey)
-    : process.env.OPENAI_API_KEY
-
-  if (!apiKey) {
-    return null
-  }
-
-  return new OpenAI({ apiKey })
 }
 
 const STRUCTURE_ANALYSIS_PROMPT = `You are an expert in analyzing e-commerce product detail pages. Analyze the following product page content and break it down into logical sections.
@@ -103,15 +67,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const openai = await getOpenAIClient()
-    
-    if (!openai) {
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please add your API key in Settings.' },
-        { status: 400 }
-      )
-    }
-
     let textContent = content
 
     if (url && !content) {
@@ -136,9 +91,8 @@ export async function POST(request: NextRequest) {
       textContent = validateData.content.bodyText
     }
 
-    const model = 'gpt-4o-mini'
-    const completion = await openai.chat.completions.create({
-      model,
+    const result = await callClaude({
+      usageType: 'benchmarking_structure',
       messages: [
         {
           role: 'system',
@@ -161,13 +115,17 @@ Respond with a JSON object in this exact format:
   "recommendations": ["개선제안1", "개선제안2"]
 }`,
         },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-      max_tokens: 2000,
+      ] as never,
+      maxTokens: 2000,
     })
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.code === 'limit_exceeded' ? 429 : result.code === 'no_key' ? 503 : 502 }
+      )
+    }
 
-    const responseContent = completion.choices[0]?.message?.content
+    const responseContent = result.text
     
     if (!responseContent) {
       return NextResponse.json(
@@ -178,30 +136,13 @@ Respond with a JSON object in this exact format:
 
     const analysisResult: StructureAnalysisResult = JSON.parse(responseContent)
 
-    const usage = completion.usage
-    let usageInfo = null
-
-    if (usage) {
-      const costUsd = await calculateCost(model, usage.prompt_tokens, usage.completion_tokens)
-      const costKrw = await formatCostKRW(costUsd)
-
-      usageInfo = {
-        model,
-        promptTokens: usage.prompt_tokens,
-        completionTokens: usage.completion_tokens,
-        totalTokens: usage.total_tokens,
-        costUsd,
-        costKrw,
-      }
-
-      await recordAiUsage({
-        usageType: 'benchmarking_structure',
-        model,
-        promptTokens: usage.prompt_tokens,
-        completionTokens: usage.completion_tokens,
-        totalTokens: usage.total_tokens,
-        metadata: { url: url || null },
-      })
+    const usageInfo = {
+      model: AI_MODEL,
+      promptTokens: result.inputTokens,
+      completionTokens: result.outputTokens,
+      totalTokens: result.inputTokens + result.outputTokens,
+      costUsd: result.costUsd,
+      costKrw: formatKrw(result.costUsd),
     }
 
     return NextResponse.json({

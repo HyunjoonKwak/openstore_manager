@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Save, LogOut, User, Key, Bell, Loader2, RefreshCw, Store } from 'lucide-react'
+import { Save, LogOut, User, Key, Bell, Loader2, RefreshCw, Store, Bot } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layouts/Header'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,6 @@ import {
   updateNotificationSettings,
 } from '@/lib/actions/settings'
 import { testNaverConnection } from '@/lib/actions/naver-sync'
-import { getAiUsageSummary, type UsageSummary } from '@/lib/actions/ai-usage'
 import { useDefaultFolder } from '@/hooks/useDefaultFolder'
 import type { Platform } from '@/types/database.types'
 import { type ApiConnectionState } from './components/ApiStatusBadge'
@@ -25,6 +24,7 @@ import { AutomationTab } from './components/AutomationTab'
 import { NotificationsTab } from './components/NotificationsTab'
 import { NotificationSettingsDialog } from './components/NotificationSettingsDialog'
 import { MarketAccountsTab } from './components/MarketAccountsTab'
+import { AiTab } from './components/AiTab'
 import { getMarketAccounts, type MarketAccountInfo } from '@/lib/actions/market-accounts'
 
 export default function SettingsPage() {
@@ -32,7 +32,6 @@ export default function SettingsPage() {
   const [isPending, startTransition] = useTransition()
   const [isTesting, setIsTesting] = useState(false)
   const [isTestingApiHub, setIsTestingApiHub] = useState(false)
-  const [isTestingOpenAI, setIsTestingOpenAI] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false)
   const [marketAccounts, setMarketAccounts] = useState<MarketAccountInfo[]>([])
@@ -59,29 +58,24 @@ export default function SettingsPage() {
     naverClientSecret: '',
     naverApiHubClientId: '',
     naverApiHubClientSecret: '',
-    openaiApiKey: '',
   })
 
   const [apiConfigured, setApiConfigured] = useState({
     naverCommerce: false,
     naverApiHub: false,
-    openai: false,
   })
 
   const [editingApi, setEditingApi] = useState({
     naverCommerce: false,
     naverApiHub: false,
-    openai: false,
   })
 
   const [apiConnectionState, setApiConnectionState] = useState<{
     naverCommerce: ApiConnectionState
     naverApiHub: ApiConnectionState
-    openai: ApiConnectionState
   }>({
     naverCommerce: 'idle',
     naverApiHub: 'idle',
-    openai: 'idle',
   })
 
   const [notifications, setNotifications] = useState({
@@ -90,7 +84,6 @@ export default function SettingsPage() {
     aiComplete: false,
   })
 
-  const [aiUsage, setAiUsage] = useState<UsageSummary | null>(null)
 
   const [discordSettings, setDiscordSettings] = useState({
     webhookUrl: '',
@@ -140,7 +133,6 @@ export default function SettingsPage() {
           naverClientSecret: storeResult.data.apiConfig.naverClientSecret || '',
           naverApiHubClientId: storeResult.data.apiConfig.naverApiHubClientId || '',
           naverApiHubClientSecret: storeResult.data.apiConfig.naverApiHubClientSecret || '',
-          openaiApiKey: storeResult.data.apiConfig.openaiApiKey || '',
         })
         setApiConfigured(storeResult.data.apiConfigStatus)
         if (storeResult.data.notificationSettings) {
@@ -153,15 +145,7 @@ export default function SettingsPage() {
 
     loadProfile()
     checkNotificationStatus()
-    loadAiUsage()
   }, [])
-
-  const loadAiUsage = async () => {
-    const result = await getAiUsageSummary(30)
-    if (result.data) {
-      setAiUsage(result.data)
-    }
-  }
 
   const checkNotificationStatus = async () => {
     try {
@@ -196,24 +180,21 @@ export default function SettingsPage() {
         naverClientSecret: apiKeys.naverClientSecret || undefined,
         naverApiHubClientId: apiKeys.naverApiHubClientId || undefined,
         naverApiHubClientSecret: apiKeys.naverApiHubClientSecret || undefined,
-        openaiApiKey: apiKeys.openaiApiKey || undefined,
       })
 
       if (result.success) {
         setApiConfigured((prev) => ({
           naverCommerce: prev.naverCommerce || Boolean(apiKeys.naverClientId && apiKeys.naverClientSecret),
           naverApiHub: prev.naverApiHub || Boolean(apiKeys.naverApiHubClientId && apiKeys.naverApiHubClientSecret),
-          openai: prev.openai || Boolean(apiKeys.openaiApiKey),
         }))
         setApiKeys({
           naverClientId: '',
           naverClientSecret: '',
           naverApiHubClientId: '',
           naverApiHubClientSecret: '',
-          openaiApiKey: '',
-        })
-        setEditingApi({ naverCommerce: false, naverApiHub: false, openai: false })
-        setApiConnectionState({ naverCommerce: 'idle', naverApiHub: 'idle', openai: 'idle' })
+              })
+        setEditingApi({ naverCommerce: false, naverApiHub: false })
+        setApiConnectionState({ naverCommerce: 'idle', naverApiHub: 'idle' })
         toast.success('설정이 저장되었습니다.')
       } else {
         toast.error(result.error || '저장에 실패했습니다.')
@@ -261,31 +242,6 @@ export default function SettingsPage() {
       toast.error('연결 테스트 중 오류가 발생했습니다.')
     } finally {
       setIsTestingApiHub(false)
-    }
-  }
-
-  const handleTestOpenAI = async () => {
-    setIsTestingOpenAI(true)
-    try {
-      const response = await fetch('/api/ai/test-connection', {
-        method: 'POST',
-      })
-      const result = await response.json()
-
-      if (result.success) {
-        setApiConnectionState((prev) => ({ ...prev, openai: 'success' }))
-        toast.success(result.message, {
-          description: `사용 가능 모델: ${result.details.modelsAvailable}개 (GPT-4: ${result.details.gpt4Available ? 'O' : 'X'})`,
-        })
-      } else {
-        setApiConnectionState((prev) => ({ ...prev, openai: 'error' }))
-        toast.error(result.error || '연결 테스트 실패')
-      }
-    } catch {
-      setApiConnectionState((prev) => ({ ...prev, openai: 'error' }))
-      toast.error('연결 테스트 중 오류가 발생했습니다.')
-    } finally {
-      setIsTestingOpenAI(false)
     }
   }
 
@@ -380,7 +336,7 @@ export default function SettingsPage() {
             defaultValue="general"
             className="gap-4 [&_[data-slot=card]]:gap-4 [&_[data-slot=card]]:py-5 [&_[data-slot=card-content]]:px-5 [&_[data-slot=card-header]]:px-5"
           >
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-5">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-6">
               <TabsTrigger value="markets" className="py-2.5">
                 <Store className="h-4 w-4" />
                 마켓 계정
@@ -396,6 +352,10 @@ export default function SettingsPage() {
               <TabsTrigger value="automation" className="py-2.5">
                 <RefreshCw className="h-4 w-4" />
                 자동화
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="py-2.5">
+                <Bot className="h-4 w-4" />
+                AI
               </TabsTrigger>
               <TabsTrigger value="notifications" className="py-2.5">
                 <Bell className="h-4 w-4" />
@@ -437,16 +397,17 @@ export default function SettingsPage() {
                 apiConnectionState={apiConnectionState}
                 isTesting={isTesting}
                 isTestingApiHub={isTestingApiHub}
-                isTestingOpenAI={isTestingOpenAI}
                 handleTestConnection={handleTestConnection}
                 handleTestApiHub={handleTestApiHub}
-                handleTestOpenAI={handleTestOpenAI}
-                aiUsage={aiUsage}
               />
             </TabsContent>
 
             <TabsContent value="automation" className="mt-0">
               <AutomationTab />
+            </TabsContent>
+
+            <TabsContent value="ai" className="mt-0">
+              <AiTab />
             </TabsContent>
 
             <TabsContent value="notifications" className="mt-0">

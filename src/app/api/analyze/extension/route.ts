@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import { recordAiUsage, calculateCost, formatCostKRW } from '@/lib/actions/ai-usage'
+import { callClaude, toImageBlock } from '@/lib/ai/claude'
+import { AI_MODEL, formatKrw } from '@/lib/ai/pricing'
 import type { Json } from '@/types/database.types'
-import { resolveCurrentStoreId } from '@/lib/stores/current-store'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { decryptSecret } from '@/lib/secret-crypto'
-
-interface ApiConfigJson {
-  naverClientId?: string
-  naverClientSecret?: string
-  openaiApiKey?: string
-}
 
 interface ExtensionPayload {
   url: string
@@ -45,33 +37,6 @@ interface ExtensionPayload {
   }
   screenshot?: string
   capturedAt?: string
-}
-
-async function getOpenAIClient(): Promise<OpenAI | null> {
-  const supabase = await createClient()
-  const { data: userData } = await supabase.auth.getUser()
-  
-  if (!userData.user) {
-    return null
-  }
-
-  const { data: store } = await supabase
-    .from('stores')
-    .select('api_config')
-    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
-    .maybeSingle()
-
-  const apiConfig = (store?.api_config as Json as ApiConfigJson) || {}
-  // Stored encrypted at rest; legacy plaintext passes through unchanged
-  const apiKey = apiConfig.openaiApiKey
-    ? decryptSecret(apiConfig.openaiApiKey)
-    : process.env.OPENAI_API_KEY
-
-  if (!apiKey) {
-    return null
-  }
-
-  return new OpenAI({ apiKey })
 }
 
 const ANALYSIS_PROMPT = `당신은 이커머스 가격 분석 전문가입니다. 상품의 가격 구조와 구성을 정밀하게 분석해주세요.
@@ -190,15 +155,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const openai = await getOpenAIClient()
-    
-    if (!openai) {
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please add your API key in Settings.' },
-        { status: 400, headers: corsHeaders() }
-      )
-    }
-
     const { data: logData, error: logError } = await supabase
       .from('analysis_logs')
       .insert({
@@ -245,54 +201,35 @@ ${payload.page.colors?.slice(0, 10).map(c => `- ${c.color}: ${c.count}회`).join
 ${payload.page.detailText?.slice(0, 3000) || 'N/A'}
 `
 
-    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-      {
-        role: 'system',
-        content: 'You are an expert Korean e-commerce analyst. Always respond with valid JSON in Korean.',
-      },
-      {
-        role: 'user',
-        content: `${ANALYSIS_PROMPT}\n\n${productContext}`,
-      },
-    ]
+    const analysisText = `${ANALYSIS_PROMPT}\n\n${productContext}`
+    const userContent = payload.screenshot
+      ? [toImageBlock(payload.screenshot), { type: 'text' as const, text: analysisText }]
+      : analysisText
 
-    if (payload.screenshot) {
-      messages[1] = {
-        role: 'user',
-        content: [
-          { type: 'text', text: `${ANALYSIS_PROMPT}\n\n${productContext}` },
-          {
-            type: 'image_url',
-            image_url: {
-              url: payload.screenshot,
-              detail: 'high',
-            },
-          },
-        ],
-      }
-    }
-
-    const model = payload.screenshot ? 'gpt-4o' : 'gpt-4o-mini'
-    const completion = await openai.chat.completions.create({
-      model,
-      messages,
-      max_tokens: 4000,
-      temperature: 0.3,
+    const result = await callClaude({
+      usageType: 'benchmarking_structure',
+      system: 'You are an expert Korean e-commerce analyst. Always respond with valid JSON in Korean.',
+      messages: [{ role: 'user', content: userContent }],
+      maxTokens: 4000,
     })
 
-    const responseContent = completion.choices[0]?.message?.content
-    
-    if (!responseContent) {
+    if (!result.ok) {
       await supabase
         .from('analysis_logs')
         .update({ status: 'failed' })
         .eq('id', logData.id)
 
       return NextResponse.json(
-        { error: 'No response from AI' },
-        { status: 500, headers: corsHeaders() }
+        { error: result.error },
+        {
+          status: result.code === 'limit_exceeded' ? 429 : result.code === 'no_key' ? 503 : 502,
+          headers: corsHeaders(),
+        }
       )
     }
+
+    const responseContent = result.text
+
 
     let analysisResult
     try {
@@ -327,40 +264,15 @@ ${payload.page.detailText?.slice(0, 3000) || 'N/A'}
       })
       .eq('id', logData.id)
 
-    const usage = completion.usage
-    if (usage) {
-      const costUsd = await calculateCost(model, usage.prompt_tokens, usage.completion_tokens)
-      const costKrw = await formatCostKRW(costUsd)
-
-      await recordAiUsage({
-        usageType: 'benchmarking_structure',
-        model,
-        promptTokens: usage.prompt_tokens,
-        completionTokens: usage.completion_tokens,
-        totalTokens: usage.total_tokens,
-        metadata: { 
-          url: payload.url,
-          hasScreenshot: !!payload.screenshot,
-          source: 'extension',
-        },
-      })
-
-      return NextResponse.json({
-        success: true,
-        analysisId: logData.id,
-        analysis: analysisResult,
-        usage: {
-          model,
-          totalTokens: usage.total_tokens,
-          costKrw,
-        },
-      }, { headers: corsHeaders() })
-    }
-
     return NextResponse.json({
       success: true,
       analysisId: logData.id,
       analysis: analysisResult,
+      usage: {
+        model: AI_MODEL,
+        totalTokens: result.inputTokens + result.outputTokens,
+        costKrw: formatKrw(result.costUsd),
+      },
     }, { headers: corsHeaders() })
 
   } catch (error) {

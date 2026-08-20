@@ -44,7 +44,21 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
   tick은 compose의 `store-manager-cron` 사이드카가 5분 간격으로 내부망에서 호출한다
   (DSM 크론은 업데이트 시 초기화되므로 사용하지 않음). 설정 > 자동화 탭에서 계정별
   주기·대상을 관리하고 최근 실행 기록을 본다. 운영에서 자동 실행 검증 완료.
-- **설정 legacy 탭**: 서비스 연동(IntegrationsTab)·알림 탭이 legacy stores.api_config 기준(자동화 탭은 재작성 완료). 마켓 계정 탭이 새 경로이며, OpenAI 키 등 공용 키의 이관 위치 결정 필요
+- ~~**AI 기능(OpenAI 키 의존)**~~ → **2026-08-20 Claude 전환 완료**. 프로바이더를 Anthropic
+  Claude Haiku 4.5로 바꾸고 키 보관 위치를 legacy `stores.api_config`에서 `user_settings`
+  (마이그레이션 120, 사용자당 1행)로 옮겼다. 구조:
+  `lib/ai/pricing.ts`(모델·단가·원화 환산, 구 OpenAI 단가는 과거 로그 조회용으로 보존) +
+  `lib/ai/claude.ts`(단일 진입점 `callClaude`. 키 없음 → `no_key`, 한도 0 또는 당월 소진 →
+  `limit_exceeded` 순으로 **호출 전에** 게이트) + `lib/actions/ai-settings.ts`(설정 CRUD).
+  사용량은 기존 `ai_usage_logs`에 그대로 적재하고 당월 합계를 상한과 비교한다(기본 3,000원/월,
+  0원이면 AI 전체 비활성). 설정 > AI 탭에서 키 입력·연결 테스트·한도 조정·사용량 확인.
+  전환 대상 7곳: `/api/ai/generate`, `/api/ai/analyze`, `/api/ai/test-connection`,
+  `/api/analyze/{structure,style,image,extension}`, `lib/actions/interview.ts`.
+  이미지 라우트는 `toImageBlock()`으로 data URL·http URL을 Claude 이미지 블록으로 변환한다.
+  저장소에 `openai` 패키지 import는 0건.
+- **설정 legacy 탭**: 서비스 연동(IntegrationsTab)·알림 탭이 legacy stores.api_config 기준
+  (자동화·AI 탭은 재작성 완료). 마켓 계정 탭이 새 경로. IntegrationsTab의 OpenAI 키 입력란은
+  AI 탭으로 대체됐으므로 정리 대상
 - **네이버 상세편집기(11탭)**: 구 inventory 상세편집기 삭제됨. 옵션·이미지·SEO 등 심화 편집은 새 리스팅 편집기 미지원 — 필요 시 remote_ref 기준으로 이식(네이버 판매자센터로 대체 가능)
 - **엑셀 상품 업로드**: excel-upload 액션 삭제. master_products 기준 재구현 필요 시 별도 작업
 - **tracking / benchmarking / analysis**: legacy 스키마와 무관하거나(carriers) 독립 테이블이라 그대로 동작. benchmark의 상품 연결(SelectProductDialog)만 legacy products 참조 여부 확인 필요
