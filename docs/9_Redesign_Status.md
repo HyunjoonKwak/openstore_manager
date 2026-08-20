@@ -55,7 +55,14 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
   전환 대상 7곳: `/api/ai/generate`, `/api/ai/analyze`, `/api/ai/test-connection`,
   `/api/analyze/{structure,style,image,extension}`, `lib/actions/interview.ts`.
   이미지 라우트는 `toImageBlock()`으로 data URL·http URL을 Claude 이미지 블록으로 변환한다.
-  저장소에 `openai` 패키지 import는 0건.
+  저장소에 `openai` 패키지 import는 0건이고 의존성도 제거했다.
+  Claude에는 `response_format: json_object`가 없으므로 `lib/ai/json.ts`의
+  `parseJsonReply()`가 코드펜스·서두 문장을 걷어내고 실패 시 502로 떨어뜨린다
+  (구조/스타일 분석은 `temperature: 0.3`, 생성계는 `0.7`로 복원).
+  키는 `SECRETS_ENCRYPTION_KEY`가 없으면 **저장을 거부**하고, compose도 그 키 없이는
+  기동하지 않는다(`:?`). 상한은 서버 액션과 DB CHECK 양쪽에서 0~100,000원으로 막는다 —
+  RLS가 브라우저의 직접 UPDATE를 허용하기 때문. 2026-08-20 마이그레이션 120 적용 및
+  NAS 배포 완료(healthy).
 - **설정 legacy 탭**: 서비스 연동(IntegrationsTab)·알림 탭이 legacy stores.api_config 기준
   (자동화·AI 탭은 재작성 완료). 마켓 계정 탭이 새 경로. IntegrationsTab의 OpenAI 키 입력란은
   AI 탭으로 대체됐으므로 정리 대상
