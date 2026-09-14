@@ -304,6 +304,9 @@ export function AutomationTab() {
                     {run.marketAccountName}
                   </span>
                   <span className="w-16 shrink-0">{run.syncType}</span>
+                  <Badge variant="secondary" className="shrink-0 text-[10px]">
+                    {run.trigger === 'scheduled' ? '자동' : '수동'}
+                  </Badge>
                   <Badge
                     variant="outline"
                     className={cn(

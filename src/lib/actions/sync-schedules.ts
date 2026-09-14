@@ -25,9 +25,14 @@ export interface SyncScheduleView {
   lastSyncAt: string | null
 }
 
+export type SyncRunTrigger = 'scheduled' | 'manual'
+
 export interface SyncRunView {
   id: string
   marketAccountName: string
+  // 'scheduled' when the cron route stamped a schedule id, 'manual' otherwise
+  trigger: SyncRunTrigger
+  scheduleId: string | null
   syncType: string
   status: string
   itemsProcessed: number
@@ -201,6 +206,8 @@ export async function getSyncRuns(limit: number = 20): Promise<{
     data: rows.map((row) => ({
       id: row.id,
       marketAccountName: row.market_accounts?.name || '(삭제된 계정)',
+      trigger: row.schedule_id ? 'scheduled' : 'manual',
+      scheduleId: row.schedule_id,
       syncType: row.sync_type,
       status: row.status,
       itemsProcessed: row.items_processed,

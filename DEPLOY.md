@@ -1,140 +1,107 @@
 # Synology NAS Docker 배포 가이드
 
-## 사전 준비
+실제 배포 경로는 **로컬 빌드 → GHCR 푸시 → NAS 동기화 → `deploy.sh update`** 이다.
+GitHub Actions 워크플로는 없다(`.github/`가 존재하지 않음) — `main`에 push해도 이미지는
+자동으로 만들어지지 않으므로 아래 절차를 로컬에서 실행한다.
 
-### 1. GitHub Secrets 설정
-GitHub 저장소 → Settings → Secrets and variables → Actions에서 추가:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-### 2. GitHub 패키지 권한 확인
-저장소 Settings → Actions → General → Workflow permissions:
-- "Read and write permissions" 선택
-
----
-
-## 배포 방법
-
-### Step 1: 이미지 빌드 (자동)
-`main` 브랜치에 push하면 GitHub Actions가 자동으로:
-1. Docker 이미지 빌드
-2. `ghcr.io/hyunjoonkwak/openstore_manager:latest`로 푸시
-
-### Step 2: Synology에서 이미지 다운로드
-
-**Container Manager 사용:**
-1. Container Manager 열기
-2. 레지스트리 → 설정 → GitHub Container Registry 추가
-   - URL: `https://ghcr.io`
-   - 사용자명: GitHub 계정명
-   - 비밀번호: GitHub Personal Access Token (read:packages 권한)
-3. 이미지 → 추가 → URL에서 추가
-   - `ghcr.io/hyunjoonkwak/openstore_manager:latest`
-
-**SSH 사용:**
-```bash
-# GitHub 로그인 (Personal Access Token 필요)
-docker login ghcr.io -u YOUR_GITHUB_USERNAME
-
-# 이미지 다운로드
-docker pull ghcr.io/hyunjoonkwak/openstore_manager:latest
-```
-
-### Step 3: 환경변수 파일 생성
-
-NAS에서 `/docker/store-manager/` 폴더 생성 후 `.env` 파일 작성:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-ANTHROPIC_API_KEY=sk-ant-your-key
-CRON_SECRET=your-cron-secret
-SCHEDULER_SECRET=your-optional-scheduler-secret
-SCRAPER_ALLOWED_HOSTS=
-```
-
-### Step 4: 컨테이너 실행
-
-**Container Manager 사용:**
-1. 이미지 선택 → 실행
-2. 컨테이너 이름: `store-manager`
-3. 포트 설정: 로컬 `3300` → 컨테이너 `3000`
-4. 환경변수: `.env` 파일의 내용을 하나씩 추가
-5. 자동 재시작: 활성화
-
-**docker-compose 사용:**
-```bash
-cd /volume1/docker/store-manager
-
-# .env 파일이 같은 폴더에 있어야 함
-docker-compose up -d
-```
-
----
-
-## 역방향 프록시 설정
-
-Synology DSM → 제어판 → 로그인 포털 → 고급 → 역방향 프록시:
+## 구성 요소
 
 | 항목 | 값 |
 |------|-----|
-| 설명 | Store Manager |
-| 소스 프로토콜 | HTTPS |
-| 소스 호스트명 | store.yourdomain.com |
-| 소스 포트 | 443 |
-| 대상 프로토콜 | HTTP |
-| 대상 호스트명 | localhost |
-| 대상 포트 | 3300 |
+| 이미지 | `ghcr.io/hyunjoonkwak/openstore_manager:latest` (로컬 `manage.sh ghcr:push`가 빌드) |
+| NAS 경로 | `/volume1/code_work/store_manager` (root 소유, git 아님 — compose·deploy.sh·.env만 둔다) |
+| 컨테이너 | `store-manager` (포트 `3300→3000`) + `store-manager-cron` (5분 간격 `/api/cron/sync` 호출 사이드카) |
+| compose | `docker-compose.prod.yml` |
+| 외부 접근 | `https://store.specialrisk.me` — Nginx Proxy Manager(host #19) → `192.168.1.113:3300` |
+| DB | Supabase 호스티드 프로젝트. CLI 링크 안 됨 → **마이그레이션은 대시보드 SQL Editor에서 수동 적용** |
 
-### WebSocket 설정 (선택)
-사용자 정의 헤더 추가:
-- `Upgrade`: `$http_upgrade`
-- `Connection`: `$connection_upgrade`
-
----
-
-## SSL 인증서 (Let's Encrypt)
-
-1. 제어판 → 보안 → 인증서
-2. 추가 → 새 인증서 추가 → Let's Encrypt 인증서
-3. 도메인: `store.yourdomain.com`
-4. 이메일 입력 후 발급
-5. 발급 후 → 구성 → `store.yourdomain.com` 서비스에 인증서 적용
-
----
-
-## 업데이트
+## 배포 (한 번에)
 
 ```bash
-# 최신 이미지 다운로드
-docker pull ghcr.io/hyunjoonkwak/openstore_manager:latest
-
-# 컨테이너 재시작
-docker-compose down
-docker-compose up -d
-
-# (선택) 오래된 이미지 정리
-docker image prune -f
+# 저장소 루트에서 — ship 스킬이 아래 4단계를 순서대로 실행한다
+bash ~/.claude/skills/ship/ship.sh            # 태그 생략 시 latest
+bash ~/.claude/skills/ship/ship.sh v1.2.0     # 특정 태그
 ```
 
----
+1. `./manage.sh ghcr:push [tag]` — 로컬 buildx로 NAS용 이미지 빌드 + GHCR 푸시
+2. `docker-compose.prod.yml`, `deploy.sh`를 NAS로 동기화 (`sudo tee`)
+3. NAS에서 `sudo ./deploy.sh update` — 새 이미지 pull → 컨테이너 재생성
+4. `docker ps`로 상태 확인
+
+수동으로 나눠서 할 때:
+
+```bash
+./manage.sh ghcr:login            # 최초 1회 (GitHub PAT, write:packages)
+./manage.sh ghcr:push             # 빌드 + 푸시
+scp docker-compose.prod.yml deploy.sh nas:/tmp/ && \
+  ssh nas 'sudo mv /tmp/docker-compose.prod.yml /tmp/deploy.sh /volume1/code_work/store_manager/'
+ssh nas 'cd /volume1/code_work/store_manager && sudo ./deploy.sh update'
+```
+
+`deploy.sh` 명령: `login` `pull` `deploy` `update` `start` `stop` `restart` `status` `logs [svc]` `clean`
+
+> NAS 비대화형 SSH에는 docker가 PATH에 없다. 직접 실행할 때는 `sudo /usr/local/bin/docker ...` 전체 경로를 쓴다.
+
+## 환경변수 (`/volume1/code_work/store_manager/.env`)
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=            # cron 라우트가 사용
+CRON_SECRET=                          # 사이드카 ↔ /api/cron/sync 인증
+SECRETS_ENCRYPTION_KEY=               # 필수. 없으면 compose가 기동을 거부한다 (:?)
+ANTHROPIC_API_KEY=                    # 선택. 설정 > AI 탭의 사용자 키가 없을 때 폴백
+SCHEDULER_SECRET=                     # 선택
+SCRAPER_ALLOWED_HOSTS=                # 선택
+COOLSMS_API_KEY= COOLSMS_API_SECRET= COOLSMS_SENDER_ID=                       # 선택(문자)
+KAKAO_ALIMTALK_API_KEY= KAKAO_ALIMTALK_SENDER_ID= KAKAO_ALIMTALK_TEMPLATE_ID=  # 선택(알림톡)
+```
+
+COOLSMS_*/KAKAO_* 미설정 경고는 무해하다(선택 기능). `.env`를 바꾸면 `sudo ./deploy.sh restart`.
+
+## 마이그레이션
+
+`supabase/migrations/*.sql`은 Supabase 대시보드 → SQL Editor에서 번호 순서대로 수동 적용한다.
+새 마이그레이션이 포함된 배포는 **코드 배포 전에** SQL을 먼저 적용한다(코드가 새 컬럼·인덱스를
+전제하므로). 적용 여부는 `docs/9_Redesign_Status.md`에 기록한다.
+
+## 자동 동기화 (cron)
+
+- `store-manager-cron` 사이드카가 5분마다 `http://store-manager:3000/api/cron/sync`를
+  `Authorization: Bearer $CRON_SECRET`으로 호출한다. 라우트가 계정별 스케줄의 due 여부를 판단한다.
+- 설정 > 자동화 탭에서 계정별 주기·대상을 관리하고 최근 실행 기록(자동/수동 구분)을 본다.
+- 실행 기록(`sync_runs`)은 90일 지난 행을 매 tick마다 정리한다(`lib/sync/retention.ts`).
+- 강제 실행: `curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3300/api/cron/sync?force=1"` (NAS에서)
+
+## 역방향 프록시 (Nginx Proxy Manager)
+
+DSM 내장 역방향 프록시가 아니라 NAS의 `nginx-proxy-manager` 컨테이너(관리 UI `:81`)를 쓴다.
+
+- 프록시 호스트 `store.specialrisk.me` → `http://192.168.1.113:3300`, Force SSL, HTTP/2, Block Exploits
+- 인증서: Let's Encrypt `*.specialrisk.me` 와일드카드 (NPM이 자동 갱신)
+- `/data/nginx/custom/server_proxy.conf`에 `proxy_buffer_size 16k; proxy_buffers 4 32k;
+  proxy_busy_buffers_size 64k;`를 두어 Supabase 세션 쿠키가 큰 응답에서 나던
+  `upstream sent too big header` 502를 막는다. NPM UI에서 호스트를 수정해도 이 파일은 유지된다.
+- 공인 IP 갱신은 `cloudflare-ddns` 컨테이너(restart: unless-stopped)가 담당한다.
 
 ## 문제 해결
 
-### 로그 확인
 ```bash
-docker logs store-manager
-docker logs -f store-manager --tail 100
+# NAS에서
+sudo /usr/local/bin/docker ps --filter name=store-manager
+sudo /usr/local/bin/docker logs -f store-manager --tail 100
+sudo /usr/local/bin/docker logs store-manager-cron --tail 20
+sudo /usr/local/bin/docker exec store-manager env | grep -E 'SUPABASE|CRON|SECRETS'
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3300/        # 307(로그인 리다이렉트)이면 정상
+
+# NPM 쪽
+sudo /usr/local/bin/docker exec nginx-proxy-manager tail -20 /data/logs/proxy-host-19_error.log
 ```
 
-### 컨테이너 상태 확인
-```bash
-docker ps
-docker stats store-manager
-```
-
-### 환경변수 확인
-```bash
-docker exec store-manager env | grep SUPABASE
-```
+| 증상 | 원인 / 조치 |
+|------|-------------|
+| 컨테이너가 바로 종료 | `SECRETS_ENCRYPTION_KEY` 누락 — compose `:?` 가드. `.env` 확인 |
+| 로그인 직후 502 한 번 | NPM 버퍼 설정 누락 — 위 `server_proxy.conf` 확인 |
+| 자동 동기화가 돌지 않음 | `store-manager-cron` 상태, `CRON_SECRET` 일치 여부, 설정 > 자동화 탭 활성화 여부 |
+| AI 기능이 `no_key` | 설정 > AI 탭에 키 입력 또는 `.env`의 `ANTHROPIC_API_KEY` |
+| 설정 저장 시 "암호화 키" 오류 | `SECRETS_ENCRYPTION_KEY` 확인 |

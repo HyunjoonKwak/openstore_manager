@@ -6,44 +6,22 @@ import type {
   MarketListingRow,
   RedesignClient,
 } from '@/types/redesign.types'
+import {
+  buildSyncRunRow,
+  type SyncOutcome,
+  type SyncRunOptions,
+  type SyncRunRecordParams,
+} from './run-row'
 
 // Session-agnostic sync engine. Both the user-facing server actions and
 // the cron route drive these: the caller supplies the Supabase client
 // (session or service role), the account row and its adapter, so nothing
 // here depends on cookies or revalidation.
 
-export interface SyncOutcome {
-  success: boolean
-  processed: number
-  failed: number
-  error: string | null
-}
+export type { SyncOutcome, SyncRunOptions } from './run-row'
 
-async function recordSyncRun(
-  supabase: RedesignClient,
-  params: {
-    marketAccountId: string
-    syncType: string
-    direction: 'pull' | 'push'
-    outcome: SyncOutcome
-    startedAt: string
-  }
-) {
-  await supabase.from('sync_runs').insert({
-    market_account_id: params.marketAccountId,
-    sync_type: params.syncType,
-    direction: params.direction,
-    status: params.outcome.success
-      ? params.outcome.failed > 0
-        ? 'partial'
-        : 'completed'
-      : 'failed',
-    items_processed: params.outcome.processed,
-    items_failed: params.outcome.failed,
-    error_message: params.outcome.error,
-    started_at: params.startedAt,
-    completed_at: new Date().toISOString(),
-  })
+async function recordSyncRun(supabase: RedesignClient, params: SyncRunRecordParams) {
+  await supabase.from('sync_runs').insert(buildSyncRunRow(params))
 }
 
 // ------------------------------------------------------------------
@@ -104,9 +82,11 @@ export async function runProductSync(
   account: MarketAccountRow,
   adapter: MarketAdapter,
   mode: 'initial' | 'refresh' = 'refresh',
+  options: SyncRunOptions = {},
 ): Promise<SyncOutcome> {
   const startedAt = new Date().toISOString()
   const marketAccountId = account.id
+  const scheduleId = options.scheduleId ?? null
   const userId = account.user_id
 
   let listings: RemoteListingSummary[]
@@ -116,12 +96,13 @@ export async function runProductSync(
     const message = fetchError instanceof Error ? fetchError.message : '상품 목록 조회 실패'
     await recordSyncRun(supabase, {
       marketAccountId,
+      scheduleId,
       syncType: 'products',
       direction: 'pull',
       outcome: { success: false, processed: 0, failed: 0, error: message },
       startedAt,
     })
-    return { success: false, processed: 0 === 0 ? 0 : 0, failed: 0, error: message }
+    return { success: false, processed: 0, failed: 0, error: message }
   }
 
   const legacyRefs = mode === 'initial' ? await loadLegacySupplierRefs(supabase) : []
@@ -232,6 +213,7 @@ export async function runProductSync(
 
   await recordSyncRun(supabase, {
     marketAccountId,
+    scheduleId,
     syncType: 'products',
     direction: 'pull',
     outcome: { success: true, processed, failed, error: null },
@@ -250,9 +232,11 @@ export async function runOrderSync(
   account: MarketAccountRow,
   adapter: MarketAdapter,
   days: number = 7,
+  options: SyncRunOptions = {},
 ): Promise<SyncOutcome> {
   const startedAt = new Date().toISOString()
   const marketAccountId = account.id
+  const scheduleId = options.scheduleId ?? null
   const userId = account.user_id
 
   let orders: NormalizedOrder[]
@@ -265,12 +249,13 @@ export async function runOrderSync(
     const message = fetchError instanceof Error ? fetchError.message : '주문 조회 실패'
     await recordSyncRun(supabase, {
       marketAccountId,
+      scheduleId,
       syncType: 'orders',
       direction: 'pull',
       outcome: { success: false, processed: 0, failed: 0, error: message },
       startedAt,
     })
-    return { success: false, processed: 0 === 0 ? 0 : 0, failed: 0, error: message }
+    return { success: false, processed: 0, failed: 0, error: message }
   }
 
   // Resolve listings once for item → master/supplier linking
@@ -386,6 +371,7 @@ export async function runOrderSync(
 
   await recordSyncRun(supabase, {
     marketAccountId,
+    scheduleId,
     syncType: 'orders',
     direction: 'pull',
     outcome: { success: true, processed, failed, error: null },
@@ -404,9 +390,11 @@ export async function runSettlementSync(
   account: MarketAccountRow,
   adapter: MarketAdapter,
   days: number = 30,
+  options: SyncRunOptions = {},
 ): Promise<SyncOutcome> {
   const startedAt = new Date().toISOString()
   const marketAccountId = account.id
+  const scheduleId = options.scheduleId ?? null
 
   let processed = 0
   try {
@@ -438,6 +426,7 @@ export async function runSettlementSync(
     const message = fetchError instanceof Error ? fetchError.message : '정산 조회 실패'
     await recordSyncRun(supabase, {
       marketAccountId,
+      scheduleId,
       syncType: 'settlement',
       direction: 'pull',
       outcome: { success: false, processed, failed: 0, error: message },
@@ -448,6 +437,7 @@ export async function runSettlementSync(
 
   await recordSyncRun(supabase, {
     marketAccountId,
+    scheduleId,
     syncType: 'settlement',
     direction: 'pull',
     outcome: { success: true, processed, failed: 0, error: null },

@@ -52,3 +52,7 @@ next-env.d.ts
 
 # local db backups
 /backups/
+
+# packaged extension builds (source of truth is chrome-extension/)
+/chrome-extension.zip
+/.playwright-mcp/

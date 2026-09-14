@@ -5,6 +5,7 @@ import { decryptApiConfigSecrets } from '@/lib/secret-crypto'
 import { createAdapter, type MarketApiConfig } from '@/lib/markets/registry'
 import { runOrderSync, runProductSync } from '@/lib/sync/engine'
 import { isScheduleDue } from '@/lib/sync/due'
+import { syncRunRetentionCutoff } from '@/lib/sync/retention'
 import type {
   MarketAccountRow,
   RedesignClient,
@@ -96,11 +97,15 @@ export async function GET(request: Request) {
     const ran: Record<string, unknown> = { scheduleId: schedule.id, account: account.name }
 
     if (schedule.sync_type === 'orders' || schedule.sync_type === 'both') {
-      const outcome = await runOrderSync(supabase, account, adapter, 7)
+      const outcome = await runOrderSync(supabase, account, adapter, 7, {
+        scheduleId: schedule.id,
+      })
       ran.orders = { processed: outcome.processed, failed: outcome.failed, error: outcome.error }
     }
     if (schedule.sync_type === 'products' || schedule.sync_type === 'both') {
-      const outcome = await runProductSync(supabase, account, adapter, 'refresh')
+      const outcome = await runProductSync(supabase, account, adapter, 'refresh', {
+        scheduleId: schedule.id,
+      })
       ran.products = { processed: outcome.processed, failed: outcome.failed, error: outcome.error }
     }
 
@@ -114,9 +119,25 @@ export async function GET(request: Request) {
     results.push(ran)
   }
 
+  // Prune old run history on every tick. The delete is bounded by the
+  // started_at index (migration 130) and is a no-op most of the time, so it
+  // is cheaper than a separate scheduler entry. Never fails the sync.
+  // count-only so a large backlog is not serialised back over HTTP.
+  let pruned: number | null = null
+  const { count, error: pruneError } = await supabase
+    .from('sync_runs')
+    .delete({ count: 'exact' })
+    .lt('started_at', syncRunRetentionCutoff(now))
+  if (pruneError) {
+    console.error('sync_runs retention prune failed:', pruneError.message)
+  } else {
+    pruned = count
+  }
+
   return NextResponse.json({
     ok: true,
     checkedAt: now.toISOString(),
+    prunedRuns: pruned,
     scheduleCount: schedules.length,
     executed: results.filter((r) => !r.skipped).length,
     results,

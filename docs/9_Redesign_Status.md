@@ -64,12 +64,35 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
   RLS가 브라우저의 직접 UPDATE를 허용하기 때문. 2026-08-20 마이그레이션 120 적용 및
   NAS 배포 완료(healthy).
 - **설정 legacy 탭**: 서비스 연동(IntegrationsTab)·알림 탭이 legacy stores.api_config 기준
-  (자동화·AI 탭은 재작성 완료). 마켓 계정 탭이 새 경로. IntegrationsTab의 OpenAI 키 입력란은
-  AI 탭으로 대체됐으므로 정리 대상
+  (자동화·AI 탭은 재작성 완료). 마켓 계정 탭이 새 경로. (OpenAI 키 입력란은 이미 제거됨)
 - **네이버 상세편집기(11탭)**: 구 inventory 상세편집기 삭제됨. 옵션·이미지·SEO 등 심화 편집은 새 리스팅 편집기 미지원 — 필요 시 remote_ref 기준으로 이식(네이버 판매자센터로 대체 가능)
 - **엑셀 상품 업로드**: excel-upload 액션 삭제. master_products 기준 재구현 필요 시 별도 작업
 - **tracking / benchmarking / analysis**: legacy 스키마와 무관하거나(carriers) 독립 테이블이라 그대로 동작. benchmark의 상품 연결(SelectProductDialog)만 legacy products 참조 여부 확인 필요
 - **쿠팡 WING API**: 어댑터 스텁 상태. publishListing 등 구현 시 `src/lib/markets/coupang/adapter.ts`만 수정하면 됨
+
+## 2026-09-14 운영 점검 후 개선
+
+리뷰에서 나온 항목을 한 번에 정리했다.
+
+- **cron 실행 기록에 schedule_id 부여**: `runProductSync/runOrderSync/runSettlementSync`에
+  `options.scheduleId`를 추가하고 cron 라우트가 스케줄 id를 넘긴다. 행 매핑은 `lib/sync/run-row.ts`
+  (`buildSyncRunRow`, 순수 함수·유닛 5개)로 분리. 자동화 탭의 실행 기록에 **자동/수동** 배지 표시.
+  배지는 `schedule_id` 유무로 추론하므로 이 변경 이전의 cron 기록과 삭제된 스케줄(FK `ON DELETE SET NULL`)의
+  기록은 "수동"으로 보인다 — 90일 보존 정리로 자연히 사라진다.
+- **sync_runs 보존 정리**: `lib/sync/retention.ts`(90일, 유닛 3개). cron 라우트가 매 tick 끝에
+  `started_at < cutoff` 행을 삭제하고 응답에 `prunedRuns`를 싣는다. 마이그레이션
+  `130_sync_runs_retention.sql`이 `started_at` 인덱스를 추가 —
+  **대시보드에서 수동 적용 필요**.
+- **AI 잔재 제거**: `actions/ai-usage.ts`의 OpenAI 단가표·`calculateCost`·`recordAiUsage`·
+  `getTodayUsage`(전부 미사용) 삭제. `market_accounts.api_config`에 남아 있던 `openaiApiKey`를
+  DB에서 제거(legacy_stores는 199 drop 때 함께 사라짐).
+- **저장소 정리**: 추적되던 `chrome-extension.zip`(1월 빌드, 소스보다 오래됨) 삭제 + ignore.
+  `DEPLOY.md`를 실제 경로(ship 스킬 → GHCR → NAS `deploy.sh update`, NPM 프록시, 수동 마이그레이션)로
+  다시 씀 — 존재하지 않던 GitHub Actions 절차 삭제.
+- **인프라(NAS)**: NPM `custom/server_proxy.conf`에 proxy buffer 상향(로그인 직후 502 원인),
+  `cloudflare-ddns` 재기동 + `unless-stopped`.
+- **미해결**: 운영 컨테이너 `ANTHROPIC_API_KEY`가 비어 있고 `user_settings`도 0행이라 AI 기능은
+  현재 `no_key` 상태. 설정 > AI 탭에서 키를 넣어야 동작한다.
 
 ## 저장소 정리 (사용자 확인 후 실행)
 
